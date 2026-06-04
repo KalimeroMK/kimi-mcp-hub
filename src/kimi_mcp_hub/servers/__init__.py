@@ -16,11 +16,12 @@ from .playwright import PlaywrightServer
 from .sentry import SentryServer
 from .context7 import Context7Server
 from .supabase import SupabaseServer
+from .perplexity import PerplexityServer
 
 __all__ = [
     "JiraServer", "LinearServer", "ConfluenceServer", "GitHubServer",
     "SlackServer", "DatadogServer", "FigmaServer", "GmailServer",
     "HubSpotServer", "GrainServer", "ChromeDevToolsServer",
     "PostgreSQLServer", "PlaywrightServer", "SentryServer",
-    "Context7Server", "SupabaseServer",
+    "Context7Server", "SupabaseServer", "PerplexityServer",
 ]

@@ -42,6 +42,7 @@ SERVERS = {
     "sentry": SentryServer,
     "context7": Context7Server,
     "supabase": SupabaseServer,
+    "perplexity": PerplexityServer,
 }
 
 SKILLS = {
@@ -104,9 +105,21 @@ def init():
 
     # Step 2: Skills
     console.print("\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n")
+
+    # Core skills — recommended, default=True
+    CORE_SKILLS = ["karpathy", "superpowers", "headroom", "context-mode", "cybersecurity"]
+    console.print("[bold cyan]📦 Core Skills (Recommended)[/bold cyan]\n")
+    for key in CORE_SKILLS:
+        if key in SKILLS:
+            if Confirm.ask(f"{SKILLS[key]} — Install?", default=True):
+                install_skill(key, config)
+
+    # Optional skills — default=False
+    console.print("\n[bold cyan]📦 Optional Skills[/bold cyan]\n")
     for key, desc in SKILLS.items():
-        if Confirm.ask(f"{desc} — Install?", default=False):
-            install_skill(key, config)
+        if key not in CORE_SKILLS:
+            if Confirm.ask(f"{desc} — Install?", default=False):
+                install_skill(key, config)
 
     # Step 3: Memory
     console.print("\n[bold]Step 3: Persistent Memory[/bold]\n")
