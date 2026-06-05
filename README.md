@@ -1,102 +1,64 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting Jira, Linear, Confluence, GitHub, Slack, Datadog, Figma, Gmail, HubSpot, Grain, Chrome DevTools, PostgreSQL, Playwright, Sentry, Context7, Supabase, plus 28 AI skills (5 core + 23 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 17 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, etc.), 28 AI skills (5 core + 23 optional), persistent memory, and Claude Desktop import.
+
+---
+
+## Table of Contents
+
+- [Install](#install)
+- [Uninstall](#uninstall)
+- [Quick Start](#quick-start)
+- [OAuth Auto-Browser](#oauth-auto-browser)
+- [All Commands](#all-commands)
+- [MCP Servers](#17-mcp-servers)
+- [Skills](#28-skills)
+- [Architecture](#architecture)
 
 ---
 
 ## Install
 
-```bash
-# Clone or download this repo
-cd kimi-mcp-hub
+### Requirements
 
-# Install with pip (recommended)
+- **Python** 3.10+
+- **Node.js** + **npm/npx** (for MCP servers that need it)
+- **Kimi CLI** installed
+- Optional: **Docker** (for some servers)
+- Optional: **uv** (faster Python package manager)
+
+### Step 1: Clone the repo
+
+```bash
+git clone https://github.com/KalimeroMK/kimi-mcp-hub.git
+cd kimi-mcp-hub
+```
+
+### Step 2: Install
+
+```bash
+# With pip (recommended)
 pip install -e .
 
-# Or with uv
+# Or with uv (faster)
 uv pip install -e .
-
-# Verify installation
-kimi-mcp-hub --version
-# -> 0.1.0
 ```
 
-**Requirements:** Python 3.10+, Node.js (for MCP servers), `npx` or `npm`
-
----
-
-## Quick Start
+### Step 3: Verify
 
 ```bash
-# Check status (shows version, servers, skills, memory)
-kimi-mcp-hub status
-
-# Display welcome banner with full info
-kimi-mcp-hub welcome
-
-# Run the interactive wizard
-kimi-mcp-hub init
-
-# Or add servers individually
-kimi-mcp-hub add jira
-kimi-mcp-hub add linear
-kimi-mcp-hub add github
-kimi-mcp-hub add perplexity
-
-# Import from Claude Desktop (API tokens only, OAuth needs re-auth)
-kimi-mcp-hub import-claude
-
-# See everything configured
-kimi-mcp-hub list
-
-# Check system health
-kimi-mcp-hub doctor
+kimi-mcp-hub --version
+# -> kimi-mcp-hub, version 0.1.0
 ```
 
----
-
-## `kimi-mcp-hub init` -- What it does
-
-The wizard walks you through 3 steps:
-
-### Step 1: MCP Servers (external tools)
-Choose which services to connect:
-- Jira, Linear, Confluence, GitHub, Slack
-- Datadog, Figma, Gmail, HubSpot, Grain
-- Chrome DevTools, PostgreSQL, Playwright, Sentry, Context7, Supabase, Perplexity
-
-### Step 2: Skills (AI behavior patterns)
-**Core skills** (installed by default, press Enter to accept):
-| Skill | What it does |
-|-------|-------------|
-| **karpathy** | Clean, simple, readable code |
-| **superpowers** | 14 agentic dev skills (plan, debug, test, deploy...) |
-| **headroom** | Compress large tool outputs to save tokens |
-| **context-mode** | Optimize context window usage |
-| **cybersecurity** | Security expert (OWASP, cloud, IR, pentest) |
-
-**Optional skills** (press `y` to install):
-- caveman, ecc, ui-ux-pro-max, visual-explainer, task-master
-- gitnexus, ralph, security-audit, security-guidance, research-mode
-- perf-optimization, memory-palace, code-reviewer, code-review-anthropic
-- api-designer, docker-pro, database-expert, backend-architect
-- python-engineer, react-coder, ts-coder, ui-engineer, laravel-engineer
-
-### Step 3: Persistent Memory (optional)
-Enable SQLite-based memory that persists across sessions.
-
----
-
-## First-Run Welcome Message
-
-After installation, the first time you run any `kimi-mcp-hub` command, you'll see:
+On first run, you'll see:
 
 ```
 Kimi MCP Hub v0.1.0 e uspeshno instaliran!
 
 17 MCP serveri dostapni
 28 AI skills za podobro kodiranje
-1 Persistent memory sistem
+1  Persistent memory sistem
 
 Za da zapochnesh:
   kimi-mcp-hub init    -- interaktiven wizard
@@ -105,47 +67,33 @@ Za da zapochnesh:
   kimi-mcp-hub doctor  -- zdravje na sistemot
 ```
 
----
-
-## Usage in Kimi CLI
-
-After setup, start Kimi CLI:
+### Step 4: Run the wizard
 
 ```bash
-kimi
+kimi-mcp-hub init
 ```
 
-Inside Kimi CLI:
-
-```
-/mcp              # List all available MCP tools
-/skills           # (if supported by Kimi CLI) list installed skills
-```
-
-Kimi automatically uses skills when you say trigger words:
-- `"Plan this feature"` -> activates **superpowers** `/plan`
-- `"Check for SQL injection"` -> activates **cybersecurity**
-- `"Make it shorter"` -> activates **caveman** (if installed)
-- `"Review this PR"` -> activates **code-review-anthropic**
+This walks you through:
+1. **MCP Servers** -- pick which services to connect
+2. **Skills** -- install AI behavior patterns
+3. **Memory** -- enable persistent cross-session memory
 
 ---
 
-## Uninstall / Remove
+## Uninstall
 
-If you don't like it, remove everything cleanly:
+### Remove everything (full reset)
 
 ```bash
 # 1. Uninstall the Python package
 pip uninstall kimi-mcp-hub
 # or: uv pip uninstall kimi-mcp-hub
 
-# 2. Remove MCP servers
-kimi-mcp-hub remove jira
-kimi-mcp-hub remove linear
-# ... or edit ~/.kimi/mcp.json manually
+# 2. Remove MCP servers config
+rm -f ~/.kimi/mcp.json
 
-# 3. Remove skills
-rm -rf ~/.kimi/skills/*
+# 3. Remove all skills
+rm -rf ~/.kimi/skills/
 
 # 4. Remove memory database
 rm -rf ~/.kimi/mcp-hub/
@@ -154,14 +102,121 @@ rm -rf ~/.kimi/mcp-hub/
 rm -rf ~/.config/kimi-mcp-hub/
 ```
 
-**To completely reset:**
+### Remove only some servers
+
 ```bash
-rm -rf ~/.kimi/mcp.json
-rm -rf ~/.kimi/skills/
-rm -rf ~/.kimi/mcp-hub/
-rm -rf ~/.config/kimi-mcp-hub/
-pip uninstall kimi-mcp-hub
+# Remove one server
+kimi-mcp-hub remove jira
+kimi-mcp-hub remove github
+
+# Or edit manually
+nano ~/.kimi/mcp.json
 ```
+
+### Remove only skills
+
+```bash
+# Remove one skill
+rm -rf ~/.kimi/skills/skill-name
+
+# Remove all skills
+rm -rf ~/.kimi/skills/*
+```
+
+### Reinstall (fresh start)
+
+```bash
+# Full reset then reinstall
+rm -rf ~/.kimi/mcp.json ~/.kimi/skills/ ~/.kimi/mcp-hub/ ~/.config/kimi-mcp-hub/
+pip uninstall kimi-mcp-hub
+git clone https://github.com/KalimeroMK/kimi-mcp-hub.git
+cd kimi-mcp-hub
+pip install -e .
+kimi-mcp-hub init
+```
+
+---
+
+## Quick Start
+
+```bash
+# Show welcome banner + status
+kimi-mcp-hub
+
+# Check system health
+kimi-mcp-hub doctor
+
+# Full interactive setup
+kimi-mcp-hub init
+
+# Add servers individually
+kimi-mcp-hub add jira
+kimi-mcp-hub add github
+kimi-mcp-hub add perplexity
+
+# Auth with auto-browser (OAuth)
+kimi-mcp-hub auth github
+kimi-mcp-hub auth slack
+kimi-mcp-hub auth figma
+
+# See everything configured
+kimi-mcp-hub list
+kimi-mcp-hub status
+kimi-mcp-hub welcome
+
+# Import from Claude Desktop
+kimi-mcp-hub import-claude
+
+# Manage skills
+kimi-mcp-hub list-skills
+kimi-mcp-hub install-skill docker-pro
+
+# Test a server
+kimi-mcp-hub test github
+```
+
+---
+
+## OAuth Auto-Browser
+
+Like Claude Code CLI, `kimi-mcp-hub` can automatically open your browser for OAuth authentication.
+
+### How it works
+
+```bash
+$ kimi-mcp-hub auth github
+
+> Github Authorization
+  Auto-browser mode (like Claude Code CLI)
+
+  Method: Device Flow -- auto browser + code
+
+Your verification code: ABCD-1234
+Opening browser...
+
+If browser didn't open:
+1. Go to: https://github.com/login/device
+2. Enter code: ABCD-1234
+3. Click 'Authorize'
+
+Waiting for you to authorize in browser...
+
+GitHub authorized successfully!
+```
+
+### Supported servers
+
+| Server | Method | Auto-browser |
+|--------|--------|:------------:|
+| **GitHub** | Device Flow (or PAT fallback) | Yes |
+| **Jira** | API Token or Official MCP OAuth | Yes |
+| **Confluence** | API Token or Official MCP OAuth | Yes |
+| **Slack** | Bot Token or OAuth 2.0 | Yes |
+| **Figma** | PAT or OAuth 2.0 | Yes |
+| **Gmail** | Google OAuth 2.0 or npx | Yes |
+| **Linear** | API key | No (manual) |
+| **Datadog** | API + App keys | No (manual) |
+| **HubSpot** | Private App token | No (manual) |
 
 ---
 
@@ -169,31 +224,31 @@ pip uninstall kimi-mcp-hub
 
 | Command | Description |
 |---------|-------------|
-| `kimi-mcp-hub` (no args) | Show welcome banner and status |
+| `kimi-mcp-hub` | Show welcome banner and status |
 | `kimi-mcp-hub --version` | Show version |
 | `kimi-mcp-hub init` | Full interactive wizard |
-| `kimi-mcp-hub status` | Show version, servers, skills, memory status |
-| `kimi-mcp-hub welcome` | Display welcome banner with installation info |
-| `kimi-mcp-hub add <server>` | Add one MCP server |
-| `kimi-mcp-hub remove <server>` | Remove one MCP server |
-| `kimi-mcp-hub auth <server>` | OAuth / API key flow |
+| `kimi-mcp-hub status` | Version, servers, skills, memory |
+| `kimi-mcp-hub welcome` | Detailed welcome banner |
+| `kimi-mcp-hub add <server>` | Add an MCP server |
+| `kimi-mcp-hub remove <server>` | Remove an MCP server |
+| `kimi-mcp-hub auth <server>` | OAuth with auto-browser |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
-| `kimi-mcp-hub list` | Show all servers + skills + memory |
-| `kimi-mcp-hub list-skills` | Show all 28 available skills |
-| `kimi-mcp-hub install-skill <name>` | Install one skill |
-| `kimi-mcp-hub test <server>` | Test if server is responding |
-| `kimi-mcp-hub doctor` | Health check (node, npx, docker, uv, kimi) |
+| `kimi-mcp-hub list` | All servers + skills + memory |
+| `kimi-mcp-hub list-skills` | All 28 available skills |
+| `kimi-mcp-hub install-skill <name>` | Install a skill |
+| `kimi-mcp-hub test <server>` | Test if server responds |
+| `kimi-mcp-hub doctor` | System health check |
 
 ---
 
 ## 17 MCP Servers
 
 | Server | Auth | Tools | Best for |
-|--------|------|-------|----------|
+|--------|------|:-----:|----------|
 | **Jira** | OAuth (Cloud) or API token | 8 | Tickets, sprints, worklogs |
 | **Linear** | API key | 6 | Issues, projects, teams |
 | **Confluence** | OAuth or API token | 5 | Docs, wiki, pages |
-| **GitHub** | PAT | 6 | Repos, PRs, issues, code |
+| **GitHub** | Device Flow / PAT | 6 | Repos, PRs, issues, code |
 | **Slack** | OAuth or token | 7 | Channels, DMs, search |
 | **Datadog** | API + App keys | 12 | Metrics, logs, monitors, APM |
 | **Figma** | OAuth (Official) or PAT (Console) | 9 | Designs, tokens, components |
@@ -210,18 +265,20 @@ pip uninstall kimi-mcp-hub
 
 ---
 
-## 28 Skills (5 Core + 23 Optional)
+## 28 Skills
 
 ### Core Skills (installed by default)
+
 | Skill | Description | Trigger |
 |-------|-------------|---------|
-| **karpathy** | Code discipline (simple, readable, correct) | Any code generation |
+| **karpathy** | Clean, simple, readable code | Any code generation |
 | **superpowers** | 14 agentic dev skills (plan, debug, test, deploy...) | "plan", "debug", "architect" |
 | **headroom** | Compress tool outputs (save tokens) | Large outputs, "compress" |
 | **context-mode** | Context window optimization | "context limit", "token budget" |
 | **cybersecurity** | Security expert (OWASP, cloud, IR, pentest) | "security", "hack", "OWASP" |
 
 ### Optional Skills
+
 | Skill | Description | Trigger |
 |-------|-------------|---------|
 | **caveman** | Terse mode (75% token reduction) | "caveman", "terse", "brief" |
@@ -246,7 +303,30 @@ pip uninstall kimi-mcp-hub
 | **react-coder** | React 19 specialist (RSC, hooks) | "React", "component", "Next.js" |
 | **ts-coder** | TypeScript specialist (strict, generics) | "TypeScript", "TS", "generic" |
 | **ui-engineer** | UI/UX engineer (Tailwind, a11y, responsive) | "UI", "Tailwind", "responsive" |
-| **laravel-engineer** | **Laravel specialist (Eloquent, Blade, Livewire, Queues)** | "Laravel", "Eloquent", "PHP" |
+| **laravel-engineer** | Laravel specialist (Eloquent, Blade, Livewire, Queues) | "Laravel", "Eloquent", "PHP" |
+
+---
+
+## Usage in Kimi CLI
+
+After setup, start Kimi CLI:
+
+```bash
+kimi
+```
+
+Inside Kimi CLI:
+
+```
+/mcp              # List all available MCP tools
+/skills           # List installed skills
+```
+
+Kimi automatically uses skills when you say trigger words:
+- `"Plan this feature"` -> activates **superpowers** `/plan`
+- `"Check for SQL injection"` -> activates **cybersecurity**
+- `"Make it shorter"` -> activates **caveman**
+- `"Review this PR"` -> activates **code-review-anthropic**
 
 ---
 
@@ -255,24 +335,24 @@ pip uninstall kimi-mcp-hub
 ```
 +-----------------------------------------+
 |         kimi-mcp-hub CLI                |
-|  +---------------------------------+  |
-|  |  (no args) -> welcome banner    |  |
-|  |  init -> interactive wizard     |  |
-|  |  add  -> writes ~/.kimi/mcp.json |  |
-|  |  auth -> OAuth / API key flow   |  |
-|  |  import-claude -> migrate config |  |
-|  |  list -> pretty table of tools  |  |
-|  |  status -> version + health     |  |
-|  |  welcome -> full info display   |  |
-|  +---------------------------------+  |
+|  +---------------------------------+    |
+|  |  (no args) -> welcome banner    |    |
+|  |  init -> interactive wizard     |    |
+|  |  add  -> writes ~/.kimi/mcp.json|    |
+|  |  auth -> OAuth + auto browser   |    |
+|  |  import-claude -> migrate config|    |
+|  |  list -> pretty table of tools  |    |
+|  |  status -> version + health     |    |
+|  |  welcome -> full info display   |    |
+|  +---------------------------------+    |
 |              |                          |
-|  +---------------------------------+  |
-|  |  ~/.kimi/mcp.json               |  |
-|  |  ~/.kimi/skills/ (28 skills)    |  |
-|  |  ~/.kimi/mcp-hub/memory.db      |  |
-|  +---------------------------------+  |
+|  +---------------------------------+    |
+|  |  ~/.kimi/mcp.json               |    |
+|  |  ~/.kimi/skills/ (28 skills)    |    |
+|  |  ~/.kimi/mcp-hub/memory.db      |    |
+|  +---------------------------------+    |
 |              |                          |
-|  First-run welcome message (auto)     |
+|  First-run welcome message (auto)       |
 |              |                          |
 |         Kimi CLI reads config           |
 |              |                          |
@@ -281,16 +361,6 @@ pip uninstall kimi-mcp-hub
 |         Memory persists context         |
 +-----------------------------------------+
 ```
-
----
-
-## Requirements
-
-- **Python** 3.10+
-- **Node.js** + **npm/npx** (for MCP servers)
-- **Kimi CLI** installed and configured
-- Optional: **Docker** (for Datadog, HubSpot Docker mode)
-- Optional: **uv** (for Grain, faster Python package management)
 
 ---
 

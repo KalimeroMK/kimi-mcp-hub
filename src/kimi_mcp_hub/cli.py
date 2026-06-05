@@ -368,26 +368,48 @@ def list_skills():
 @main.command()
 @click.argument("server_name")
 def auth(server_name: str):
-    """Authorize an MCP server (OAuth flows)."""
+    """Authorize an MCP server with auto browser open (OAuth/Device Flow)."""
     print_header()
     config = KimiConfig()
 
-    if server_name == "jira":
-        console.print("[bold]Jira OAuth[/bold] -- Atlassian Cloud\n")
-        console.print("  1. Run [bold]kimi mcp add --transport http --auth oauth jira https://mcp.atlassian.com/v1/mcp/authv2[/bold]")
-        console.print("  2. Run [bold]kimi mcp auth jira[/bold]")
-        console.print("\nOr use API token mode with [bold]kimi-mcp-hub add jira[/bold]\n")
+    # Servers with new auto-browser OAuth
+    oauth_servers = {"github", "jira", "confluence", "gmail", "slack", "figma"}
 
-    elif server_name == "confluence":
-        console.print("[bold]Confluence OAuth[/bold] -- Atlassian Cloud\n")
-        console.print("Same as Jira -- use Atlassian's OAuth MCP endpoint.\n")
+    if server_name in oauth_servers:
+        from .auth.providers import authenticate, AUTH_HANDLERS
 
-    elif server_name == "slack":
-        console.print("[bold]Slack OAuth[/bold]\n")
-        console.print("  [bold]kimi mcp add --transport http --auth oauth slack https://mcp.slack.com/mcp[/bold]")
-        console.print("  Then: [bold]kimi mcp auth slack[/bold]\n")
+        console.print(f"\n[bold cyan]>{server_name.title()} Authorization[/bold cyan]")
+        console.print(f"[dim]Auto-browser mode (like Claude Code CLI)[/dim]\n")
 
-    elif server_name == "linear":
+        # Show available methods
+        if server_name == "github":
+            console.print("[bold]Method:[/bold] Device Flow -- auto browser + code")
+            console.print("[dim]Alternative: Personal Access Token (PAT)[/dim]\n")
+        elif server_name in ("jira", "confluence"):
+            console.print("[bold]Method:[/bold] API Token or Official MCP OAuth")
+        elif server_name == "gmail":
+            console.print("[bold]Method:[/bold] Google OAuth 2.0 or npx")
+        elif server_name == "slack":
+            console.print("[bold]Method:[/bold] Bot Token or OAuth 2.0")
+        elif server_name == "figma":
+            console.print("[bold]Method:[/bold] Personal Access Token or OAuth 2.0")
+
+        token_data = authenticate(server_name)
+
+        if token_data:
+            # Write to mcp.json if we got server config back
+            if "server_config" in token_data:
+                config.add_server(server_name, token_data["server_config"])
+            console.print(f"\n[bold green]>{server_name.title()} is ready![/bold green]")
+            console.print(f"[dim]Run 'kimi-mcp-hub list' to verify.[/dim]\n")
+        else:
+            console.print(f"\n[yellow]Authorization cancelled or failed.[/yellow]")
+            console.print(f"[dim]Try: kimi-mcp-hub add {server_name} (manual mode)[/dim]\n")
+        return
+
+    # --- Legacy manual auth for API-key based servers ---
+
+    if server_name == "linear":
         console.print("[bold]Linear[/bold] uses API key.\n")
         console.print("Get key from: https://linear.app/settings/api")
         token = Prompt.ask("Linear API key", password=True)
@@ -395,15 +417,6 @@ def auth(server_name: str):
             cfg = LinearServer.get_stdio_config(token)
             config.add_server("linear", cfg)
             console.print("[green]Linear configured![/green]\n")
-
-    elif server_name == "github":
-        console.print("[bold]GitHub[/bold] uses PAT.\n")
-        console.print("Create at: https://github.com/settings/tokens")
-        token = Prompt.ask("GitHub token", password=True)
-        if token:
-            cfg = GitHubServer.get_stdio_config(token)
-            config.add_server("github", cfg)
-            console.print("[green]GitHub configured![/green]\n")
 
     elif server_name == "datadog":
         console.print("[bold]Datadog[/bold] uses API + App keys.\n")
@@ -414,34 +427,6 @@ def auth(server_name: str):
             cfg = DatadogServer.get_stdio_config(api_key, app_key, site)
             config.add_server("datadog", cfg)
             console.print("[green]Datadog configured![/green]\n")
-
-    elif server_name == "figma":
-        console.print("[bold]Figma[/bold] -- choose mode:\n")
-        mode = Prompt.ask("Mode", choices=["official", "console"], default="console")
-        if mode == "official":
-            cfg = FigmaServer.get_official_config()
-            config.add_server("figma", cfg)
-            console.print("[green]Figma Official configured (HTTP)[/green]")
-        else:
-            token = Prompt.ask("Figma PAT (figd_...)", password=True)
-            if token:
-                cfg = FigmaServer.get_console_config(token)
-                config.add_server("figma", cfg)
-                console.print("[green]Figma Console configured[/green]")
-
-    elif server_name == "gmail":
-        console.print("[bold]Gmail[/bold] -- choose implementation:\n")
-        impl = Prompt.ask("Implementation", choices=["npx", "chrome", "python"], default="npx")
-        if impl == "npx":
-            cfg = GmailServer.get_npx_config()
-        elif impl == "chrome":
-            cfg = GmailServer.get_chrome_config()
-        else:
-            creds = Prompt.ask("Path to credentials.json")
-            tokens = Prompt.ask("Path to tokens.json", default="~/.gmail-mcp/tokens.json")
-            cfg = GmailServer.get_python_config(creds, tokens)
-        config.add_server("gmail", cfg)
-        console.print(f"[green]Gmail configured ({impl})[/green]\n")
 
     elif server_name == "hubspot":
         console.print("[bold]HubSpot[/bold] -- choose source:\n")
@@ -472,6 +457,15 @@ def auth(server_name: str):
             cfg = PerplexityServer.get_stdio_config(token)
             config.add_server("perplexity", cfg)
             console.print("[green]Perplexity configured![/green]\n")
+
+    elif server_name in ("postgres", "playwright", "sentry", "context7", "supabase", "chrome-devtools"):
+        console.print(f"[bold]{server_name.title()}[/bold] does not require OAuth.\n")
+        console.print(f"Use: [bold]kimi-mcp-hub add {server_name}[/bold] instead.\n")
+
+    else:
+        console.print(f"[red]Unknown server: {server_name}[/red]")
+        console.print(f"[dim]Supported auth: {', '.join(sorted(oauth_servers))}[/dim]")
+        console.print(f"[dim]API-key servers: linear, datadog, hubspot, grain, perplexity[/dim]")
 
 
 @main.command()
