@@ -28,12 +28,12 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        self.wfile.write(b"""
+        self.wfile.write("""
         <html><body style="font-family:sans-serif;text-align:center;padding-top:50px">
-        <h1>✅ Authorization successful</h1>
+        <h1>Authorization successful</h1>
         <p>You can close this tab and return to the terminal.</p>
         </body></html>
-        """)
+        """.encode('utf-8'))
 
     def log_message(self, format, *args):
         pass  # Suppress logs

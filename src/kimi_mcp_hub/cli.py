@@ -1,4 +1,4 @@
-"""Kimi MCP Hub CLI — one-click MCP server and skills manager."""
+"""Kimi MCP Hub CLI -- one-click MCP server and skills manager."""
 
 import json
 import subprocess
@@ -13,12 +13,15 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 from rich import box
 
+from . import __version__, __title__
 from .config import KimiConfig
 from .servers import (
     ChromeDevToolsServer,
     JiraServer, LinearServer, ConfluenceServer, GitHubServer,
     SlackServer, DatadogServer, FigmaServer, GmailServer,
     HubSpotServer, GrainServer,
+    PostgreSQLServer, PlaywrightServer, SentryServer,
+    Context7Server, SupabaseServer, PerplexityServer,
 )
 from .auth.oauth import OAuthHandler
 from .import_claude import import_claude_servers
@@ -45,52 +48,116 @@ SERVERS = {
     "perplexity": PerplexityServer,
 }
 
+# Core skills are installed by default
+CORE_SKILLS = ["karpathy", "superpowers", "headroom", "context-mode", "cybersecurity"]
+
 SKILLS = {
-    "superpowers": "🦸 14 agentic dev skills (plan, debug, test, deploy, audit...)",
-    "ecc": "🛡️ Engineering Competence (perf, security, research)",
-    "karpathy": "🧠 Code discipline (simple, readable, correct)",
-    "caveman": "🪨 Terse mode (75% token reduction)",
-    "ui-ux-pro-max": "🎨 Design intelligence (Tailwind, accessibility)",
-    "headroom": "📉 Compress tool outputs (save tokens)",
-    "context-mode": "🎯 Context window optimization",
-    "hindsight": "🔮 Memory that learns from mistakes",
-    "visual-explainer": "📊 HTML diagrams and slides",
-    "task-master": "📋 Task management system",
-    "gitnexus": "🕸️ Code knowledge graph (git blame, blast radius)",
-    "ralph": "🔄 Autonomous loop with stop-hooks",
-    "security-audit": "🔒 Security review checklist",
-    "research-mode": "🔬 Research-driven development",
-    "perf-optimization": "⚡ Performance profiling and fixes",
-    "memory-palace": "🏛️ Advanced context management",
-    "code-reviewer": "👀 Code review assistant",
-    "api-designer": "🔌 REST/GraphQL API design",
-    "docker-pro": "🐳 Docker and Kubernetes best practices",
-    "database-expert": "🗄️ Database design and optimization",
-    "security-guidance": "🔒 3-layer security scanning (file edit, model turn, commit)",
-    "code-review": "👀 Multi-agent code review (explore + coder + plan sub-agents)",
+    # ---- Core skills ----
+    "karpathy": "Clean, simple, readable code",
+    "superpowers": "14 agentic workflows (plan, debug, test, deploy...)",
+    "headroom": "Compress large tool outputs to save tokens",
+    "context-mode": "Optimize context window usage",
+    "cybersecurity": "Security expert (OWASP, cloud, IR, pentest)",
+    # ---- Optional skills ----
+    "caveman": "Terse mode (75% token reduction)",
+    "ecc": "Engineering Competence (perf, security, research)",
+    "ui-ux-pro-max": "Design intelligence (Tailwind, accessibility)",
+    "visual-explainer": "HTML diagrams and slides",
+    "task-master": "Task management system",
+    "gitnexus": "Code knowledge graph (git blame, blast radius)",
+    "ralph": "Autonomous loop with stop-hooks",
+    "security-audit": "Security review checklist",
+    "security-guidance": "3-layer security scanning (file edit, model turn, commit)",
+    "research-mode": "Research-driven development",
+    "perf-optimization": "Performance profiling and fixes",
+    "memory-palace": "Advanced context management",
+    "code-reviewer": "Code review assistant",
+    "code-review-anthropic": "Multi-agent PR review (sub-agents)",
+    "api-designer": "REST/GraphQL API design",
+    "docker-pro": "Docker and Kubernetes best practices",
+    "database-expert": "Database design and optimization",
+    "backend-architect": "Backend architecture (API, DB, scale)",
+    "python-engineer": "Python specialist (FastAPI, Django, async)",
+    "react-coder": "React 19 specialist (RSC, hooks)",
+    "ts-coder": "TypeScript specialist (strict, generics)",
+    "ui-engineer": "UI/UX engineer (Tailwind, a11y, responsive)",
+    "laravel-engineer": "Laravel specialist (Eloquent, Blade, Livewire, Queues)",
 }
 
 
-def print_header():
+def _get_installed_count(config: KimiConfig) -> dict:
+    """Get counts of installed servers, skills for display."""
+    servers = config.list_servers()
+    skills_installed = list_installed_skills(config)
+    return {
+        "servers_configured": len(servers),
+        "skills_installed": len(skills_installed),
+        "total_servers": len(SERVERS),
+        "total_skills": len(SKILLS),
+    }
+
+
+def print_welcome():
+    """Print the full welcome banner with version and status."""
+    config = KimiConfig()
+    counts = _get_installed_count(config)
+
+    # Build status line
+    server_line = (
+        f"[green]{counts['servers_configured']} configured[/green]"
+        if counts['servers_configured'] > 0
+        else f"[dim]0 configured[/dim]"
+    )
+    skill_line = (
+        f"[green]{counts['skills_installed']} installed[/green]"
+        if counts['skills_installed'] > 0
+        else f"[dim]0 installed[/dim]"
+    )
+
+    welcome_text = (
+        f"[bold cyan]{__title__}[/bold cyan] [dim]v{__version__}[/dim]\n"
+        f"[dim]One-click MCP server & skills manager for Kimi CLI[/dim]\n"
+        f"\n"
+        f"[cyan]{len(SERVERS)}[/cyan] MCP Servers available  ({server_line})\n"
+        f"[cyan]{len(SKILLS)}[/cyan] Skills available       ({skill_line})\n"
+        f"[cyan]1[/cyan]  Persistent memory"
+    )
+
     console.print(Panel.fit(
-        "[bold cyan]Kimi MCP Hub[/bold cyan] — One-click MCP server & skills manager\n"
-        "[dim]10 MCP Servers · 20 Skills · Persistent Memory[/dim]",
+        welcome_text,
+        title=f"[bold]Kimi MCP Hub v{__version__}[/bold]",
+        subtitle="[dim]Run: kimi-mcp-hub init[/dim]",
         border_style="cyan"
     ))
 
 
-@click.group()
-@click.version_option(version="0.1.0")
-def main():
-    """kimi-mcp-hub — Manage MCP servers and skills for Kimi CLI."""
-    pass
+def print_header():
+    """Print compact header (used by subcommands)."""
+    console.print(Panel.fit(
+        f"[bold cyan]{__title__}[/bold cyan] [dim]v{__version__}[/dim]\n"
+        f"[dim]{len(SERVERS)} MCP Servers  |  {len(SKILLS)} Skills  |  Persistent Memory[/dim]",
+        border_style="cyan"
+    ))
+
+
+@click.group(invoke_without_command=True)
+@click.version_option(version=__version__, prog_name="kimi-mcp-hub")
+@click.pass_context
+def main(ctx):
+    """kimi-mcp-hub -- Manage MCP servers and skills for Kimi CLI.
+
+    When called without a command, prints the welcome banner and status.
+    """
+    if ctx.invoked_subcommand is None:
+        print_welcome()
+        console.print("\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] for interactive setup,[/dim]")
+        console.print("[dim]     or [bold]kimi-mcp-hub --help[/bold] to see all commands.[/dim]\n")
 
 
 @main.command()
 def init():
     """Interactive setup wizard for servers, skills, and memory."""
-    print_header()
-    config = KimiConfig()
+    print_welcome()
 
     console.print("\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n")
     console.print("This wizard will set up MCP servers, skills, and optional memory.\n")
@@ -98,7 +165,7 @@ def init():
     # Step 1: MCP Servers
     console.print("[bold]Step 1: MCP Servers[/bold] (external tools)\n")
     for key, cls in SERVERS.items():
-        icon = getattr(cls, "icon", "🔌")
+        icon = getattr(cls, "icon", "")
         name = getattr(cls, "display_name", key.title())
         if Confirm.ask(f"{icon} Add [bold]{name}[/bold]?", default=False):
             add_server_interactive(key, config)
@@ -106,19 +173,18 @@ def init():
     # Step 2: Skills
     console.print("\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n")
 
-    # Core skills — recommended, default=True
-    CORE_SKILLS = ["karpathy", "superpowers", "headroom", "context-mode", "cybersecurity"]
-    console.print("[bold cyan]📦 Core Skills (Recommended)[/bold cyan]\n")
+    # Core skills -- recommended, default=True
+    console.print("[bold cyan]Core Skills (Recommended)[/bold cyan]\n")
     for key in CORE_SKILLS:
         if key in SKILLS:
-            if Confirm.ask(f"{SKILLS[key]} — Install?", default=True):
+            if Confirm.ask(f"  {SKILLS[key]} -- Install?", default=True):
                 install_skill(key, config)
 
-    # Optional skills — default=False
-    console.print("\n[bold cyan]📦 Optional Skills[/bold cyan]\n")
+    # Optional skills -- default=False
+    console.print("\n[bold cyan]Optional Skills[/bold cyan]\n")
     for key, desc in SKILLS.items():
         if key not in CORE_SKILLS:
-            if Confirm.ask(f"{desc} — Install?", default=False):
+            if Confirm.ask(f"  {desc} -- Install?", default=False):
                 install_skill(key, config)
 
     # Step 3: Memory
@@ -126,17 +192,79 @@ def init():
     if Confirm.ask("Enable persistent memory across sessions?", default=True):
         enable_memory(config)
 
-    console.print("\n[bold green]✅ Setup complete![/bold green]")
+    console.print("\n[bold green]Setup complete![/bold green]")
     console.print("Run [bold]kimi[/bold] and type:")
-    console.print("  [bold]/mcp[/bold]    — see your tools")
-    console.print("  [bold]/skills[/bold] — see installed skills")
+    console.print("  [bold]/mcp[/bold]    -- see your tools")
+    console.print("  [bold]/skills[/bold] -- see installed skills")
     console.print("\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n")
+
+
+@main.command()
+def status():
+    """Show Kimi MCP Hub status: version, servers, skills, memory."""
+    config = KimiConfig()
+    counts = _get_installed_count(config)
+
+    table = Table(box=box.ROUNDED)
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="bold")
+
+    table.add_row("Version", f"[cyan]{__version__}[/cyan]")
+    table.add_row("MCP Servers", f"{counts['servers_configured']} / {counts['total_servers']} configured")
+    table.add_row("Skills", f"{counts['skills_installed']} / {counts['total_skills']} installed")
+
+    memory_db = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
+    table.add_row("Memory", "[green]enabled[/green]" if memory_db.exists() else "[dim]disabled[/dim]")
+
+    # Check if Kimi CLI is installed
+    try:
+        result = subprocess.run(["kimi", "--version"], capture_output=True, text=True, timeout=5)
+        kimi_ver = result.stdout.strip() if result.returncode == 0 else "not found"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        kimi_ver = "[red]not installed[/red]"
+    table.add_row("Kimi CLI", kimi_ver)
+
+    console.print(Panel.fit(
+        table,
+        title=f"[bold]{__title__} Status[/bold]",
+        border_style="green" if counts['servers_configured'] > 0 else "yellow"
+    ))
+
+    if counts['servers_configured'] == 0:
+        console.print("\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] to set up your first MCP server.[/dim]\n")
+
+
+@main.command()
+def welcome():
+    """Display the welcome banner with version and installation info."""
+    print_welcome()
+
+    # Print installed servers detail
+    config = KimiConfig()
+    servers = config.list_servers()
+    if servers:
+        console.print("\n[bold]Configured MCP Servers:[/bold]")
+        for name, cfg in servers.items():
+            console.print(f"  [green]{name}[/green] -- {cfg.get('transport', 'stdio')}")
+
+    # Print installed skills
+    skills = list_installed_skills(config)
+    if skills:
+        console.print(f"\n[bold]Installed Skills ({len(skills)}):[/bold]")
+        for s in skills:
+            desc = SKILLS.get(s, "")
+            console.print(f"  [green]{s}[/green] {desc}")
+
+    console.print(f"\n[bold green]Kimi MCP Hub v{__version__} is ready![/bold green]")
+    console.print("[dim]Start Kimi CLI with: [bold]kimi[/bold][/dim]\n")
 
 
 @main.command()
 @click.argument("server_name")
 def add(server_name: str):
-    """Add an MCP server (jira, linear, confluence, github, slack, datadog, figma, gmail, hubspot, grain)."""
+    """Add an MCP server (jira, linear, confluence, github, slack, datadog,
+    figma, gmail, hubspot, grain, chrome-devtools, postgres, playwright,
+    sentry, context7, supabase, perplexity)."""
     print_header()
     config = KimiConfig()
     if server_name not in SERVERS:
@@ -186,7 +314,7 @@ def list():
     # Skills
     skills_installed = list_installed_skills(config)
     if skills_installed:
-        console.print(f"\n[green]✅ {len(skills_installed)} skills installed:[/green]")
+        console.print(f"\n[green]{len(skills_installed)} skills installed:[/green]")
         for s in skills_installed:
             desc = SKILLS.get(s, "")
             console.print(f"  [cyan]{s}[/cyan] {desc}")
@@ -196,9 +324,9 @@ def list():
     # Memory
     memory_db = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
     if memory_db.exists():
-        console.print(f"\n[green]🧠 Memory enabled:[/green] {memory_db}")
+        console.print(f"\n[green]Memory enabled:[/green] {memory_db}")
     else:
-        console.print(f"\n[dim]🧠 Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]")
+        console.print(f"\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]")
 
     console.print("\n[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for skills.[/dim]\n")
 
@@ -229,11 +357,12 @@ def list_skills():
     table.add_column("Status", style="green")
 
     for key, desc in SKILLS.items():
-        status = "[green]✅ installed[/green]" if key in installed else "[dim]not installed[/dim]"
-        table.add_row(key, desc, status)
+        status = "[green]installed[/green]" if key in installed else "[dim]not installed[/dim]"
+        marker = "[bold]*[/bold]" if key in CORE_SKILLS else " "
+        table.add_row(f"{marker} {key}", desc, status)
 
     console.print(table)
-    console.print("\n[dim]Install with: [bold]kimi-mcp-hub install-skill <name>[/bold][/dim]\n")
+    console.print("\n[dim]* = core skill | Install with: [bold]kimi-mcp-hub install-skill <name>[/bold][/dim]\n")
 
 
 @main.command()
@@ -244,14 +373,14 @@ def auth(server_name: str):
     config = KimiConfig()
 
     if server_name == "jira":
-        console.print("[bold]Jira OAuth[/bold] — Atlassian Cloud\n")
+        console.print("[bold]Jira OAuth[/bold] -- Atlassian Cloud\n")
         console.print("  1. Run [bold]kimi mcp add --transport http --auth oauth jira https://mcp.atlassian.com/v1/mcp/authv2[/bold]")
         console.print("  2. Run [bold]kimi mcp auth jira[/bold]")
         console.print("\nOr use API token mode with [bold]kimi-mcp-hub add jira[/bold]\n")
 
     elif server_name == "confluence":
-        console.print("[bold]Confluence OAuth[/bold] — Atlassian Cloud\n")
-        console.print("Same as Jira — use Atlassian's OAuth MCP endpoint.\n")
+        console.print("[bold]Confluence OAuth[/bold] -- Atlassian Cloud\n")
+        console.print("Same as Jira -- use Atlassian's OAuth MCP endpoint.\n")
 
     elif server_name == "slack":
         console.print("[bold]Slack OAuth[/bold]\n")
@@ -265,7 +394,7 @@ def auth(server_name: str):
         if token:
             cfg = LinearServer.get_stdio_config(token)
             config.add_server("linear", cfg)
-            console.print("[green]✅ Linear configured![/green]\n")
+            console.print("[green]Linear configured![/green]\n")
 
     elif server_name == "github":
         console.print("[bold]GitHub[/bold] uses PAT.\n")
@@ -274,7 +403,7 @@ def auth(server_name: str):
         if token:
             cfg = GitHubServer.get_stdio_config(token)
             config.add_server("github", cfg)
-            console.print("[green]✅ GitHub configured![/green]\n")
+            console.print("[green]GitHub configured![/green]\n")
 
     elif server_name == "datadog":
         console.print("[bold]Datadog[/bold] uses API + App keys.\n")
@@ -284,24 +413,24 @@ def auth(server_name: str):
         if api_key and app_key:
             cfg = DatadogServer.get_stdio_config(api_key, app_key, site)
             config.add_server("datadog", cfg)
-            console.print("[green]✅ Datadog configured![/green]\n")
+            console.print("[green]Datadog configured![/green]\n")
 
     elif server_name == "figma":
-        console.print("[bold]Figma[/bold] — choose mode:\n")
+        console.print("[bold]Figma[/bold] -- choose mode:\n")
         mode = Prompt.ask("Mode", choices=["official", "console"], default="console")
         if mode == "official":
             cfg = FigmaServer.get_official_config()
             config.add_server("figma", cfg)
-            console.print("[green]✅ Figma Official configured (HTTP)[/green]")
+            console.print("[green]Figma Official configured (HTTP)[/green]")
         else:
             token = Prompt.ask("Figma PAT (figd_...)", password=True)
             if token:
                 cfg = FigmaServer.get_console_config(token)
                 config.add_server("figma", cfg)
-                console.print("[green]✅ Figma Console configured[/green]")
+                console.print("[green]Figma Console configured[/green]")
 
     elif server_name == "gmail":
-        console.print("[bold]Gmail[/bold] — choose implementation:\n")
+        console.print("[bold]Gmail[/bold] -- choose implementation:\n")
         impl = Prompt.ask("Implementation", choices=["npx", "chrome", "python"], default="npx")
         if impl == "npx":
             cfg = GmailServer.get_npx_config()
@@ -312,10 +441,10 @@ def auth(server_name: str):
             tokens = Prompt.ask("Path to tokens.json", default="~/.gmail-mcp/tokens.json")
             cfg = GmailServer.get_python_config(creds, tokens)
         config.add_server("gmail", cfg)
-        console.print(f"[green]✅ Gmail configured ({impl})[/green]\n")
+        console.print(f"[green]Gmail configured ({impl})[/green]\n")
 
     elif server_name == "hubspot":
-        console.print("[bold]HubSpot[/bold] — choose source:\n")
+        console.print("[bold]HubSpot[/bold] -- choose source:\n")
         src = Prompt.ask("Source", choices=["npx", "official", "docker"], default="npx")
         token = Prompt.ask("HubSpot Private App token", password=True)
         if token:
@@ -326,14 +455,23 @@ def auth(server_name: str):
             else:
                 cfg = HubSpotServer.get_docker_config(token)
             config.add_server("hubspot", cfg)
-            console.print(f"[green]✅ HubSpot configured ({src})[/green]\n")
+            console.print(f"[green]HubSpot configured ({src})[/green]\n")
 
     elif server_name == "grain":
-        console.print("[bold]Grain[/bold] — uses browser automation.\n")
+        console.print("[bold]Grain[/bold] -- uses browser automation.\n")
         data_dir = Prompt.ask("Browser data directory", default="~/.grain-mcp/data")
         cfg = GrainServer.get_uv_config(data_dir)
         config.add_server("grain", cfg)
-        console.print("[green]✅ Grain configured![/green]\n")
+        console.print("[green]Grain configured![/green]\n")
+
+    elif server_name == "perplexity":
+        console.print("[bold]Perplexity[/bold] -- real-time web search.\n")
+        console.print("Get free API key at: https://www.perplexity.ai/settings/api")
+        token = Prompt.ask("Perplexity API key (ppx-...)", password=True)
+        if token:
+            cfg = PerplexityServer.get_stdio_config(token)
+            config.add_server("perplexity", cfg)
+            console.print("[green]Perplexity configured![/green]\n")
 
 
 @main.command()
@@ -358,13 +496,13 @@ def test(server_name: str):
                 timeout=5
             )
             if result.returncode == 0:
-                console.print(f"[green]✅ {cmd[0]} found at {result.stdout.strip()}[/green]")
+                console.print(f"[green]{cmd[0]} found at {result.stdout.strip()}[/green]")
             else:
-                console.print(f"[red]❌ {cmd[0]} not found. Install with npm/npx.[/red]")
+                console.print(f"[red]{cmd[0]} not found. Install with npm/npx.[/red]")
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
     elif "url" in cfg:
-        console.print(f"[green]✅ HTTP endpoint configured: {cfg['url'][:60]}[/green]")
+        console.print(f"[green]HTTP endpoint configured: {cfg['url'][:60]}[/green]")
         console.print("[dim]   Use 'kimi mcp auth {server_name}' to complete OAuth.[/dim]")
 
 
@@ -378,7 +516,7 @@ def import_claude_cmd():
 
 @main.command()
 def doctor():
-    """Check system health — node, npx, kimi CLI, docker."""
+    """Check system health -- node, npx, kimi CLI, docker."""
     print_header()
     table = Table(box=box.ROUNDED)
     table.add_column("Check", style="cyan")
@@ -399,47 +537,47 @@ def doctor():
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 ver = result.stdout.strip().split()[0] if result.stdout.strip() else "OK"
-                table.add_row(name, f"[green]✅ {ver}[/green]", "Found")
+                table.add_row(name, f"[green]{ver}[/green]", "Found")
             else:
-                table.add_row(name, "[red]❌ Error[/red]", result.stderr[:50])
+                table.add_row(name, "[red]Error[/red]", result.stderr[:50])
         except FileNotFoundError:
-            table.add_row(name, "[red]❌ Missing[/red]", f"Install {name}")
+            table.add_row(name, "[red]Missing[/red]", f"Install {name}")
         except Exception as e:
-            table.add_row(name, "[red]❌ Fail[/red]", str(e)[:50])
+            table.add_row(name, "[red]Fail[/red]", str(e)[:50])
 
     console.print(table)
 
     config = KimiConfig()
     servers = config.list_servers()
     if servers:
-        console.print(f"\n[green]✅ {len(servers)} MCP server(s) in ~/.kimi/mcp.json[/green]")
+        console.print(f"\n[green]{len(servers)} MCP server(s) in ~/.kimi/mcp.json[/green]")
     else:
-        console.print("\n[yellow]⚠️ No MCP servers configured yet[/yellow]")
+        console.print("\n[yellow]No MCP servers configured yet[/yellow]")
 
     skills_installed = list_installed_skills(config)
     if skills_installed:
-        console.print(f"[green]✅ {len(skills_installed)} skills in ~/.kimi/skills/[/green]")
+        console.print(f"[green]{len(skills_installed)} skills in ~/.kimi/skills/[/green]")
     else:
-        console.print("[yellow]⚠️ No skills installed yet[/yellow]")
+        console.print("[yellow]No skills installed yet[/yellow]")
 
     memory_db = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
     if memory_db.exists():
-        console.print(f"[green]🧠 Memory database: {memory_db}[/green]")
+        console.print(f"[green]Memory database: {memory_db}[/green]")
     else:
-        console.print("[dim]🧠 Memory not enabled[/dim]")
+        console.print("[dim]Memory not enabled[/dim]")
 
     console.print("\n[dim]Run [bold]kimi-mcp-hub init[/bold] to set up everything.[/dim]\n")
 
 
-# ─── Helper functions ───
+# -- Helper functions --
 
 def add_server_interactive(name: str, config: KimiConfig):
     """Interactive prompt to add a server."""
     cls = SERVERS[name]
-    icon = getattr(cls, "icon", "🔌")
+    icon = getattr(cls, "icon", "")
     display = getattr(cls, "display_name", name.title())
 
-    console.print(f"\n{icon} [bold]{display}[/bold]")
+    console.print(f"\n{display}")
     console.print(f"[dim]{cls.description}[/dim]\n")
 
     if name in ("jira", "confluence"):
@@ -450,7 +588,7 @@ def add_server_interactive(name: str, config: KimiConfig):
             else:
                 cfg = ConfluenceServer.get_oauth_config()
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display} (OAuth)[/green]")
+            console.print(f"[green]Added {display} (OAuth)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
         else:
             base = Prompt.ask("Base URL", default="https://yourcompany.atlassian.net")
@@ -461,32 +599,32 @@ def add_server_interactive(name: str, config: KimiConfig):
             else:
                 cfg = ConfluenceServer.get_stdio_config(base, token, email)
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display} (API token)[/green]")
+            console.print(f"[green]Added {display} (API token)[/green]")
 
     elif name == "linear":
         token = Prompt.ask("Linear API key (https://linear.app/settings/api)", password=True)
         cfg = LinearServer.get_stdio_config(token)
         config.add_server(name, cfg)
-        console.print(f"[green]✅ Added {display}[/green]")
+        console.print(f"[green]Added {display}[/green]")
 
     elif name == "github":
         token = Prompt.ask("GitHub PAT (https://github.com/settings/tokens)", password=True)
         cfg = GitHubServer.get_stdio_config(token)
         config.add_server(name, cfg)
-        console.print(f"[green]✅ Added {display}[/green]")
+        console.print(f"[green]Added {display}[/green]")
 
     elif name == "slack":
         choice = Prompt.ask("Auth method", choices=["oauth", "token"], default="token")
         if choice == "oauth":
             cfg = SlackServer.get_oauth_config()
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display} (OAuth)[/green]")
+            console.print(f"[green]Added {display} (OAuth)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
         else:
             token = Prompt.ask("Slack Bot/User token (xoxb-... or xoxp-...)", password=True)
             cfg = SlackServer.get_stdio_config(token)
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display} (token)[/green]")
+            console.print(f"[green]Added {display} (token)[/green]")
 
     elif name == "datadog":
         api_key = Prompt.ask("Datadog API key", password=True)
@@ -498,19 +636,19 @@ def add_server_interactive(name: str, config: KimiConfig):
         else:
             cfg = DatadogServer.get_uv_config(api_key, app_key)
         config.add_server(name, cfg)
-        console.print(f"[green]✅ Added {display}[/green]")
+        console.print(f"[green]Added {display}[/green]")
 
     elif name == "figma":
         choice = Prompt.ask("Mode", choices=["official-http", "console-npx"], default="console-npx")
         if choice == "official-http":
             cfg = FigmaServer.get_official_config()
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display} (Official HTTP)[/green]")
+            console.print(f"[green]Added {display} (Official HTTP)[/green]")
         else:
             token = Prompt.ask("Figma PAT (figd_...)", password=True)
             cfg = FigmaServer.get_console_config(token)
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display} (Console)[/green]")
+            console.print(f"[green]Added {display} (Console)[/green]")
 
     elif name == "gmail":
         choice = Prompt.ask("Mode", choices=["npx-auto", "chrome-bridge", "python-sdk"], default="npx-auto")
@@ -523,7 +661,7 @@ def add_server_interactive(name: str, config: KimiConfig):
             tokens = Prompt.ask("Path to tokens.json", default="~/.gmail-mcp/tokens.json")
             cfg = GmailServer.get_python_config(creds, tokens)
         config.add_server(name, cfg)
-        console.print(f"[green]✅ Added {display} ({choice})[/green]")
+        console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "hubspot":
         choice = Prompt.ask("Source", choices=["npx", "official", "docker"], default="npx")
@@ -535,22 +673,62 @@ def add_server_interactive(name: str, config: KimiConfig):
         else:
             cfg = HubSpotServer.get_docker_config(token)
         config.add_server(name, cfg)
-        console.print(f"[green]✅ Added {display} ({choice})[/green]")
+        console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "grain":
         data_dir = Prompt.ask("Browser data directory", default="~/.grain-mcp/data")
         cfg = GrainServer.get_uv_config(data_dir)
         config.add_server(name, cfg)
-        console.print(f"[green]✅ Added {display}[/green]")
+        console.print(f"[green]Added {display}[/green]")
         console.print(f"[dim]   Login via browser on first use.[/dim]")
 
     elif name == "chrome-devtools":
-        console.print("[bold]Chrome DevTools[/bold] — requires Node 22+ and Chrome.\n")
+        console.print("[bold]Chrome DevTools[/bold] -- requires Node 22+ and Chrome.\n")
         if Confirm.ask("Install chrome-devtools-mcp?", default=True):
             cfg = ChromeDevToolsServer.get_stdio_config()
             config.add_server(name, cfg)
-            console.print(f"[green]✅ Added {display}[/green]")
+            console.print(f"[green]Added {display}[/green]")
             console.print("[dim]   Make sure Chrome is installed and Node >= 22.[/dim]")
+
+    elif name == "postgres":
+        dsn = Prompt.ask("PostgreSQL DSN", default="postgresql://user:pass@localhost/db")
+        cfg = PostgreSQLServer.get_stdio_config(dsn)
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+
+    elif name == "playwright":
+        console.print("[bold]Playwright[/bold] -- browser automation.\n")
+        cfg = PlaywrightServer.get_stdio_config()
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+
+    elif name == "sentry":
+        token = Prompt.ask("Sentry Auth token", password=True)
+        org = Prompt.ask("Sentry organization slug")
+        cfg = SentryServer.get_stdio_config(token, org)
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+
+    elif name == "context7":
+        console.print("[bold]Context7[/bold] -- live library docs.\n")
+        cfg = Context7Server.get_stdio_config()
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+
+    elif name == "supabase":
+        url = Prompt.ask("Supabase project URL", default="https://your-project.supabase.co")
+        key = Prompt.ask("Supabase API key (service_role or anon)", password=True)
+        cfg = SupabaseServer.get_stdio_config(url, key)
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+
+    elif name == "perplexity":
+        console.print("[bold]Perplexity[/bold] -- real-time web search with AI summaries.\n")
+        console.print("Get free API key at: https://www.perplexity.ai/settings/api")
+        token = Prompt.ask("Perplexity API key (ppx-...)", password=True)
+        cfg = PerplexityServer.get_stdio_config(token)
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
 
 
 def install_skill(skill_name: str, config: KimiConfig):
@@ -567,11 +745,11 @@ def install_skill(skill_name: str, config: KimiConfig):
             return
 
     shutil.copytree(pkg_skills_dir, user_skills_dir, dirs_exist_ok=True)
-    console.print(f"[green]✅ Installed skill: {skill_name}[/green]")
+    console.print(f"[green]Installed skill: {skill_name}[/green]")
     console.print(f"[dim]   Location: {user_skills_dir}[/dim]")
 
 
-def list_installed_skills(config: KimiConfig) -> list[str]:
+def list_installed_skills(config: KimiConfig) -> list:
     """Return list of installed skill names."""
     if not config.skills_dir.exists():
         return []
@@ -608,7 +786,7 @@ def enable_memory(config: KimiConfig):
     conn.commit()
     conn.close()
 
-    console.print(f"[green]🧠 Memory database initialized: {memory_db}[/green]")
+    console.print(f"[green]Memory database initialized: {memory_db}[/green]")
     console.print("[dim]   Memory will persist across sessions.[/dim]")
 
 
