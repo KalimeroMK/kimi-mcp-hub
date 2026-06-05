@@ -1,9 +1,9 @@
 ---
 name: ralph
-description: >
-  Autonomous loop with stop-hook pattern. Activate when user wants
-  Kimi to work autonomously: "keep going", "continue", "fix all issues",
-  "refactor everything", or when running long tasks without human checkpoints.
+description: Autonomous loop with stop-hook pattern. Activate when user wants Kimi to work autonomously: "keep going", "continue", "fix all issues", "refactor everything", or when running long tasks without human 
+type: prompt
+whenToUse: When the user asks to keep going, continue working, or run in autonomous mode
+disableModelInvocation: false
 ---
 
 # 🔄 Ralph — Autonomous Loop

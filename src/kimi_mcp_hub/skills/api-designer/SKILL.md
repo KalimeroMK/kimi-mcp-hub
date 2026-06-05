@@ -1,9 +1,9 @@
 ---
 name: api-designer
-description: >
-  API design patterns and best practices. Activate when user says
-  "API", "endpoint", "REST", "GraphQL", "schema", "contract", "OpenAPI",
-  "swagger", or when designing interfaces between systems.
+description: API design patterns and best practices. Activate when user says "API", "endpoint", "REST", "GraphQL", "schema", "contract", "OpenAPI", "swagger", or when designing interfaces between systems.
+type: prompt
+whenToUse: When the user mentions API design, REST, GraphQL, endpoints, or API architecture
+disableModelInvocation: false
 ---
 
 # 🔌 API Designer

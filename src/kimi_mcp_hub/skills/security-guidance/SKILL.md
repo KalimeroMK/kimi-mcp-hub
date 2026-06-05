@@ -1,12 +1,9 @@
 ---
 name: security-guidance
-description: >
-  3-layer security scanning. Auto-activates on file edits to detect
-  dangerous patterns (eval, os.system, dangerouslySetInnerHTML, unsafe deserialization).
-  Second layer scans after model turn for auth bypass, injection, SSRF, weak crypto.
-  Third layer scans at commit/push for surrounding files and sanitizers.
-  Activate when user says "security", "secure", "audit", "sanitize", "injection",
-  "vulnerability", or when editing files that handle auth, input, or external data.
+description: 3-layer security scanning. Auto-activates on file edits to detect dangerous patterns (eval, os.system, dangerouslySetInnerHTML, unsafe deserialization). Second layer scans after model turn for auth by
+type: prompt
+whenToUse: When the user edits files and mentions security scan or wants security validation
+disableModelInvocation: false
 ---
 
 # 🔒 Security Guidance — 3-Layer Scan

@@ -1,10 +1,9 @@
 ---
 name: code-review
-description: >
-  Multi-agent code review using Kimi CLI sub-agents. Activate when user says
-  "review", "CR", "code review", "PR review", "check this code", or when
-  examining diffs, PRs, or new code. Uses explore, coder, and plan sub-agents
-  for parallel analysis.
+description: Multi-agent code review using Kimi CLI sub-agents. Activate when user says "review", "CR", "code review", "PR review", "check this code", or when examining diffs, PRs, or new code. Uses explore, coder
+type: prompt
+whenToUse: When the user asks for code review with explore, coder, and plan sub-agents
+disableModelInvocation: false
 ---
 
 # 👀 Code Review — Multi-Agent

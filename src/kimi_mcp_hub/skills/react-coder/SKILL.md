@@ -1,9 +1,9 @@
 ---
 name: react-coder
-description: >
-  React 19 specialist. Activate for components, hooks, state management,
-  server components, or when user says "React", "component", "hook",
-  "useEffect", "frontend", "JSX", "Next.js", "SPA".
+description: React 19 specialist. Activate for components, hooks, state management, server components, or when user says "React", "component", "hook", "useEffect", "frontend", "JSX", "Next.js", "SPA".
+type: prompt
+whenToUse: When the user mentions React, component, hook, JSX, Next.js, or frontend
+disableModelInvocation: false
 ---
 
 # ⚛️ React Coder

@@ -1,12 +1,9 @@
 ---
 name: cybersecurity
-description: >
-  Cybersecurity expert. Activate for security analysis, vulnerability assessment,
-  threat hunting, incident response, forensics, penetration testing, or when
-  user says "security", "hack", "vulnerability", "exploit", "pentest", "forensics",
-  "malware", "OWASP", "SQL injection", "XSS", "CSRF", "harden", "audit",
-  "threat", "breach", "incident", "log analysis", "IAM", "S3", "Docker security",
-  "Kubernetes security", "JWT", "OAuth", "rate limiting", "WAF".
+description: Cybersecurity expert. Activate for security analysis, vulnerability assessment, threat hunting, incident response, forensics, penetration testing, or when user says "security", "hack", "vulnerability"
+type: prompt
+whenToUse: When the user mentions security, hack, vulnerability, exploit, pentest, OWASP, XSS, SQL injection, or hardening
+disableModelInvocation: false
 ---
 
 # 🔒 Cybersecurity Expert

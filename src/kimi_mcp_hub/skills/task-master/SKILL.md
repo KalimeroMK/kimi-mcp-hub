@@ -1,9 +1,9 @@
 ---
 name: task-master
-description: >
-  Task management system for complex projects. Activate when user says
-  "task", "todo", "plan", "milestone", "backlog", "sprint", "organize",
-  or when breaking down large features into actionable items.
+description: Task management system for complex projects. Activate when user says "task", "todo", "plan", "milestone", "backlog", "sprint", "organize", or when breaking down large features into actionable items.
+type: prompt
+whenToUse: When the user mentions tasks, todos, backlog, project management, or tracking work
+disableModelInvocation: false
 ---
 
 # 📋 Task Master

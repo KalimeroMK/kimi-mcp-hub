@@ -1,9 +1,9 @@
 ---
 name: context-mode
-description: >
-  Context window optimization. Activate when approaching token limits,
-  or user says "context limit", "token budget", "out of context",
-  "compress context", or for very large codebases.
+description: Context window optimization. Activate when approaching token limits, or user says "context limit", "token budget", "out of context", "compress context", or for very large codebases.
+type: prompt
+whenToUse: When the user mentions context window, token budget, or context optimization
+disableModelInvocation: false
 ---
 
 # 🎯 Context Mode

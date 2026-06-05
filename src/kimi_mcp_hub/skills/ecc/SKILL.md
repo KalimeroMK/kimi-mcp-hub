@@ -1,10 +1,9 @@
 ---
 name: ecc
-description: >
-  Engineering Competence Companion. Activate for performance optimization,
-  memory management, security hardening, research-driven development,
-  or when user asks "optimize", "secure", "harden", "research",
-  "performance", "memory leak", "vulnerability", "best practice".
+description: Engineering Competence Companion. Activate for performance optimization, memory management, security hardening, research-driven development, or when user asks "optimize", "secure", "harden", "research
+type: prompt
+whenToUse: When the user asks to optimize, secure, research, or improve engineering quality
+disableModelInvocation: false
 ---
 
 # 🛡️ ECC — Engineering Competence Companion

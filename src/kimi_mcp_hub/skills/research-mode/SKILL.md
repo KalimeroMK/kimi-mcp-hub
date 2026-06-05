@@ -1,9 +1,9 @@
 ---
 name: research-mode
-description: >
-  Research-driven development. Activate when user says "research",
-  "investigate", "compare options", "what's the best", "evaluate",
-  "benchmark", or when choosing technologies, libraries, or approaches.
+description: Research-driven development. Activate when user says "research", "investigate", "compare options", "what's the best", "evaluate", "benchmark", or when choosing technologies, libraries, or approaches.
+type: prompt
+whenToUse: When the user asks to research, compare, benchmark, or evaluate technologies
+disableModelInvocation: false
 ---
 
 # 🔬 Research Mode

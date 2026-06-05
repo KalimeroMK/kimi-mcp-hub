@@ -1,9 +1,9 @@
 ---
 name: python-backend-engineer
-description: >
-  Senior Python backend engineer. Activate for FastAPI, Django, async Python,
-  data pipelines, or when user says "Python", "FastAPI", "Django", "async",
-  "uv", "Pydantic", "SQLAlchemy", "backend Python".
+description: Senior Python backend engineer. Activate for FastAPI, Django, async Python, data pipelines, or when user says "Python", "FastAPI", "Django", "async", "uv", "Pydantic", "SQLAlchemy", "backend Python".
+type: prompt
+whenToUse: When the user asks for Python backend, FastAPI, Django, or server-side development
+disableModelInvocation: false
 ---
 
 # 🐍 Python Backend Engineer

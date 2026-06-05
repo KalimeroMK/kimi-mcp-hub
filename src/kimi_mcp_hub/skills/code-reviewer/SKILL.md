@@ -1,9 +1,9 @@
 ---
 name: code-reviewer
-description: >
-  Code review assistant. Activate when user says "review this", "CR",
-  "code review", "check this code", "LGTM", "feedback", or when
-  examining PRs, diffs, or new code.
+description: Code review assistant. Activate when user says "review this", "CR", "code review", "check this code", "LGTM", "feedback", or when examining PRs, diffs, or new code.
+type: prompt
+whenToUse: When the user asks for code review, CR, feedback, or PR review
+disableModelInvocation: false
 ---
 
 # 👀 Code Reviewer

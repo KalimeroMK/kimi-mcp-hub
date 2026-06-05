@@ -1,9 +1,9 @@
 ---
 name: security-audit
-description: >
-  Security review and hardening. Activate when user says "security",
-  "audit", "vulnerability", "secure this", "harden", "penetration test",
-  or when reviewing code that handles auth, data, payments, or PII.
+description: Security review and hardening. Activate when user says "security", "audit", "vulnerability", "secure this", "harden", "penetration test", or when reviewing code that handles auth, data, payments, or P
+type: prompt
+whenToUse: When the user asks for security audit, vulnerability scan, or security review
+disableModelInvocation: false
 ---
 
 # 🔒 Security Audit

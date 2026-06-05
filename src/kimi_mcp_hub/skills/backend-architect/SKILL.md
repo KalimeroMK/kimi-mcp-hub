@@ -1,11 +1,9 @@
 ---
 name: backend-architect
-description: >
-  Senior backend architect. Activate for API design, database schema,
-  scalability decisions, microservices, or when user says "design API",
-  "database schema", "backend architecture", "system design", "scalable",
-  "microservices", "Bun", "FastAPI", "Django", "Node.js backend", "REST API",
-  "GraphQL server", "API gateway".
+description: Senior backend architect. Activate for API design, database schema, scalability decisions, microservices, or when user says "design API", "database schema", "backend architecture", "system design", "s
+type: prompt
+whenToUse: When the user asks to design API, system design, backend architecture, or scale
+disableModelInvocation: false
 ---
 
 # 🏗️ Backend Architect

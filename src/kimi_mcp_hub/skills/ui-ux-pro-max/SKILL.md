@@ -1,9 +1,9 @@
 ---
 name: ui-ux-pro-max
-description: >
-  Design intelligence for UI/UX. Activate when user mentions UI, UX, design,
-  component, layout, CSS, Tailwind, Figma, responsive, accessibility, or
-  asks "how should this look", "design this", "make it pretty".
+description: Design intelligence for UI/UX. Activate when user mentions UI, UX, design, component, layout, CSS, Tailwind, Figma, responsive, accessibility, or asks "how should this look", "design this", "make it p
+type: prompt
+whenToUse: When the user mentions design, UI, CSS, Tailwind, accessibility, or responsive layout
+disableModelInvocation: false
 ---
 
 # 🎨 UI/UX Pro Max

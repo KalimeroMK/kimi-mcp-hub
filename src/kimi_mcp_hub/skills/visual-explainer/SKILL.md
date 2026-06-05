@@ -1,10 +1,9 @@
 ---
 name: visual-explainer
-description: >
-  Generate rich HTML pages, diagrams, and slides for explanations.
-  Activate when user says "visualize", "diagram", "chart", "slide",
-  "presentation", "show me", or when explaining complex systems, flows,
-  architectures, or data.
+description: Generate rich HTML pages, diagrams, and slides for explanations. Activate when user says "visualize", "diagram", "chart", "slide", "presentation", "show me", or when explaining complex systems, flows,
+type: prompt
+whenToUse: When the user asks to visualize, diagram, create slides, or explain visually
+disableModelInvocation: false
 ---
 
 # 📊 Visual Explainer

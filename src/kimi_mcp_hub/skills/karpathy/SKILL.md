@@ -1,9 +1,9 @@
 ---
 name: karpathy
-description: >
-  Andrej Karpathy-style coding discipline. Activate for any code generation,
-  review, or refactoring. Use when writing functions, classes, algorithms,
-  or when user says "write code", "implement", "function", "class".
+description: Andrej Karpathy-style coding discipline. Activate for any code generation, review, or refactoring. Use when writing functions, classes, algorithms, or when user says "write code", "implement", "functi
+type: prompt
+whenToUse: When the user asks to write, review, or refactor code, or mentions functions, classes, or implementation
+disableModelInvocation: false
 ---
 
 # 🧠 Karpathy Skills — Code Discipline

@@ -1,10 +1,9 @@
 ---
 name: python-engineer
-description: >
-  Python backend specialist. Activate for Python code, FastAPI, Django,
-  data processing, async Python, or when user says "Python", "FastAPI",
-  "Django", "asyncio", "uv", "Pydantic", "SQLAlchemy", "Celery",
-  "data pipeline", "ETL", "pandas", "NumPy", "machine learning".
+description: Python backend specialist. Activate for Python code, FastAPI, Django, data processing, async Python, or when user says "Python", "FastAPI", "Django", "asyncio", "uv", "Pydantic", "SQLAlchemy", "Celery
+type: prompt
+whenToUse: When the user mentions Python, FastAPI, Django, asyncio, or Flask
+disableModelInvocation: false
 ---
 
 # 🐍 Python Engineer

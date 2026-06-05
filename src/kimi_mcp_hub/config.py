@@ -9,12 +9,13 @@ import platformdirs
 
 
 class KimiConfig:
-    """Manages ~/.kimi/mcp.json, ~/.kimi/skills/, and ~/.kimi/mcp-hub/."""
+    """Manages ~/.kimi/mcp.json, ~/.kimi-code/skills/, and ~/.kimi/mcp-hub/."""
 
     def __init__(self):
         self.kimi_dir = Path.home() / ".kimi"
         self.mcp_json = self.kimi_dir / "mcp.json"
-        self.skills_dir = self.kimi_dir / "skills"
+        # Kimi CLI scans ~/.kimi-code/skills/ for user-level skills
+        self.skills_dir = Path.home() / ".kimi-code" / "skills"
         self.hub_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
         self.tokens_file = self.hub_dir / "tokens.json"
         self.hub_dir.mkdir(parents=True, exist_ok=True)
@@ -74,7 +75,7 @@ class KimiConfig:
         return tokens.get(server)
 
     def install_skill(self, name: str, content: str) -> Path:
-        """Install a SKILL.md into ~/.kimi/skills/."""
+        """Install a SKILL.md into ~/.kimi-code/skills/."""
         skill_dir = self.skills_dir / name
         skill_dir.mkdir(parents=True, exist_ok=True)
         skill_file = skill_dir / "SKILL.md"
