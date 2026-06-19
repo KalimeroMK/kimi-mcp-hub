@@ -16,7 +16,7 @@ class PerplexityServer:
         """STDIO config with Perplexity API key."""
         return {
             "command": "npx",
-            "args": ["-y", "@perplexityai/mcp-server-perplexity"],
+            "args": ["-y", "@perplexity-ai/mcp-server"],
             "env": {
                 "PERPLEXITY_API_KEY": api_key,
             }
