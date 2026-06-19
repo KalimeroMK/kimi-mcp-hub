@@ -131,6 +131,11 @@ SKILLS = {
     "playwright-best-practices": "Playwright testing best practices",
     "skill-creator": "Create and optimize agent skills",
     "agent-automation-recommender": "Recommend agent automations for codebases",
+    "tdd": "Test-driven development with red-green-refactor",
+    "codebase-design": "Design deep modules and testable interfaces",
+    "domain-modeling": "Build domain models and ubiquitous language",
+    "grill-me": "Stress-test a plan or design",
+    "resolving-merge-conflicts": "Resolve git merge/rebase conflicts",
 }
 
 
