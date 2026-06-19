@@ -7,7 +7,7 @@ __author__ = "KalimeroMK"
 
 # Total counts for display (kept in sync with cli.py SERVERS and SKILLS)
 TOTAL_SERVERS = 23
-TOTAL_SKILLS = 34
+TOTAL_SKILLS = 37
 
 from .config import KimiConfig
 

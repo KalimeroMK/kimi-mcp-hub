@@ -73,6 +73,17 @@ CORE_SKILLS = [
     "kimi-mcp-hub-status",
 ]
 
+# Frontend skills are installed together as a recommended frontend stack
+FRONTEND_SKILLS = [
+    "react-coder",
+    "ts-coder",
+    "ui-engineer",
+    "ui-ux-pro-max",
+    "vercel-react-best-practices",
+    "web-design-guidelines",
+    "agent-browser",
+]
+
 SKILLS = {
     # ---- Core skills ----
     "karpathy": "Clean, simple, readable code",
@@ -81,10 +92,17 @@ SKILLS = {
     "context-mode": "Optimize context window usage",
     "cybersecurity": "Security expert (OWASP, cloud, IR, pentest)",
     "kimi-mcp-hub-status": "Show MCP Hub version and status in Kimi CLI",
+    # ---- Frontend skills ----
+    "react-coder": "React 19 specialist (RSC, hooks)",
+    "ts-coder": "TypeScript specialist (strict, generics)",
+    "ui-engineer": "UI/UX engineer (Tailwind, a11y, responsive)",
+    "ui-ux-pro-max": "Design intelligence (Tailwind, accessibility)",
+    "vercel-react-best-practices": "React/Next.js performance optimization (70 Vercel rules)",
+    "web-design-guidelines": "Audit UI code against Vercel Web Interface Guidelines",
+    "agent-browser": "Fast browser automation CLI for AI agents",
     # ---- Optional skills ----
     "caveman": "Terse mode (75% token reduction)",
     "ecc": "Engineering Competence (perf, security, research)",
-    "ui-ux-pro-max": "Design intelligence (Tailwind, accessibility)",
     "visual-explainer": "HTML diagrams and slides",
     "task-master": "Task management system",
     "gitnexus": "Code knowledge graph (git blame, blast radius)",
@@ -104,9 +122,6 @@ SKILLS = {
     "backend-typescript-architect": "TypeScript/Bun backend architecture specialist",
     "python-engineer": "Python specialist (FastAPI, Django, async)",
     "python-backend-engineer": "Senior Python backend engineer (FastAPI, Django)",
-    "react-coder": "React 19 specialist (RSC, hooks)",
-    "ts-coder": "TypeScript specialist (strict, generics)",
-    "ui-engineer": "UI/UX engineer (Tailwind, a11y, responsive)",
     "laravel-engineer": "Laravel specialist (Eloquent, Blade, Livewire, Queues)",
     "hindsight": "Memory that learns from mistakes and past decisions",
     "find-skills": "Discover and install agent skills from the open ecosystem",
@@ -215,10 +230,20 @@ def init():
             if Confirm.ask(f"  {SKILLS[key]} -- Install?", default=True):
                 install_skill(key, config)
 
+    # Frontend skills -- installed as a recommended stack, default=True
+    console.print("\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n")
+    frontend_desc = ", ".join(SKILLS[k] for k in FRONTEND_SKILLS if k in SKILLS)
+    if Confirm.ask(
+        f"Install recommended frontend stack ({len(FRONTEND_SKILLS)} skills)?",
+        default=True,
+    ):
+        for key in FRONTEND_SKILLS:
+            install_skill(key, config, overwrite=False)
+
     # Optional skills -- default=False
     console.print("\n[bold cyan]Optional Skills[/bold cyan]\n")
     for key, desc in SKILLS.items():
-        if key not in CORE_SKILLS:
+        if key not in CORE_SKILLS and key not in FRONTEND_SKILLS:
             if Confirm.ask(f"  {desc} -- Install?", default=False):
                 install_skill(key, config)
 
@@ -986,8 +1011,15 @@ def _authenticate_server(name: str, method: str = "auto"):
         console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
 
 
-def install_skill(skill_name: str, config: KimiConfig):
-    """Install a skill from package to ~/.kimi/skills/."""
+def install_skill(skill_name: str, config: KimiConfig, overwrite: bool | None = None):
+    """Install a skill from package to ~/.kimi/skills/.
+
+    Args:
+        skill_name: Name of the skill directory inside the package.
+        config: KimiConfig instance.
+        overwrite: If True, always overwrite an existing install. If False,
+            skip when already installed. If None (default), ask the user.
+    """
     pkg_skills_dir = Path(__file__).parent / "skills" / skill_name
     user_skills_dir = config.skills_dir / skill_name
 
@@ -996,8 +1028,12 @@ def install_skill(skill_name: str, config: KimiConfig):
         return
 
     if user_skills_dir.exists():
-        if not Confirm.ask(f"Skill '{skill_name}' already installed. Overwrite?", default=False):
+        if overwrite is False:
+            console.print(f"[dim]Skill '{skill_name}' already installed, skipping.[/dim]")
             return
+        if overwrite is None:
+            if not Confirm.ask(f"Skill '{skill_name}' already installed. Overwrite?", default=False):
+                return
 
     shutil.copytree(pkg_skills_dir, user_skills_dir, dirs_exist_ok=True)
     console.print(f"[green]Installed skill: {skill_name}[/green]")
