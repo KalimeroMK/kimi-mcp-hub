@@ -680,6 +680,65 @@ def doctor():
     console.print("\n[dim]Run [bold]kimi-mcp-hub init[/bold] to set up everything.[/dim]\n")
 
 
+@main.command()
+def repair():
+    """Fix broken/outdated MCP server configs in ~/.kimi/mcp.json."""
+    print_header()
+    config = KimiConfig()
+    servers = config.list_servers()
+
+    if not servers:
+        console.print("[yellow]No MCP servers configured.[/yellow]")
+        return
+
+    fixed = []
+
+    for name, cfg in list(servers.items()):
+        args = cfg.get("args", [])
+        env = cfg.get("env", {})
+
+        # Fix Slack: old @korotovsky/slack-mcp-server package
+        if name == "slack" and any("@korotovsky/slack-mcp-server" in str(a) for a in args):
+            console.print(f"[yellow]Fixing Slack config...[/yellow]")
+            token = env.get("SLACK_TOKEN") or env.get("SLACK_BOT_TOKEN") or Prompt.ask("Slack Bot token (xoxb-...)", password=True)
+            team_id = Prompt.ask("Slack Team ID (T0...)")
+            new_cfg = SlackServer.get_stdio_config(token, team_id)
+            config.add_server(name, new_cfg)
+            fixed.append("slack")
+
+        # Fix Supabase: old @supabase/mcp-server package
+        elif name == "supabase" and any("@supabase/mcp-server" in str(a) for a in args):
+            # Avoid matching the correct @supabase/mcp-server-supabase package
+            if not any("@supabase/mcp-server-supabase" in str(a) for a in args):
+                console.print(f"[yellow]Fixing Supabase config...[/yellow]")
+                choice = Prompt.ask("Supabase mode", choices=["official-oauth", "stdio-token"], default="official-oauth")
+                if choice == "official-oauth":
+                    project_ref = Prompt.ask("Supabase project ref (optional)", default="")
+                    read_only = Confirm.ask("Read-only mode?", default=True)
+                    new_cfg = SupabaseServer.get_official_config(
+                        project_ref=project_ref or None,
+                        read_only=read_only,
+                    )
+                else:
+                    console.print("Get token at: https://supabase.com/dashboard/account/tokens")
+                    token = Prompt.ask("Supabase access token (sbp_...)", password=True)
+                    project_ref = Prompt.ask("Supabase project ref (optional)", default="")
+                    read_only = Confirm.ask("Read-only mode?", default=True)
+                    new_cfg = SupabaseServer.get_stdio_config(
+                        access_token=token,
+                        project_ref=project_ref or None,
+                        read_only=read_only,
+                    )
+                config.add_server(name, new_cfg)
+                fixed.append("supabase")
+
+    if fixed:
+        console.print(f"\n[green]Fixed: {', '.join(fixed)}[/green]")
+        console.print("[dim]Restart Kimi CLI to apply changes.[/dim]\n")
+    else:
+        console.print("\n[green]No broken configs found.[/green]\n")
+
+
 # -- Helper functions --
 
 def add_server_interactive(name: str, config: KimiConfig):
