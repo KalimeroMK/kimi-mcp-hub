@@ -9,20 +9,34 @@ import platformdirs
 
 
 class KimiConfig:
-    """Manages ~/.kimi/mcp.json, ~/.kimi-code/skills/, and ~/.kimi/mcp-hub/."""
+    """Manages ~/.kimi-code/mcp.json, ~/.kimi-code/skills/, and hub config."""
 
     def __init__(self):
-        self.kimi_dir = Path.home() / ".kimi"
+        # Kimi CLI reads MCP config from ~/.kimi-code/mcp.json and skills from
+        # ~/.kimi-code/skills/. Align our paths with the official CLI.
+        self.kimi_dir = Path.home() / ".kimi-code"
         self.mcp_json = self.kimi_dir / "mcp.json"
-        # Kimi CLI scans ~/.kimi-code/skills/ for user-level skills
-        self.skills_dir = Path.home() / ".kimi-code" / "skills"
+        self.skills_dir = self.kimi_dir / "skills"
         self.hub_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
         self.tokens_file = self.hub_dir / "tokens.json"
         self.hub_dir.mkdir(parents=True, exist_ok=True)
         self.kimi_dir.mkdir(parents=True, exist_ok=True)
+        # Migrate legacy config from ~/.kimi/mcp.json if the new path is empty
+        self._migrate_legacy_config()
+
+    def _migrate_legacy_config(self) -> None:
+        """Copy old ~/.kimi/mcp.json to ~/.kimi-code/mcp.json if needed."""
+        legacy = Path.home() / ".kimi" / "mcp.json"
+        if legacy.exists() and not self.mcp_json.exists():
+            try:
+                with open(legacy, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.save_mcp(data)
+            except (json.JSONDecodeError, OSError):
+                pass
 
     def load_mcp(self) -> dict:
-        """Load current ~/.kimi/mcp.json."""
+        """Load current ~/.kimi-code/mcp.json."""
         if not self.mcp_json.exists():
             return {"mcpServers": {}}
         try:
@@ -32,7 +46,7 @@ class KimiConfig:
             return {"mcpServers": {}}
 
     def save_mcp(self, data: dict) -> None:
-        """Atomic write to ~/.kimi/mcp.json."""
+        """Atomic write to ~/.kimi-code/mcp.json."""
         tmp = self.mcp_json.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
