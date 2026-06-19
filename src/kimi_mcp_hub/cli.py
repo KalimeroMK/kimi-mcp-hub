@@ -340,6 +340,14 @@ def status():
 
 
 @main.command()
+def notify():
+    """Print a short startup notification for shell wrappers."""
+    console.print(
+        f"[bold green]●[/bold green] [bold]{__title__} v{__version__}[/bold] [dim]plugin installed[/dim]"
+    )
+
+
+@main.command()
 def welcome():
     """Display the welcome banner with version and installation info."""
     print_welcome()
