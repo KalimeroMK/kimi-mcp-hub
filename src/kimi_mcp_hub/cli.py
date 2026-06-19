@@ -125,6 +125,12 @@ SKILLS = {
     "wp-plugin-development": "WordPress plugin development with hooks and Settings API",
     "hindsight": "Memory that learns from past decisions",
     "find-skills": "Discover and install agent skills",
+    "surgical-refactoring": "Surgical code refactoring without behavior change",
+    "stripe-best-practices": "Stripe integration best practices",
+    "chrome-devtools-skill": "Chrome DevTools MCP debugging and automation",
+    "playwright-best-practices": "Playwright testing best practices",
+    "skill-creator": "Create and optimize agent skills",
+    "agent-automation-recommender": "Recommend agent automations for codebases",
 }
 
 
