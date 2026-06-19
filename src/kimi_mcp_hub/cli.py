@@ -136,6 +136,11 @@ SKILLS = {
     "domain-modeling": "Build domain models and ubiquitous language",
     "grill-me": "Stress-test a plan or design",
     "resolving-merge-conflicts": "Resolve git merge/rebase conflicts",
+    "search-first": "Research-before-coding workflow",
+    "database-migrations": "Safe database migration patterns",
+    "api-design": "REST API design patterns",
+    "deployment-patterns": "CI/CD and deployment best practices",
+    "regex-vs-llm-structured-text": "Regex vs LLM parsing decision framework",
 }
 
 

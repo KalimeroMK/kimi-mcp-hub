@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 48 AI skills (6 core + 42 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 53 AI skills (6 core + 47 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -16,7 +16,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
 - [MCP Servers](#23-mcp-servers)
-- [Skills](#48-skills)
+- [Skills](#53-skills)
 - [Architecture](#architecture)
 - [Ideas from Claude-Mem](#-ideas-from-claude-mem)
 
@@ -87,7 +87,7 @@ On first run you'll see:
 Kimi MCP Hub v0.1.0 e uspeshno instaliran!
 
 23 MCP serveri dostapni
-48 AI skills za podobro kodiranje
+53 AI skills za podobro kodiranje
 1  Persistent memory sistem
 
 Za da zapochnesh:
@@ -258,7 +258,7 @@ GitHub authorized successfully!
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub list` | All servers + skills + memory |
-| `kimi-mcp-hub list-skills` | All 48 available skills |
+| `kimi-mcp-hub list-skills` | All 53 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
 | `kimi-mcp-hub test <server>` | Test if server responds |
 | `kimi-mcp-hub doctor` | System health check |
@@ -295,7 +295,7 @@ GitHub authorized successfully!
 
 ---
 
-## 48 Skills
+## 53 Skills
 
 ### Core Skills (installed by default)
 
@@ -342,14 +342,16 @@ GitHub authorized successfully!
 | **codebase-design** | Design deep modules and testable interfaces |
 | **domain-modeling** | Build domain models and ubiquitous language |
 | **database-expert** | Database design and optimization |
+| **api-design** | REST API design patterns |
 
-### DevOps & Tools Skills
+### DevOps & Deployment Skills
 
 | Skill | Description |
 |-------|-------------|
 | **docker-pro** | Docker and Kubernetes best practices |
 | **gitnexus** | Code knowledge graph and blast radius |
 | **resolving-merge-conflicts** | Resolve git merge/rebase conflicts |
+| **deployment-patterns** | CI/CD and deployment best practices |
 
 ### Language / Framework Skills
 
@@ -364,12 +366,25 @@ GitHub authorized successfully!
 | **ui-engineer** | UI component implementation (Tailwind, a11y) |
 | **ui-ux-pro-max** | UI/UX design intelligence and design systems |
 
+### Data & Migrations Skills
+
+| Skill | Description |
+|-------|-------------|
+| **database-migrations** | Safe database migration patterns |
+
 ### Testing & Browser Skills
 
 | Skill | Description |
 |-------|-------------|
 | **playwright-best-practices** | Playwright testing best practices |
 | **chrome-devtools-skill** | Chrome DevTools MCP debugging and automation |
+
+### Research & Automation Skills
+
+| Skill | Description |
+|-------|-------------|
+| **search-first** | Research-before-coding workflow |
+| **regex-vs-llm-structured-text** | Regex vs LLM parsing decision framework |
 
 ### Productivity & Meta Skills
 
@@ -434,7 +449,7 @@ Features we adopted from the 81k-star `claude-mem` project:
 |              |                          |
 |  +---------------------------------+    |
 |  |  ~/.kimi-code/mcp.json          |    |
-|  |  ~/.kimi-code/skills/ (48 skills)|    |
+|  |  ~/.kimi-code/skills/ (53 skills)|    |
 |  |  ~/.config/kimi-mcp-hub/        |    |
 |  |    tokens.json + memory.db      |    |
 |  +---------------------------------+    |
