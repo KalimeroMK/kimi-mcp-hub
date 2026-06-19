@@ -185,6 +185,7 @@ def main(ctx):
 @main.command()
 def init():
     """Interactive setup wizard for servers, skills, and memory."""
+    config = KimiConfig()
     print_welcome()
 
     console.print("\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n")
