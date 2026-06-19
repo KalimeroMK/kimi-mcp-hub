@@ -84,6 +84,40 @@ FRONTEND_SKILLS = [
     "agent-browser",
 ]
 
+# Optional skills are presented in category groups during `init`
+OPTIONAL_SKILL_GROUPS = [
+    ("Code Quality & Review", [
+        "code-reviewer", "code-review", "surgical-refactoring", "tdd",
+        "perf-optimization", "security-audit", "security-guidance",
+    ]),
+    ("Architecture & Design", [
+        "api-designer", "backend-architect", "backend-typescript-architect",
+        "codebase-design", "domain-modeling", "database-expert", "api-design",
+    ]),
+    ("DevOps & Deployment", [
+        "docker-pro", "gitnexus", "resolving-merge-conflicts", "deployment-patterns",
+    ]),
+    ("Language / Framework", [
+        "python-engineer", "laravel-engineer", "php-pro", "wp-plugin-development",
+        "react-coder", "ts-coder", "ui-engineer", "ui-ux-pro-max",
+    ]),
+    ("Data & Migrations", ["database-migrations"]),
+    ("Testing & Browser", [
+        "playwright-best-practices", "chrome-devtools-skill",
+    ]),
+    ("Research & Automation", [
+        "search-first", "regex-vs-llm-structured-text",
+    ]),
+    ("Productivity & Meta", [
+        "caveman", "headroom", "context-mode", "memory-palace", "hindsight",
+        "task-master", "ralph", "grill-me", "visual-explainer",
+        "research-mode", "ecc", "superpowers", "karpathy",
+        "skill-creator", "agent-automation-recommender", "find-skills",
+        "kimi-mcp-hub-status",
+    ]),
+    ("Integration", ["stripe-best-practices"]),
+]
+
 SKILLS = {
     # ---- Core skills ----
     "karpathy": "Clean, simple, readable code discipline",
@@ -244,7 +278,7 @@ def init():
     for key in CORE_SKILLS:
         if key in SKILLS:
             if Confirm.ask(f"  {SKILLS[key]} -- Install?", default=True):
-                install_skill(key, config)
+                install_skill(key, config, overwrite=False)
 
     # Frontend skills -- installed as a recommended stack, default=True
     console.print("\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n")
@@ -256,12 +290,18 @@ def init():
         for key in FRONTEND_SKILLS:
             install_skill(key, config, overwrite=False)
 
-    # Optional skills -- default=False
-    console.print("\n[bold cyan]Optional Skills[/bold cyan]\n")
-    for key, desc in SKILLS.items():
-        if key not in CORE_SKILLS and key not in FRONTEND_SKILLS:
-            if Confirm.ask(f"  {desc} -- Install?", default=False):
-                install_skill(key, config)
+    # Optional skills -- grouped by category, default=False
+    console.print("\n[bold cyan]Optional Skills[/bold cyan] (pick categories)\n")
+    for category, keys in OPTIONAL_SKILL_GROUPS:
+        available = [k for k in keys if k in SKILLS and k not in CORE_SKILLS and k not in FRONTEND_SKILLS]
+        if not available:
+            continue
+        if Confirm.ask(
+            f"Install [bold]{category}[/bold] skills ({len(available)} skills)?",
+            default=False,
+        ):
+            for key in available:
+                install_skill(key, config, overwrite=False)
 
     # Step 3: Memory
     console.print("\n[bold]Step 3: Persistent Memory[/bold]\n")
