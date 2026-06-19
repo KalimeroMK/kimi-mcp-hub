@@ -121,6 +121,8 @@ SKILLS = {
     "backend-typescript-architect": "TypeScript/Bun backend architecture",
     "python-engineer": "Python specialist (FastAPI, Django, async)",
     "laravel-engineer": "Laravel specialist (Eloquent, Blade, Livewire)",
+    "php-pro": "Senior PHP development (strict typing, Laravel/Symfony, PSR)",
+    "wp-plugin-development": "WordPress plugin development with hooks and Settings API",
     "hindsight": "Memory that learns from past decisions",
     "find-skills": "Discover and install agent skills",
 }
