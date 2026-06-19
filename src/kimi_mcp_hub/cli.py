@@ -755,19 +755,21 @@ def add_server_interactive(name: str, config: KimiConfig):
     elif name == "slack":
         choice = Prompt.ask(
             "Auth method",
-            choices=["official-oauth", "token"],
-            default="token",
+            choices=["bot-token", "remote-oauth"],
+            default="bot-token",
         )
-        if choice == "official-oauth":
-            cfg = SlackServer.get_oauth_config()
+        if choice == "remote-oauth":
+            cfg = SlackServer.get_official_config()
             config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            console.print(f"[green]Added {display} (Remote OAuth)[/green]")
+            console.print("[yellow]Note:[/yellow] Slack remote OAuth often fails due to DCR. If it fails, re-add with bot-token.")
             _authenticate_server(name, "official-oauth")
         else:
-            token = Prompt.ask("Slack Bot/User token (xoxb-... or xoxp-...)", password=True)
-            cfg = SlackServer.get_stdio_config(token)
+            token = Prompt.ask("Slack Bot token (xoxb-...)", password=True)
+            team_id = Prompt.ask("Slack Team ID (T0...)")
+            cfg = SlackServer.get_stdio_config(token, team_id)
             config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (token)[/green]")
+            console.print(f"[green]Added {display} (bot token)[/green]")
 
     elif name == "datadog":
         api_key = Prompt.ask("Datadog API key", password=True)
@@ -960,11 +962,33 @@ def add_server_interactive(name: str, config: KimiConfig):
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "supabase":
-        url = Prompt.ask("Supabase project URL", default="https://your-project.supabase.co")
-        key = Prompt.ask("Supabase API key (service_role or anon)", password=True)
-        cfg = SupabaseServer.get_stdio_config(url, key)
-        config.add_server(name, cfg)
-        console.print(f"[green]Added {display}[/green]")
+        choice = Prompt.ask(
+            "Supabase mode",
+            choices=["official-oauth", "stdio-token"],
+            default="official-oauth",
+        )
+        if choice == "official-oauth":
+            project_ref = Prompt.ask("Supabase project ref (optional, e.g. abcdefghijklmn)", default="")
+            read_only = Confirm.ask("Read-only mode?", default=True)
+            cfg = SupabaseServer.get_official_config(
+                project_ref=project_ref or None,
+                read_only=read_only,
+            )
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            _authenticate_server(name, "official-oauth")
+        else:
+            console.print("Get token at: https://supabase.com/dashboard/account/tokens")
+            token = Prompt.ask("Supabase access token (sbp_...)", password=True)
+            project_ref = Prompt.ask("Supabase project ref (optional)", default="")
+            read_only = Confirm.ask("Read-only mode?", default=True)
+            cfg = SupabaseServer.get_stdio_config(
+                access_token=token,
+                project_ref=project_ref or None,
+                read_only=read_only,
+            )
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (stdio token)[/green]")
 
     elif name == "perplexity":
         console.print("[bold]Perplexity[/bold] -- real-time web search with AI summaries.\n")
