@@ -4,24 +4,37 @@ from typing import Any
 
 
 class FigmaServer:
-    """Figma MCP server — official or console (read/write)."""
+    """Figma MCP server -- official remote (OAuth) or console (PAT)."""
 
     name = "figma"
     display_name = "Figma"
     description = "Read designs, extract tokens, create frames, generate components."
     icon = "🎨"
 
+    # Official Figma remote MCP endpoint (OAuth 2.1)
+    OFFICIAL_URL = "https://mcp.figma.com/mcp"
+
     @classmethod
     def get_official_config(cls) -> dict[str, Any]:
-        """Official Figma MCP (HTTP, read-only-ish)."""
+        """Official Figma remote MCP server (OAuth 2.1 browser flow)."""
         return {
             "transport": "http",
-            "url": "https://mcp.figma.com/mcp"
+            "url": cls.OFFICIAL_URL,
+            "auth": "oauth",
+        }
+
+    @classmethod
+    def get_official_stdio_config(cls) -> dict[str, Any]:
+        """Official Figma remote MCP wrapped with mcp-remote for stdio clients."""
+        return {
+            "command": "npx",
+            "args": ["-y", "mcp-remote", cls.OFFICIAL_URL],
+            "url": cls.OFFICIAL_URL,
         }
 
     @classmethod
     def get_console_config(cls, token: str) -> dict[str, Any]:
-        """Figma Console MCP — full read/write with Desktop Bridge."""
+        """Figma Console MCP -- full read/write with Desktop Bridge (PAT)."""
         return {
             "command": "npx",
             "args": ["-y", "figma-console-mcp@latest"],

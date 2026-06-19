@@ -1,7 +1,6 @@
 ---
 name: perf-optimization
-description: Performance optimization. Activate when user says "slow", "lag", "optimize", "performance", "benchmark", "profile", "fast", "cache", or when dealing with slow queries, renders, or operations.
-type: prompt
+description: Performance profiling and optimizationtype: prompt
 whenToUse: When the user mentions slow performance, profiling, benchmark, or optimization
 disableModelInvocation: false
 ---

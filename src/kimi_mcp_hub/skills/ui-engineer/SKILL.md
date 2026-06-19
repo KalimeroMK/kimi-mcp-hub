@@ -1,7 +1,6 @@
 ---
 name: ui-engineer
-description: UI/UX engineer specialist. Activate for responsive design, component systems, accessibility, or when user says "UI", "UX", "responsive", "component", "design system", "Tailwind", "CSS", "accessibility
-type: prompt
+description: UI/UX engineer specialisttype: prompt
 whenToUse: When the user mentions UI, Tailwind, responsive design, a11y, or component library
 disableModelInvocation: false
 ---

@@ -1,7 +1,6 @@
 ---
 name: gitnexus
-description: Code knowledge graph and blast radius analysis. Activate when user says "who wrote this", "when was this changed", "why was this added", "impact analysis", "blast radius", "dependencies", "refactor th
-type: prompt
+description: Code knowledge graph and blast radius analysistype: prompt
 whenToUse: When the user asks who wrote code, git blame, code impact, or repository analysis
 disableModelInvocation: false
 ---

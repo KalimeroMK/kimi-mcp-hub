@@ -1,7 +1,6 @@
 ---
 name: superpowers
-description: Structured software development skills. Activate for complex multi-step tasks: planning, debugging, refactoring, testing, deployment, architecture, migration, optimization, audit. Use when user says "
-type: prompt
+description: 14 agentic development workflowstype: prompt
 whenToUse: When the user asks to plan, debug, test, refactor, deploy, audit, or architect a complex feature
 disableModelInvocation: false
 ---

@@ -1,7 +1,6 @@
 ---
 name: docker-pro
-description: Docker and container best practices. Activate when user says "docker", "container", "image", "Dockerfile", "compose", "kubernetes", "k8s", "deploy", "containerize", or when working with containerized 
-type: prompt
+description: Docker, Kubernetes and container best practicestype: prompt
 whenToUse: When the user mentions Docker, container, Kubernetes, k8s, Dockerfile, or deployment
 disableModelInvocation: false
 ---

@@ -1,7 +1,6 @@
 ---
 name: caveman
-description: Compress all responses to terse/caveman speak. Activate when user says "caveman", "terse", "brief", "concise", "less tokens", "shut up", "minimal", "tl;dr", or "short". Deactivate for security warning
-type: prompt
+description: Terse, minimal-token responsestype: prompt
 whenToUse: When the user asks for terse, brief, or short output, or mentions saving tokens
 disableModelInvocation: false
 ---

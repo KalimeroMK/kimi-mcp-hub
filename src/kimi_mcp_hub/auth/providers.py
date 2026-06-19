@@ -101,11 +101,18 @@ def authenticate_github(pat_fallback: bool = True) -> dict | None:
         border_style="cyan",
     ))
 
+    # Allow users to bring their own OAuth app for security/control.
+    custom_client_id = Prompt.ask(
+        "GitHub OAuth Client ID (leave empty for public app)",
+        default="",
+    ).strip()
+    client_id = custom_client_id or provider.client_id
+
     # Option 1: Device Flow (recommended)
     use_device = Confirm.ask("Use Device Flow (auto browser open)?", default=True)
 
     if use_device:
-        return _github_device_flow()
+        return _github_device_flow(client_id=client_id)
 
     # Option 2: PAT
     if pat_fallback:
@@ -121,15 +128,16 @@ def authenticate_github(pat_fallback: bool = True) -> dict | None:
     return None
 
 
-def _github_device_flow() -> dict | None:
+def _github_device_flow(client_id: str | None = None) -> dict | None:
     """GitHub Device Flow with auto browser open."""
     provider = GITHUB_PROVIDER
     store = provider.get_token_store()
+    client_id = client_id or provider.client_id
 
     handler = DeviceFlowHandler(
         device_endpoint=provider.device_auth_url,
         token_endpoint=provider.device_token_url,
-        client_id=provider.client_id,
+        client_id=client_id,
         scopes=provider.scopes,
     )
 
@@ -138,7 +146,7 @@ def _github_device_flow() -> dict | None:
         import requests
         resp = requests.post(
             provider.device_auth_url,
-            data={"client_id": provider.client_id, "scope": " ".join(provider.scopes)},
+            data={"client_id": client_id, "scope": " ".join(provider.scopes)},
             headers={"Accept": "application/json"},
             timeout=30,
         )
@@ -204,7 +212,6 @@ ATLASSIAN_PROVIDER = OAuthProvider(
 def authenticate_atlassian(service: str = "jira") -> dict | None:
     """Authenticate with Atlassian for Jira or Confluence."""
     provider = ATLASSIAN_PROVIDER
-    store = provider.get_token_store()
 
     console.print(Panel.fit(
         f"[bold]Atlassian {service.title()} Authorization[/bold]\n"
@@ -213,18 +220,20 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
     ))
 
     # Atlassian requires registering your own OAuth app
-    # For now, guide the user through the official Kimi MCP flow
     console.print("\n[bold]Atlassian OAuth Setup[/bold]\n")
-    console.print("Atlassian requires an OAuth app. You have two options:\n")
+    console.print("Atlassian requires an OAuth app. You have three options:\n")
     console.print("[bold]1. Official MCP Server (Recommended):[/bold]")
     console.print("   [bold]kimi mcp add --transport http --auth oauth jira[/bold]")
     console.print("   [bold]https://mcp.atlassian.com/v1/mcp/authv2[/bold]")
     console.print("   Then: [bold]kimi mcp auth jira[/bold]\n")
 
-    console.print("[bold]2. API Token (Simpler):[/bold]")
+    console.print("[bold]2. Custom OAuth 2.0 App:[/bold]")
+    console.print("   Create at: https://developer.atlassian.com/console/myapps/\n")
+
+    console.print("[bold]3. API Token (Simpler):[/bold]")
     console.print("   Get token at: https://id.atlassian.com/manage-profile/security/api-tokens")
 
-    choice = Prompt.ask("Option", choices=["mcp", "api-token"], default="api-token")
+    choice = Prompt.ask("Option", choices=["mcp", "oauth", "api-token"], default="api-token")
 
     if choice == "api-token":
         from ..servers.jira import JiraServer
@@ -245,6 +254,26 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
 
         console.print(f"[green]{service.title()} configured with API token![/green]")
         return {"token": token, "email": email, "base_url": base_url}
+
+    if choice == "oauth":
+        custom_client_id = Prompt.ask(
+            "Atlassian OAuth Client ID",
+            default=provider.client_id,
+        ).strip()
+        client_id = custom_client_id or provider.client_id
+        handler = WebFlowHandler(
+            auth_url=provider.auth_url,
+            token_url=provider.token_url,
+            client_id=client_id,
+            scopes=provider.scopes,
+        )
+        token_data = handler.authorize(timeout=120)
+        if token_data:
+            store = provider.get_token_store()
+            store.save(service, token_data)
+            console.print(f"[bold green]{service.title()} authorized successfully![/bold green]")
+            return token_data
+        return None
 
     return {"flow": "mcp_official"}
 
@@ -371,12 +400,25 @@ def authenticate_figma() -> dict | None:
 
     console.print("\n[bold]Figma OAuth Setup[/bold]\n")
     console.print("Options:\n")
-    console.print("[bold]1. Personal Access Token (PAT):[/bold] Easiest")
+    console.print("[bold]1. Official remote MCP (OAuth 2.1):[/bold] Recommended")
+    console.print("   URL: [blue]https://mcp.figma.com/mcp[/blue]")
+    console.print("   Add the server, then trigger auth from Kimi CLI.\n")
+    console.print("[bold]2. Personal Access Token (PAT):[/bold] Easiest")
     console.print("   Get at: [blue]https://www.figma.com/developers/api#access-tokens[/blue]")
-    console.print("[bold]2. OAuth 2.0:[/bold] Full access, requires app")
+    console.print("[bold]3. Custom OAuth 2.0 App:[/bold] Full access, requires app")
     console.print("   Create app at: [blue]https://www.figma.com/developers[/blue]\n")
 
-    choice = Prompt.ask("Method", choices=["pat", "oauth"], default="pat")
+    choice = Prompt.ask("Method", choices=["official", "pat", "oauth"], default="official")
+
+    if choice == "official":
+        from ..servers.figma import FigmaServer
+        from ..config import KimiConfig
+        config = KimiConfig()
+        cfg = FigmaServer.get_official_config()
+        config.add_server("figma", cfg)
+        console.print("[green]Figma configured (Official OAuth 2.1).[/green]")
+        console.print("[dim]   Run: kimi mcp auth figma[/dim]")
+        return {"server_config": cfg}
 
     if choice == "pat":
         token = Prompt.ask("Figma PAT (figd_...)", password=True)

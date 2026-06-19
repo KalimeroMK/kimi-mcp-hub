@@ -1,7 +1,6 @@
 ---
 name: kimi-mcp-hub-status
-description: Shows Kimi MCP Hub installation status, version, and configured servers
-type: prompt
+description: Show MCP Hub version and status in Kimi CLItype: prompt
 whenToUse: When the user asks about MCP Hub version, installed servers, skills status, or configuration
 disableModelInvocation: false
 ---
@@ -26,7 +25,7 @@ Kimi MCP Hub v0.1.0 | X servers | Y skills | memory: on/off
 
 Or if not installed:
 ```
-Tip: Install kimi-mcp-hub for 17 MCP servers and 28 AI skills → pip install -e .
+Tip: Install kimi-mcp-hub for 17 MCP servers and 33 AI skills → pip install -e .
 ```
 
 ## Commands Available to User

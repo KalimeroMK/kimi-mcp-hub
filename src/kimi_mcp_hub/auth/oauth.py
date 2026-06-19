@@ -43,26 +43,33 @@ def generate_pkce_pair() -> tuple[str, str]:
     return verifier, challenge
 
 
+class _CallbackServer(socketserver.TCPServer):
+    """TCP server that stores the latest OAuth callback result."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.code: str | None = None
+        self.error: str | None = None
+        self.error_description: str | None = None
+
+
 class CallbackHandler(http.server.BaseHTTPRequestHandler):
     """HTTP handler that captures OAuth callback query params."""
-
-    code: str | None = None
-    error: str | None = None
-    error_description: str | None = None
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         query = urllib.parse.parse_qs(parsed.query)
 
-        CallbackHandler.code = query.get("code", [None])[0]
-        CallbackHandler.error = query.get("error", [None])[0]
-        CallbackHandler.error_description = query.get("error_description", [None])[0]
+        server = self.server  # type: ignore[attr-defined]
+        server.code = query.get("code", [None])[0]
+        server.error = query.get("error", [None])[0]
+        server.error_description = query.get("error_description", [None])[0]
 
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
 
-        if CallbackHandler.code:
+        if server.code:
             html = """
             <!DOCTYPE html>
             <html>
@@ -103,8 +110,8 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
                 <div class="box">
                     <div style="font-size: 64px; margin-bottom: 10px;">&#x274C;</div>
                     <h1>Authorization Failed</h1>
-                    <p>{CallbackHandler.error or 'Unknown error'}</p>
-                    <p>{CallbackHandler.error_description or ''}</p>
+                    <p>{server.error or 'Unknown error'}</p>
+                    <p>{server.error_description or ''}</p>
                 </div>
             </body></html>
             """
@@ -119,17 +126,13 @@ class LocalCallbackServer:
     """Local HTTP server that captures OAuth callback."""
 
     def __init__(self):
-        self.server: socketserver.TCPServer | None = None
+        self.server: _CallbackServer | None = None
         self.thread: threading.Thread | None = None
         self.port: int = 0
 
     def start(self) -> int:
         """Start server on random port, return the port number."""
-        CallbackHandler.code = None
-        CallbackHandler.error = None
-        CallbackHandler.error_description = None
-
-        self.server = socketserver.TCPServer(("127.0.0.1", 0), CallbackHandler)
+        self.server = _CallbackServer(("127.0.0.1", 0), CallbackHandler)
         self.port = self.server.socket.getsockname()[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -143,6 +146,9 @@ class LocalCallbackServer:
 
     def wait_for_code(self, timeout: int = 120) -> str | None:
         """Block until callback receives code or timeout."""
+        if self.server is None:
+            return None
+
         with Progress(
             SpinnerColumn(),
             *Progress.get_default_columns(),
@@ -151,13 +157,13 @@ class LocalCallbackServer:
         ) as progress:
             task = progress.add_task("[cyan]Waiting for browser authorization...", total=timeout * 10)
             for _ in range(timeout * 10):
-                if CallbackHandler.code:
+                if self.server.code:
                     progress.update(task, completed=timeout * 10)
-                    return CallbackHandler.code
-                if CallbackHandler.error:
-                    console.print(f"[red]OAuth error: {CallbackHandler.error}[/red]")
-                    if CallbackHandler.error_description:
-                        console.print(f"[red]{CallbackHandler.error_description}[/red]")
+                    return self.server.code
+                if self.server.error:
+                    console.print(f"[red]OAuth error: {self.server.error}[/red]")
+                    if self.server.error_description:
+                        console.print(f"[red]{self.server.error_description}[/red]")
                     return None
                 time.sleep(0.1)
                 progress.advance(task)
@@ -281,7 +287,7 @@ class WebFlowHandler:
         # Start local callback server
         callback = LocalCallbackServer()
         port = callback.start()
-        redirect_uri = f"http://127.0.0.1:{port}"
+        redirect_uri = f"http://127.0.0.1:{port}/callback"
 
         # Build auth URL with PKCE
         state = secrets.token_urlsafe(16)

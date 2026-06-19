@@ -1,7 +1,6 @@
 ---
 name: database-expert
-description: Database design and optimization. Activate when user says "database", "DB", "SQL", "schema", "migration", "index", "query", "PostgreSQL", "MySQL", "MongoDB", "Redis", "ORM", or when working with data 
-type: prompt
+description: Database design and optimizationtype: prompt
 whenToUse: When the user mentions database design, SQL, schema, query optimization, or migrations
 disableModelInvocation: false
 ---

@@ -1,7 +1,6 @@
 ---
 name: ts-coder
-description: TypeScript specialist. Activate for TypeScript code, types, generics, or when user says "TypeScript", "TS", "type", "generic", "interface", "type inference", "strict mode", "tsconfig", "type-safe".
-type: prompt
+description: TypeScript specialisttype: prompt
 whenToUse: When the user mentions TypeScript, TS, generics, or strict types
 disableModelInvocation: false
 ---

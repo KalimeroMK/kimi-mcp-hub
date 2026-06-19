@@ -1,7 +1,6 @@
 ---
 name: headroom
-description: Compress tool outputs before sending to LLM. Activate when tool output exceeds 1000 tokens, or user says "compress", "summarize output", "too long", "token limit", or when dealing with large logs, dif
-type: prompt
+description: Compress large tool outputs to save tokenstype: prompt
 whenToUse: When the user mentions large outputs, token limits, context compression, or saving tokens
 disableModelInvocation: false
 ---

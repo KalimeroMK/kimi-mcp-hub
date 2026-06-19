@@ -13,18 +13,21 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 from rich import box
 
-from . import __version__, __title__
+from . import __version__, __title__, TOTAL_SERVERS, TOTAL_SKILLS
 from .config import KimiConfig
 from .servers import (
     ChromeDevToolsServer,
     JiraServer, LinearServer, ConfluenceServer, GitHubServer,
-    SlackServer, DatadogServer, FigmaServer, GmailServer,
-    HubSpotServer, GrainServer,
+    SlackServer, DatadogServer, FigmaServer, FigmaContextServer,
+    GitLabServer, GmailServer, HubSpotServer, GrainServer,
     PostgreSQLServer, PlaywrightServer, SentryServer,
-    Context7Server, SupabaseServer, PerplexityServer,
+    Context7Server, SupabaseServer, PerplexityServer, StripeServer,
+    DesktopCommanderServer, DBHubServer, MobileMCPServer,
 )
 from .auth.oauth import OAuthHandler
 from .import_claude import import_claude_servers
+from ._post_install import check_first_run
+from .memory.db import MemoryDB
 
 console = Console()
 
@@ -36,6 +39,8 @@ SERVERS = {
     "slack": SlackServer,
     "datadog": DatadogServer,
     "figma": FigmaServer,
+    "figma-context": FigmaContextServer,
+    "gitlab": GitLabServer,
     "gmail": GmailServer,
     "hubspot": HubSpotServer,
     "grain": GrainServer,
@@ -46,10 +51,21 @@ SERVERS = {
     "context7": Context7Server,
     "supabase": SupabaseServer,
     "perplexity": PerplexityServer,
+    "stripe": StripeServer,
+    "desktop-commander": DesktopCommanderServer,
+    "dbhub": DBHubServer,
+    "mobile": MobileMCPServer,
 }
 
 # Core skills are installed by default
-CORE_SKILLS = ["karpathy", "superpowers", "headroom", "context-mode", "cybersecurity"]
+CORE_SKILLS = [
+    "karpathy",
+    "superpowers",
+    "headroom",
+    "context-mode",
+    "cybersecurity",
+    "kimi-mcp-hub-status",
+]
 
 SKILLS = {
     # ---- Core skills ----
@@ -58,6 +74,7 @@ SKILLS = {
     "headroom": "Compress large tool outputs to save tokens",
     "context-mode": "Optimize context window usage",
     "cybersecurity": "Security expert (OWASP, cloud, IR, pentest)",
+    "kimi-mcp-hub-status": "Show MCP Hub version and status in Kimi CLI",
     # ---- Optional skills ----
     "caveman": "Terse mode (75% token reduction)",
     "ecc": "Engineering Competence (perf, security, research)",
@@ -73,15 +90,20 @@ SKILLS = {
     "memory-palace": "Advanced context management",
     "code-reviewer": "Code review assistant",
     "code-review-anthropic": "Multi-agent PR review (sub-agents)",
+    "code-review": "Multi-agent code review with explore/coder/plan sub-agents",
     "api-designer": "REST/GraphQL API design",
     "docker-pro": "Docker and Kubernetes best practices",
     "database-expert": "Database design and optimization",
     "backend-architect": "Backend architecture (API, DB, scale)",
+    "backend-typescript-architect": "TypeScript/Bun backend architecture specialist",
     "python-engineer": "Python specialist (FastAPI, Django, async)",
+    "python-backend-engineer": "Senior Python backend engineer (FastAPI, Django)",
     "react-coder": "React 19 specialist (RSC, hooks)",
     "ts-coder": "TypeScript specialist (strict, generics)",
     "ui-engineer": "UI/UX engineer (Tailwind, a11y, responsive)",
     "laravel-engineer": "Laravel specialist (Eloquent, Blade, Livewire, Queues)",
+    "hindsight": "Memory that learns from mistakes and past decisions",
+    "find-skills": "Discover and install agent skills from the open ecosystem",
 }
 
 
@@ -148,6 +170,12 @@ def main(ctx):
 
     When called without a command, prints the welcome banner and status.
     """
+    # Show first-install or upgrade message only when the CLI is invoked.
+    try:
+        check_first_run()
+    except Exception:
+        pass
+
     if ctx.invoked_subcommand is None:
         print_welcome()
         console.print("\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] for interactive setup,[/dim]")
@@ -197,6 +225,51 @@ def init():
     console.print("  [bold]/mcp[/bold]    -- see your tools")
     console.print("  [bold]/skills[/bold] -- see installed skills")
     console.print("\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n")
+
+
+@main.command()
+def install():
+    """Install or update Kimi MCP Hub."""
+    print_header()
+    
+    console.print("[bold cyan]Installing Kimi MCP Hub...[/bold cyan]\n")
+    
+    # Check if running from repo or pip
+    repo_dir = Path(__file__).parent.parent.parent.parent
+    if (repo_dir / ".git").exists():
+        console.print("[dim]Detected development install (git repo)[/dim]")
+        console.print("Run: [bold]pip install -e .[/bold] from repo root\n")
+        return
+    
+    # Try to install from PyPI
+    console.print("[cyan]Installing from PyPI...[/cyan]")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "--user", "kimi-mcp-hub"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode == 0:
+            console.print("[green]Kimi MCP Hub installed from PyPI![/green]\n")
+        else:
+            # Fallback to GitHub
+            console.print("[yellow]PyPI not available, trying GitHub...[/yellow]")
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", "--user",
+                 "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"],
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+            if result.returncode == 0:
+                console.print("[green]Kimi MCP Hub installed from GitHub![/green]\n")
+            else:
+                console.print("[red]Install failed. Try:[/red]")
+                console.print("  [bold]pip install git+https://github.com/KalimeroMK/kimi-mcp-hub.git[/bold]\n")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print("[dim]Try: pip install git+https://github.com/KalimeroMK/kimi-mcp-hub.git[/dim]\n")
 
 
 @main.command()
@@ -410,13 +483,25 @@ def auth(server_name: str):
     # --- Legacy manual auth for API-key based servers ---
 
     if server_name == "linear":
-        console.print("[bold]Linear[/bold] uses API key.\n")
-        console.print("Get key from: https://linear.app/settings/api")
-        token = Prompt.ask("Linear API key", password=True)
-        if token:
-            cfg = LinearServer.get_stdio_config(token)
+        console.print("[bold]Linear[/bold] has two auth options:\n")
+        console.print("[bold]1. Official remote MCP (OAuth 2.1):[/bold]")
+        console.print("   Run [bold]kimi-mcp-hub add linear[/bold] and choose 'official-oauth' or 'official-stdio'.")
+        console.print("   Then trigger the browser login from Kimi CLI with [bold]kimi mcp auth linear[/bold].\n")
+        console.print("[bold]2. API key (local stdio server):[/bold]")
+        console.print("   Get key from: https://linear.app/settings/api\n")
+
+        choice = Prompt.ask("Option", choices=["api-key", "official"], default="api-key")
+        if choice == "api-key":
+            token = Prompt.ask("Linear API key", password=True)
+            if token:
+                cfg = LinearServer.get_stdio_config(token)
+                config.add_server("linear", cfg)
+                console.print("[green]Linear configured (API key)![/green]\n")
+        else:
+            cfg = LinearServer.get_official_config()
             config.add_server("linear", cfg)
-            console.print("[green]Linear configured![/green]\n")
+            console.print("[green]Linear configured (Official OAuth).[/green]")
+            console.print("[dim]   Run: kimi mcp auth linear[/dim]\n")
 
     elif server_name == "datadog":
         console.print("[bold]Datadog[/bold] uses API + App keys.\n")
@@ -596,10 +681,26 @@ def add_server_interactive(name: str, config: KimiConfig):
             console.print(f"[green]Added {display} (API token)[/green]")
 
     elif name == "linear":
-        token = Prompt.ask("Linear API key (https://linear.app/settings/api)", password=True)
-        cfg = LinearServer.get_stdio_config(token)
-        config.add_server(name, cfg)
-        console.print(f"[green]Added {display}[/green]")
+        choice = Prompt.ask(
+            "Linear mode",
+            choices=["official-oauth", "official-stdio", "api-key"],
+            default="official-oauth",
+        )
+        if choice == "official-oauth":
+            cfg = LinearServer.get_official_config()
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        elif choice == "official-stdio":
+            cfg = LinearServer.get_official_stdio_config()
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        else:
+            token = Prompt.ask("Linear API key (https://linear.app/settings/api)", password=True)
+            cfg = LinearServer.get_stdio_config(token)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (API key)[/green]")
 
     elif name == "github":
         token = Prompt.ask("GitHub PAT (https://github.com/settings/tokens)", password=True)
@@ -633,16 +734,57 @@ def add_server_interactive(name: str, config: KimiConfig):
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "figma":
-        choice = Prompt.ask("Mode", choices=["official-http", "console-npx"], default="console-npx")
-        if choice == "official-http":
+        choice = Prompt.ask(
+            "Mode",
+            choices=["official-oauth", "official-stdio", "console-npx"],
+            default="official-oauth",
+        )
+        if choice == "official-oauth":
             cfg = FigmaServer.get_official_config()
             config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (Official HTTP)[/green]")
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        elif choice == "official-stdio":
+            cfg = FigmaServer.get_official_stdio_config()
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
         else:
             token = Prompt.ask("Figma PAT (figd_...)", password=True)
             cfg = FigmaServer.get_console_config(token)
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Console)[/green]")
+
+    elif name == "figma-context":
+        token = Prompt.ask("Figma API access token (figd_...)", password=True)
+        cfg = FigmaContextServer.get_stdio_config(token)
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+
+    elif name == "gitlab":
+        choice = Prompt.ask(
+            "GitLab mode",
+            choices=["official-oauth", "official-stdio", "pat-stdio"],
+            default="official-oauth",
+        )
+        if choice == "official-oauth":
+            instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
+            cfg = GitLabServer.get_official_config(instance_url)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        elif choice == "official-stdio":
+            instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
+            cfg = GitLabServer.get_official_stdio_config(instance_url)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        else:
+            instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
+            token = Prompt.ask("GitLab Personal Access Token", password=True)
+            cfg = GitLabServer.get_stdio_config(token, instance_url)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (PAT stdio)[/green]")
 
     elif name == "gmail":
         choice = Prompt.ask("Mode", choices=["npx-auto", "chrome-bridge", "python-sdk"], default="npx-auto")
@@ -669,6 +811,35 @@ def add_server_interactive(name: str, config: KimiConfig):
         config.add_server(name, cfg)
         console.print(f"[green]Added {display} ({choice})[/green]")
 
+    elif name == "stripe":
+        choice = Prompt.ask(
+            "Stripe mode",
+            choices=["official-oauth", "official-stdio", "api-key", "docker"],
+            default="official-oauth",
+        )
+        if choice == "official-oauth":
+            cfg = StripeServer.get_official_config()
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        elif choice == "official-stdio":
+            cfg = StripeServer.get_official_stdio_config()
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+        elif choice == "api-key":
+            api_key = Prompt.ask("Stripe restricted API key (rk_...)", password=True)
+            tools = Prompt.ask("Enabled tools", default="all")
+            cfg = StripeServer.get_stdio_config(api_key, tools)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (API key)[/green]")
+        else:
+            api_key = Prompt.ask("Stripe restricted API key (rk_...)", password=True)
+            tools = Prompt.ask("Enabled tools", default="all")
+            cfg = StripeServer.get_docker_config(api_key, tools)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (Docker)[/green]")
+
     elif name == "grain":
         data_dir = Prompt.ask("Browser data directory", default="~/.grain-mcp/data")
         cfg = GrainServer.get_uv_config(data_dir)
@@ -684,11 +855,42 @@ def add_server_interactive(name: str, config: KimiConfig):
             console.print(f"[green]Added {display}[/green]")
             console.print("[dim]   Make sure Chrome is installed and Node >= 22.[/dim]")
 
+    elif name == "desktop-commander":
+        choice = Prompt.ask("Mode", choices=["npx", "docker"], default="npx")
+        if choice == "npx":
+            cfg = DesktopCommanderServer.get_stdio_config()
+        else:
+            cfg = DesktopCommanderServer.get_docker_config()
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display} ({choice})[/green]")
+        console.print("[dim]   Warning: this server can execute arbitrary commands.[/dim]")
+
+    elif name == "mobile":
+        cfg = MobileMCPServer.get_stdio_config()
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display}[/green]")
+        console.print("[dim]   Requires iOS Simulator/Android Emulator or a connected device.[/dim]")
+
     elif name == "postgres":
         dsn = Prompt.ask("PostgreSQL DSN", default="postgresql://user:pass@localhost/db")
         cfg = PostgreSQLServer.get_stdio_config(dsn)
         config.add_server(name, cfg)
         console.print(f"[green]Added {display}[/green]")
+
+    elif name == "dbhub":
+        choice = Prompt.ask("Mode", choices=["dsn", "demo", "docker"], default="dsn")
+        if choice == "dsn":
+            dsn = Prompt.ask("Database DSN", default="postgresql://user:pass@localhost/db")
+            readonly = Confirm.ask("Read-only mode?", default=True)
+            cfg = DBHubServer.get_stdio_config(dsn, readonly)
+        elif choice == "docker":
+            dsn = Prompt.ask("Database DSN", default="postgresql://user:pass@host.docker.internal/db")
+            readonly = Confirm.ask("Read-only mode?", default=True)
+            cfg = DBHubServer.get_docker_config(dsn, readonly)
+        else:
+            cfg = DBHubServer.get_demo_config()
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "playwright":
         console.print("[bold]Playwright[/bold] -- browser automation.\n")
@@ -756,29 +958,8 @@ def enable_memory(config: KimiConfig):
     memory_dir.mkdir(parents=True, exist_ok=True)
     memory_db = memory_dir / "memory.db"
 
-    # Initialize SQLite with FTS5
-    import sqlite3
-    conn = sqlite3.connect(str(memory_db))
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS observations (
-            id INTEGER PRIMARY KEY,
-            session_id TEXT,
-            timestamp TEXT,
-            type TEXT,
-            content TEXT,
-            summary TEXT,
-            tags TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE VIRTUAL TABLE IF NOT EXISTS observations_fts USING fts5(
-            content, summary, tags,
-            content='observations',
-            content_rowid='id'
-        )
-    """)
-    conn.commit()
-    conn.close()
+    # Initialize SQLite with FTS5 using the canonical schema from memory/db.py
+    MemoryDB(db_path=memory_db)
 
     console.print(f"[green]Memory database initialized: {memory_db}[/green]")
     console.print("[dim]   Memory will persist across sessions.[/dim]")

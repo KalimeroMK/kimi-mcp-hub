@@ -1,7 +1,6 @@
 ---
 name: memory-palace
-description: Advanced memory and context management. Activate when user says "remember", "don't forget", "context", "memory", "what did we do", "previous session", or when resuming work after break.
-type: prompt
+description: Advanced memory and context managementtype: prompt
 whenToUse: When the user asks to remember something from a previous session or context
 disableModelInvocation: false
 ---

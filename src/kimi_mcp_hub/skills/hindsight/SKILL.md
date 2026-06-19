@@ -1,7 +1,6 @@
 ---
 name: hindsight
-description: Memory that learns from mistakes. Activate when user says "remember this", "don't forget", "we tried this before", "last time we", or when encountering recurring errors, patterns, or decisions.
-type: prompt
+description: Memory that learns from mistakestype: prompt
 whenToUse: When the user asks to learn from mistakes, review past errors, or improve based on history
 disableModelInvocation: false
 ---

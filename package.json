@@ -1,0 +1,31 @@
+{
+  "name": "kimi-mcp-hub",
+  "version": "0.1.0",
+  "description": "One-click MCP server and skills manager for Kimi CLI",
+  "main": "install/npm-wrapper.js",
+  "bin": {
+    "kimi-mcp-hub": "install/npm-wrapper.js"
+  },
+  "files": [
+    "install/",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "echo 'Run Python tests: python -m pytest'"
+  },
+  "keywords": [
+    "kimi",
+    "mcp",
+    "cli",
+    "installer"
+  ],
+  "author": "KalimeroMK",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

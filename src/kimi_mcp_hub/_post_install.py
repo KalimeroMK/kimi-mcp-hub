@@ -6,7 +6,7 @@ Also shows version-changed message when upgrading.
 
 from pathlib import Path
 
-from . import __version__, __title__
+from . import __version__, __title__, TOTAL_SERVERS, TOTAL_SKILLS
 
 
 def _get_state_file() -> Path:
@@ -63,8 +63,8 @@ def _print_first_install_message():
         console = Console()
         message = (
             f"[bold green]{__title__} v{__version__} е успешно инсталиран![/bold green]\n\n"
-            f"[cyan]17[/cyan] MCP сервери достапни (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
-            f"[cyan]28[/cyan] AI skills за подобро кодирање\n"
+            f"[cyan]{TOTAL_SERVERS}[/cyan] MCP сервери достапни (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
+            f"[cyan]{TOTAL_SKILLS}[/cyan] AI skills за подобро кодирање\n"
             f"[cyan]1[/cyan]  Persistent memory систем\n\n"
             f"[bold]За да започнеш:[/bold]\n"
             f"  [bold]kimi-mcp-hub init[/bold]    -- интерактивен wizard\n"
@@ -80,7 +80,7 @@ def _print_first_install_message():
         print(f"\n{'='*50}")
         print(f"  {__title__} v{__version__} е успешно инсталиран!")
         print(f"{'='*50}")
-        print(f"  17 MCP сервери | 28 AI skills | Persistent memory")
+        print(f"  {TOTAL_SERVERS} MCP сервери | {TOTAL_SKILLS} AI skills | Persistent memory")
         print(f"")
         print(f"  За да започнеш: kimi-mcp-hub init")
         print(f"{'='*50}\n")

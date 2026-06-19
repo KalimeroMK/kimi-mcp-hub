@@ -4,3 +4,7 @@ __pycache__/
 dist/
 build/
 .uv/
+node_modules/
+package-lock.json
+.DS_Store
+src/.DS_Store

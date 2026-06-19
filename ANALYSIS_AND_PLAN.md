@@ -1,7 +1,7 @@
 # Kimi MCP Hub - Analiza i Plan za Podobruvanja
 
 ## Pregled
-`kimi-mcp-hub` e CLI alatka za upravuvanje so MCP serveri i skills za Kimi CLI. Momentalno ima 17 MCP serveri, 28+ skills, i persistent memory sistem.
+`kimi-mcp-hub` e CLI alatka za upravuvanje so MCP serveri i skills za Kimi CLI. Momentalno ima 17 MCP serveri, 33 skills, i persistent memory sistem.
 
 ## Kriticni Bagovi (sega)
 
@@ -29,7 +29,7 @@ from .servers import (
 ### 4. `print_header()` pokazuva zastareni informacii
 ```python
 console.print(Panel.fit(
-    "... 10 MCP Servers · 20 Skills ...",  # REALNO: 17 servers, 28+ skills
+    "... 10 MCP Servers · 20 Skills ...",  # REALNO: 17 servers, 33 skills
 ```
 
 ### 5. `__init__.py` - MemoryDB nedostasuva import

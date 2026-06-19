@@ -1,7 +1,6 @@
 ---
 name: code-review-anthropic
-description: Multi-agent code review system inspired by Anthropic's official plugin. Uses Kimi CLI sub-agents (coder, explore, plan) for parallel review. Activate when user says "review", "CR", "PR review", "code 
-type: prompt
+description: Deep multi-agent PR reviewtype: prompt
 whenToUse: When the user asks for deep PR review, multi-agent review, or thorough code inspection
 disableModelInvocation: false
 ---

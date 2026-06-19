@@ -1,7 +1,6 @@
 ---
 name: backend-typescript-architect
-description: Senior backend architect for TypeScript/Bun ecosystems. Activate for API design, database schema, scalability decisions, system architecture, or when user says "design API", "database schema", "backen
-type: prompt
+description: TypeScript/Bun backend architecturetype: prompt
 whenToUse: When the user asks for TypeScript backend architecture, NestJS, or API design
 disableModelInvocation: false
 ---

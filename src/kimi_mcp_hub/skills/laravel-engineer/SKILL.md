@@ -1,7 +1,6 @@
 ---
 name: laravel-engineer
-description: Laravel specialist. Activate for PHP, Laravel, Eloquent, Blade, Artisan, Livewire, or when user says "Laravel", "Eloquent", "Blade", "Artisan", "migration", "middleware", "service container", "queue",
-type: prompt
+description: Laravel and PHP specialisttype: prompt
 whenToUse: When the user mentions Laravel, Eloquent, Blade, PHP, Livewire, or Artisan
 disableModelInvocation: false
 ---
