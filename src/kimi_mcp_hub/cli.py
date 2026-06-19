@@ -25,6 +25,12 @@ from .servers import (
     DesktopCommanderServer, DBHubServer, MobileMCPServer,
 )
 from .auth.oauth import OAuthHandler
+from .auth.providers import (
+    authenticate_github,
+    authenticate_atlassian,
+    authenticate_slack,
+    authenticate_figma,
+)
 from .import_claude import import_claude_servers
 from ._post_install import check_first_run
 from .memory.db import MemoryDB
@@ -661,23 +667,21 @@ def add_server_interactive(name: str, config: KimiConfig):
     console.print(f"[dim]{cls.description}[/dim]\n")
 
     if name in ("jira", "confluence"):
-        choice = Prompt.ask("Auth method", choices=["oauth", "api-token"], default="oauth")
-        if choice == "oauth":
-            if name == "jira":
-                cfg = JiraServer.get_oauth_config()
-            else:
-                cfg = ConfluenceServer.get_oauth_config()
+        choice = Prompt.ask(
+            "Auth method",
+            choices=["official", "api-token"],
+            default="official",
+        )
+        if choice == "official":
+            cfg = JiraServer.get_oauth_config() if name == "jira" else ConfluenceServer.get_oauth_config()
             config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (OAuth)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            _authenticate_server(name, "official")
         else:
             base = Prompt.ask("Base URL", default="https://yourcompany.atlassian.net")
             email = Prompt.ask("Email")
             token = Prompt.ask("API token", password=True)
-            if name == "jira":
-                cfg = JiraServer.get_stdio_config(base, token, email)
-            else:
-                cfg = ConfluenceServer.get_stdio_config(base, token, email)
+            cfg = JiraServer.get_stdio_config(base, token, email) if name == "jira" else ConfluenceServer.get_stdio_config(base, token, email)
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (API token)[/green]")
 
@@ -691,12 +695,12 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = LinearServer.get_official_config()
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             cfg = LinearServer.get_official_stdio_config()
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
             token = Prompt.ask("Linear API key (https://linear.app/settings/api)", password=True)
             cfg = LinearServer.get_stdio_config(token)
@@ -704,18 +708,36 @@ def add_server_interactive(name: str, config: KimiConfig):
             console.print(f"[green]Added {display} (API key)[/green]")
 
     elif name == "github":
-        token = Prompt.ask("GitHub PAT (https://github.com/settings/tokens)", password=True)
-        cfg = GitHubServer.get_stdio_config(token)
-        config.add_server(name, cfg)
-        console.print(f"[green]Added {display}[/green]")
+        choice = Prompt.ask(
+            "Auth method",
+            choices=["pat", "oauth-device"],
+            default="pat",
+        )
+        if choice == "oauth-device":
+            token_data = authenticate_github()
+            if token_data and "access_token" in token_data:
+                cfg = GitHubServer.get_stdio_config(token_data["access_token"])
+                config.add_server(name, cfg)
+                console.print(f"[green]Added {display} (OAuth device flow)[/green]")
+            else:
+                console.print(f"[yellow]{display} OAuth not completed.[/yellow]")
+        else:
+            token = Prompt.ask("GitHub PAT (https://github.com/settings/tokens)", password=True)
+            cfg = GitHubServer.get_stdio_config(token)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (PAT)[/green]")
 
     elif name == "slack":
-        choice = Prompt.ask("Auth method", choices=["oauth", "token"], default="token")
-        if choice == "oauth":
+        choice = Prompt.ask(
+            "Auth method",
+            choices=["official-oauth", "token"],
+            default="token",
+        )
+        if choice == "official-oauth":
             cfg = SlackServer.get_oauth_config()
             config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (OAuth)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            console.print(f"[green]Added {display} (Official OAuth)[/green]")
+            _authenticate_server(name, "official-oauth")
         else:
             token = Prompt.ask("Slack Bot/User token (xoxb-... or xoxp-...)", password=True)
             cfg = SlackServer.get_stdio_config(token)
@@ -744,12 +766,12 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = FigmaServer.get_official_config()
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             cfg = FigmaServer.get_official_stdio_config()
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
             token = Prompt.ask("Figma PAT (figd_...)", password=True)
             cfg = FigmaServer.get_console_config(token)
@@ -773,13 +795,13 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = GitLabServer.get_official_config(instance_url)
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
             cfg = GitLabServer.get_official_stdio_config(instance_url)
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
             instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
             token = Prompt.ask("GitLab Personal Access Token", password=True)
@@ -822,12 +844,12 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = StripeServer.get_official_config()
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             cfg = StripeServer.get_official_stdio_config()
             config.add_server(name, cfg)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
-            console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
+            console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         elif choice == "api-key":
             api_key = Prompt.ask("Stripe restricted API key (rk_...)", password=True)
             tools = Prompt.ask("Enabled tools", default="all")
@@ -926,6 +948,42 @@ def add_server_interactive(name: str, config: KimiConfig):
         cfg = PerplexityServer.get_stdio_config(token)
         config.add_server(name, cfg)
         console.print(f"[green]Added {display}[/green]")
+
+
+def _run_kimi_mcp_auth(server_name: str) -> bool:
+    """Try to run `kimi mcp auth <server>` to trigger the browser popup.
+
+    Returns True if the Kimi CLI command executed successfully.
+    """
+    try:
+        console.print(f"[dim]Opening browser for {server_name} via Kimi CLI...[/dim]")
+        result = subprocess.run(
+            ["kimi", "mcp", "auth", server_name],
+            check=False,
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def _authenticate_server(name: str, method: str = "auto"):
+    """Trigger browser/popup auth after a server has been added.
+
+    For official remote MCP servers we delegate to Kimi CLI (`kimi mcp auth`).
+    If Kimi CLI is missing we print the manual command.
+    """
+    if method in ("official", "official-oauth"):
+        if not _run_kimi_mcp_auth(name):
+            console.print(f"[yellow]Kimi CLI not found or auth failed.[/yellow]")
+            console.print(f"[dim]   Run manually: kimi mcp auth {name}[/dim]")
+    elif method == "custom-oauth":
+        # Caller is responsible for invoking the provider-specific web flow.
+        pass
+    elif method == "oauth-device":
+        # Caller is responsible for invoking the device flow.
+        pass
+    else:
+        console.print(f"[dim]   Run: kimi mcp auth {name}[/dim]")
 
 
 def install_skill(skill_name: str, config: KimiConfig):
