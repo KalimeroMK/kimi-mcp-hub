@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 34 AI skills (6 core + 28 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 48 AI skills (6 core + 42 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -15,8 +15,8 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Quick Start](#quick-start)
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
-- [MCP Servers](#17-mcp-servers)
-- [Skills](#34-skills)
+- [MCP Servers](#23-mcp-servers)
+- [Skills](#48-skills)
 - [Architecture](#architecture)
 - [Ideas from Claude-Mem](#-ideas-from-claude-mem)
 
@@ -87,7 +87,7 @@ On first run you'll see:
 Kimi MCP Hub v0.1.0 e uspeshno instaliran!
 
 23 MCP serveri dostapni
-34 AI skills za podobro kodiranje
+48 AI skills za podobro kodiranje
 1  Persistent memory sistem
 
 Za da zapochnesh:
@@ -115,9 +115,9 @@ This walks you through:
 ```bash
 # Full reset
 pip uninstall kimi-mcp-hub
-rm -f ~/.kimi/mcp.json
-rm -rf ~/.kimi/skills/
-rm -rf ~/.kimi/mcp-hub/
+rm -f ~/.kimi-code/mcp.json
+rm -rf ~/.kimi-code/skills/
+rm -rf ~/.kimi-mcp-hub/
 rm -rf ~/.config/kimi-mcp-hub/
 
 # Or use the CLI
@@ -129,7 +129,7 @@ kimi-mcp-hub remove github    # remove another
 
 ```bash
 pip uninstall kimi-mcp-hub
-rm -rf ~/.kimi/mcp.json ~/.kimi/skills/ ~/.kimi/mcp-hub/
+rm -rf ~/.kimi-code/mcp.json ~/.kimi-code/skills/ ~/.kimi-mcp-hub/
 pip install --user git+https://github.com/KalimeroMK/kimi-mcp-hub.git
 kimi-mcp-hub init
 ```
@@ -151,6 +151,8 @@ kimi-mcp-hub init
 # Add servers individually
 kimi-mcp-hub add jira
 kimi-mcp-hub add github
+kimi-mcp-hub add slack
+kimi-mcp-hub add supabase
 kimi-mcp-hub add perplexity
 kimi-mcp-hub add gitlab
 kimi-mcp-hub add stripe
@@ -164,15 +166,24 @@ kimi-mcp-hub add mobile
 
 # Auth with auto-browser (OAuth) -- like Claude Code CLI
 kimi-mcp-hub auth github
-kimi-mcp-hub auth slack
 kimi-mcp-hub auth figma
 kimi-mcp-hub auth gitlab
 kimi-mcp-hub auth stripe
+
+# For official remote MCP servers, Kimi CLI handles the popup:
+# /mcp-config login jira
+# /mcp-config login linear
+# /mcp-config login confluence
+# /mcp-config login supabase
 
 # See everything configured
 kimi-mcp-hub list
 kimi-mcp-hub status
 kimi-mcp-hub welcome
+kimi-mcp-hub notify
+
+# Fix broken configs after package updates
+kimi-mcp-hub repair
 
 # Import from Claude Desktop
 kimi-mcp-hub import-claude
@@ -213,19 +224,20 @@ GitHub authorized successfully!
 ```
 
 | Server | Method | Auto-browser |
-|--------|--------|:------------:|
+|--------|------|:-----:|
 | **GitHub** | Device Flow (or PAT fallback) | Yes |
-| **Jira** | API Token or Official MCP OAuth | Yes |
-| **Confluence** | API Token or Official MCP OAuth | Yes |
-| **Slack** | Bot Token or OAuth 2.0 | Yes |
+| **Jira** | Official MCP OAuth or API token | Yes* |
+| **Confluence** | Official MCP OAuth or API token | Yes* |
+| **Slack** | Bot/User token (`slack-mcp-server`) | No (manual token) |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth 2.0 | Yes* |
 | **Gmail** | Google OAuth 2.0 or npx | Yes |
 | **Linear** | Official OAuth 2.1 or API key | Yes* |
 | **Stripe** | Official OAuth 2.1 or restricted API key | Yes* |
 | **GitLab** | Official OAuth 2.1 or PAT | Yes* |
+| **Supabase** | Official remote OAuth or access-token stdio | Yes* |
 | **Datadog** | API + App keys | No (manual) |
 
-\* Linear/Figma/Stripe/GitLab OAuth 2.1 се иницира од Kimi CLI (`kimi mcp auth <server>`) откако ќе го додадете официјалниот remote MCP сервер.
+\* Official remote OAuth 2.1 is initiated by Kimi CLI (`kimi mcp auth <server>` or `/mcp-config login <server>`) after you add the official remote MCP server.
 
 ---
 
@@ -239,12 +251,14 @@ GitHub authorized successfully!
 | `kimi-mcp-hub init` | Full interactive wizard |
 | `kimi-mcp-hub status` | Version, servers, skills, memory |
 | `kimi-mcp-hub welcome` | Detailed welcome banner |
+| `kimi-mcp-hub notify` | Short startup notification for shell wrappers |
 | `kimi-mcp-hub add <server>` | Add an MCP server |
 | `kimi-mcp-hub remove <server>` | Remove an MCP server |
 | `kimi-mcp-hub auth <server>` | OAuth with auto-browser |
+| `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub list` | All servers + skills + memory |
-| `kimi-mcp-hub list-skills` | All 34 available skills |
+| `kimi-mcp-hub list-skills` | All 48 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
 | `kimi-mcp-hub test <server>` | Test if server responds |
 | `kimi-mcp-hub doctor` | System health check |
@@ -259,7 +273,7 @@ GitHub authorized successfully!
 | **Linear** | Official OAuth 2.1 or API key | 6 | Issues, projects, teams |
 | **Confluence** | OAuth or API token | 5 | Docs, wiki, pages |
 | **GitHub** | Device Flow / PAT | 6 | Repos, PRs, issues, code |
-| **Slack** | OAuth or token | 7 | Channels, DMs, search |
+| **Slack** | Bot/User token (`slack-mcp-server`) | 7 | Channels, DMs, search |
 | **Datadog** | API + App keys | 12 | Metrics, logs, monitors, APM |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth | 9 | Designs, tokens, components |
 | **Figma Context** | Figma API access token | 3 | Design-to-code implementation |
@@ -276,52 +290,109 @@ GitHub authorized successfully!
 | **Playwright** | STDIO (Node.js) | 8 | Browser automation, E2E testing, screenshots |
 | **Sentry** | Auth token + org | 6 | Error tracking, issue triage, stack traces |
 | **Context7** | STDIO (npx) | 4 | Live library docs, version-aware API lookup |
-| **Supabase** | URL + API key | 6 | Database, auth, storage, realtime, edge functions |
+| **Supabase** | Official remote OAuth or access-token stdio | 6 | Database, auth, storage, realtime, edge functions |
 | **Perplexity** | **API key (free tier)** | **3** | **Real-time web search with AI summaries + citations** |
 
 ---
 
-## 34 Skills
+## 48 Skills
 
 ### Core Skills (installed by default)
 
-| Skill | Description | Trigger |
-|-------|-------------|---------|
-| **karpathy** | Clean, simple, readable code | Any code generation |
-| **superpowers** | 14 agentic dev skills (plan, debug, test, deploy...) | "plan", "debug", "architect" |
-| **headroom** | Compress tool outputs (save tokens) | Large outputs, "compress" |
-| **context-mode** | Context window optimization | "context limit", "token budget" |
-| **cybersecurity** | Security expert (OWASP, cloud, IR, pentest) | "security", "hack", "OWASP" |
-| **kimi-mcp-hub-status** | Shows MCP Hub version/status in Kimi CLI | Session start |
+| Skill | Description |
+|-------|-------------|
+| **karpathy** | Clean, simple, readable code discipline |
+| **superpowers** | 14 agentic workflows (plan, debug, test, deploy...) |
+| **headroom** | Compress large tool outputs to save tokens |
+| **context-mode** | Context window optimization and token budget |
+| **cybersecurity** | Cybersecurity expert (OWASP, cloud, IR, pentest) |
+| **kimi-mcp-hub-status** | Show MCP Hub version and status |
 
-### Optional Skills
+### Frontend Skills (installed as a stack by default)
 
-| Skill | Description | Trigger |
-|-------|-------------|---------|
-| **caveman** | Terse mode (75% token reduction) | "caveman", "terse", "brief" |
-| **ecc** | Engineering Competence (perf, security, research) | "optimize", "secure", "research" |
-| **ui-ux-pro-max** | Design intelligence (Tailwind, accessibility) | "design", "UI", "CSS" |
-| **visual-explainer** | HTML diagrams and slides | "visualize", "diagram" |
-| **task-master** | Task management system | "task", "todo", "backlog" |
-| **gitnexus** | Code knowledge graph (git blame, blast radius) | "who wrote this", "impact" |
-| **ralph** | Autonomous loop with stop-hooks | "keep going", "continue" |
-| **security-audit** | Security review checklist | "security", "audit", "vulnerability" |
-| **security-guidance** | 3-layer security scanning (Anthropic-style) | File edits, "security scan" |
-| **research-mode** | Research-driven development | "research", "compare", "benchmark" |
-| **perf-optimization** | Performance profiling and fixes | "slow", "profile", "benchmark" |
-| **memory-palace** | Advanced context management | "remember", "previous session" |
-| **code-reviewer** | Code review assistant | "review", "CR", "feedback" |
-| **code-review-anthropic** | Multi-agent PR review (sub-agents) | "PR review", "deep review" |
-| **api-designer** | REST/GraphQL API design | "API", "endpoint", "REST" |
-| **docker-pro** | Docker and Kubernetes best practices | "docker", "container", "k8s" |
-| **database-expert** | Database design and optimization | "database", "SQL", "schema" |
-| **backend-architect** | Backend architecture (API, DB, scale) | "design API", "system design" |
-| **python-engineer** | Python specialist (FastAPI, Django, async) | "Python", "FastAPI", "Django" |
-| **react-coder** | React 19 specialist (RSC, hooks) | "React", "component", "Next.js" |
-| **ts-coder** | TypeScript specialist (strict, generics) | "TypeScript", "TS", "generic" |
-| **ui-engineer** | UI/UX engineer (Tailwind, a11y, responsive) | "UI", "Tailwind", "responsive" |
-| **laravel-engineer** | Laravel specialist (Eloquent, Blade, Livewire, Queues) | "Laravel", "Eloquent", "PHP" |
-| **find-skills** | Discover and install agent skills from the open ecosystem | "find skill", "install skill" |
+| Skill | Description |
+|-------|-------------|
+| **react-coder** | React 19 specialist (RSC, hooks) |
+| **ts-coder** | TypeScript specialist (strict, generics) |
+| **ui-engineer** | UI component implementation (Tailwind, a11y) |
+| **ui-ux-pro-max** | UI/UX design intelligence and design systems |
+| **vercel-react-best-practices** | React/Next.js performance optimization |
+| **web-design-guidelines** | Audit UI code against Vercel guidelines |
+| **agent-browser** | Browser automation for web tasks and testing |
+
+### Code Quality & Review Skills
+
+| Skill | Description |
+|-------|-------------|
+| **code-reviewer** | Quick single-agent code review |
+| **code-review** | Multi-agent code review (explore/coder/plan) |
+| **surgical-refactoring** | Surgical code refactoring without behavior change |
+| **tdd** | Test-driven development with red-green-refactor |
+| **perf-optimization** | Performance profiling and optimization |
+| **security-audit** | Security review checklist |
+| **security-guidance** | 3-layer security scanning guidance |
+
+### Architecture & Design Skills
+
+| Skill | Description |
+|-------|-------------|
+| **api-designer** | REST/GraphQL API design |
+| **backend-architect** | Backend architecture and system design |
+| **backend-typescript-architect** | TypeScript/Bun backend architecture |
+| **codebase-design** | Design deep modules and testable interfaces |
+| **domain-modeling** | Build domain models and ubiquitous language |
+| **database-expert** | Database design and optimization |
+
+### DevOps & Tools Skills
+
+| Skill | Description |
+|-------|-------------|
+| **docker-pro** | Docker and Kubernetes best practices |
+| **gitnexus** | Code knowledge graph and blast radius |
+| **resolving-merge-conflicts** | Resolve git merge/rebase conflicts |
+
+### Language / Framework Skills
+
+| Skill | Description |
+|-------|-------------|
+| **python-engineer** | Python specialist (FastAPI, Django, async) |
+| **laravel-engineer** | Laravel specialist (Eloquent, Blade, Livewire) |
+| **php-pro** | Senior PHP development (strict typing, Laravel/Symfony, PSR) |
+| **wp-plugin-development** | WordPress plugin development with hooks and Settings API |
+| **react-coder** | React 19 specialist (RSC, hooks) |
+| **ts-coder** | TypeScript specialist (strict, generics) |
+| **ui-engineer** | UI component implementation (Tailwind, a11y) |
+| **ui-ux-pro-max** | UI/UX design intelligence and design systems |
+
+### Testing & Browser Skills
+
+| Skill | Description |
+|-------|-------------|
+| **playwright-best-practices** | Playwright testing best practices |
+| **chrome-devtools-skill** | Chrome DevTools MCP debugging and automation |
+
+### Productivity & Meta Skills
+
+| Skill | Description |
+|-------|-------------|
+| **caveman** | Terse mode (75% token reduction) |
+| **memory-palace** | Advanced memory and context retrieval |
+| **hindsight** | Memory that learns from past decisions |
+| **task-master** | Task management system |
+| **ralph** | Autonomous loop with stop-hooks |
+| **grill-me** | Stress-test a plan or design |
+| **visual-explainer** | HTML diagrams and slides |
+| **research-mode** | Research-driven development |
+| **ecc** | Engineering competence (perf, security, research) |
+| **skill-creator** | Create and optimize agent skills |
+| **agent-automation-recommender** | Recommend agent automations for codebases |
+| **find-skills** | Discover and install agent skills |
+
+### Integration Skills
+
+| Skill | Description |
+|-------|-------------|
+| **stripe-best-practices** | Stripe integration best practices |
 
 ---
 
@@ -337,7 +408,7 @@ Features we adopted from the 81k-star `claude-mem` project:
 | **Web viewer UI** | `http://localhost:37777` | Coming soon |
 | **Skills / memory search** | `mem-search` skill | Built-in `memory_palace` skill |
 | **Privacy tags** | `<private>` content exclusion | Planned |
-| **Plugin hooks** | `.claude/`, `.codex/` hooks | `~/.kimi/skills/` directory |
+| **Plugin hooks** | `.claude/`, `.codex/` hooks | `~/.kimi-code/skills/` directory |
 | **Import from other tools** | - | Claude Desktop import |
 
 ---
@@ -351,21 +422,25 @@ Features we adopted from the 81k-star `claude-mem` project:
 |  |  (no args) -> welcome banner    |    |
 |  |  install -> PyPI/GitHub update  |    |
 |  |  init -> interactive wizard     |    |
-|  |  add  -> writes ~/.kimi/mcp.json|    |
+|  |  add  -> writes ~/.kimi-code/...|    |
 |  |  auth -> OAuth + auto browser   |    |
+|  |  repair -> fix broken configs   |    |
 |  |  import-claude -> migrate config|    |
 |  |  list -> pretty table of tools  |    |
 |  |  status -> version + health     |    |
 |  |  welcome -> full info display   |    |
+|  |  notify -> startup notification |    |
 |  +---------------------------------+    |
 |              |                          |
 |  +---------------------------------+    |
-|  |  ~/.kimi/mcp.json               |    |
-|  |  ~/.kimi-code/skills/ (34 skills) |    |
-|  |  ~/.kimi/mcp-hub/memory.db      |    |
+|  |  ~/.kimi-code/mcp.json          |    |
+|  |  ~/.kimi-code/skills/ (48 skills)|    |
+|  |  ~/.config/kimi-mcp-hub/        |    |
+|  |    tokens.json + memory.db      |    |
 |  +---------------------------------+    |
 |              |                          |
-|  First-run welcome message (auto)       |
+|  Optional shell wrapper prints notify   |
+|  on every `kimi` start                  |
 |              |                          |
 |         Kimi CLI reads config           |
 |              |                          |
@@ -381,7 +456,7 @@ Features we adopted from the 81k-star `claude-mem` project:
 
 - OAuth tokens are stored as plain JSON in `~/.config/kimi-mcp-hub/tokens.json`. This keeps the tool dependency-free, but means anyone with access to your user account can read them.
 - By default GitHub authentication uses a public OAuth app (`kimi-mcp-hub`). You can supply your own GitHub/Atlassian OAuth Client ID when running `kimi-mcp-hub auth <server>`.
-- API keys and PATs are written to `~/.kimi/mcp.json`. Protect that file accordingly.
+- API keys and PATs are written to `~/.kimi-code/mcp.json`. Protect that file accordingly.
 
 ---
 
