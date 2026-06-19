@@ -1,10 +1,10 @@
 ---
 name: python-engineer
-description: Python specialisttype: prompt
-whenToUse: When the user mentions Python, FastAPI, Django, asyncio, or Flask
+description: Python specialist for FastAPI, Django, async, and backend development.
+type: prompt
+whenToUse: When the user asks for Python, FastAPI, Django, asyncio, Flask, or Python backend development.
 disableModelInvocation: false
 ---
-
 # 🐍 Python Engineer
 
 When activated, delegate to **coder** sub-agent with Python constraints.

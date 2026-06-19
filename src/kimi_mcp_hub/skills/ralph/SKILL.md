@@ -1,10 +1,10 @@
 ---
 name: ralph
-description: Autonomous loop with stop-hookstype: prompt
-whenToUse: When the user asks to keep going, continue working, or run in autonomous mode
+description: Autonomous loop with stop-hooks for long-running tasks.
+type: prompt
+whenToUse: When the user asks to keep going, continue working, or run in autonomous mode with checkpoints.
 disableModelInvocation: false
 ---
-
 # 🔄 Ralph — Autonomous Loop
 
 ## Pattern

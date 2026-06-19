@@ -1,10 +1,10 @@
 ---
 name: perf-optimization
-description: Performance profiling and optimizationtype: prompt
-whenToUse: When the user mentions slow performance, profiling, benchmark, or optimization
+description: Performance profiling, benchmarking, and optimization.
+type: prompt
+whenToUse: When the user mentions slow performance, profiling, benchmark, latency, or optimization.
 disableModelInvocation: false
 ---
-
 # ⚡ Performance Optimization
 
 ## Golden Rule

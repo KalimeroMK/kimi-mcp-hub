@@ -1,10 +1,10 @@
 ---
 name: backend-typescript-architect
-description: TypeScript/Bun backend architecturetype: prompt
-whenToUse: When the user asks for TypeScript backend architecture, NestJS, or API design
+description: TypeScript/Bun backend architecture specialist.
+type: prompt
+whenToUse: When the user asks for TypeScript backend architecture, NestJS, Bun, or API design in TypeScript.
 disableModelInvocation: false
 ---
-
 # 🏗️ Backend TypeScript Architect
 
 ## Role

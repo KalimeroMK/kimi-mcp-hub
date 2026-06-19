@@ -1,10 +1,10 @@
 ---
 name: kimi-mcp-hub-status
-description: Show MCP Hub version and status in Kimi CLItype: prompt
-whenToUse: When the user asks about MCP Hub version, installed servers, skills status, or configuration
+description: Show MCP Hub version, servers, and skills status.
+type: prompt
+whenToUse: When the user asks about MCP Hub version, installed servers, skills status, or configuration.
 disableModelInvocation: false
 ---
-
 # Kimi MCP Hub Status Skill
 
 When the user starts Kimi CLI and this skill is installed, Kimi will automatically display a brief status message showing that Kimi MCP Hub is installed and active.

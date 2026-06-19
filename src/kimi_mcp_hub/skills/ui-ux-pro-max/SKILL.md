@@ -1,10 +1,10 @@
 ---
 name: ui-ux-pro-max
-description: Design intelligence for UI/UXtype: prompt
-whenToUse: When the user mentions design, UI, CSS, Tailwind, accessibility, or responsive layout
+description: UI/UX design intelligence for visual design and design systems.
+type: prompt
+whenToUse: When the user asks for UI/UX design direction, design systems, visual hierarchy, color, typography, or design review.
 disableModelInvocation: false
 ---
-
 # 🎨 UI/UX Pro Max
 
 ## Design Principles

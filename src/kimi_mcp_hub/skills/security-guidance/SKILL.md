@@ -1,10 +1,10 @@
 ---
 name: security-guidance
-description: 3-layer security scanning guidancetype: prompt
-whenToUse: When the user edits files and mentions security scan or wants security validation
+description: 3-layer security scanning guidance for file edits, model turns, and commits.
+type: prompt
+whenToUse: When the user edits files and asks for security validation or automatic security scanning.
 disableModelInvocation: false
 ---
-
 # 🔒 Security Guidance — 3-Layer Scan
 
 ## Layer 1: File Edit Scan (real-time)

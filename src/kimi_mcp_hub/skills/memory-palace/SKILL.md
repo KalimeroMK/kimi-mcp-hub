@@ -1,10 +1,10 @@
 ---
 name: memory-palace
-description: Advanced memory and context managementtype: prompt
-whenToUse: When the user asks to remember something from a previous session or context
+description: Advanced memory and context retrieval across sessions.
+type: prompt
+whenToUse: When the user asks to remember something from a previous session or retrieve stored context.
 disableModelInvocation: false
 ---
-
 # 🏛️ Memory Palace
 
 ## Context Injection

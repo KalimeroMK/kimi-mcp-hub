@@ -1,10 +1,10 @@
 ---
 name: hindsight
-description: Memory that learns from mistakestype: prompt
-whenToUse: When the user asks to learn from mistakes, review past errors, or improve based on history
+description: Memory that learns from mistakes and past decisions.
+type: prompt
+whenToUse: When the user asks to learn from mistakes, review past errors, or improve based on history.
 disableModelInvocation: false
 ---
-
 # 🔮 Hindsight — Learning Memory
 
 ## Capture Patterns

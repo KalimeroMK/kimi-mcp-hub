@@ -1,10 +1,10 @@
 ---
 name: context-mode
-description: Context window optimizationtype: prompt
-whenToUse: When the user mentions context window, token budget, or context optimization
+description: Context window optimization and token budget management.
+type: prompt
+whenToUse: When the user mentions context window, token budget, context limits, or context optimization.
 disableModelInvocation: false
 ---
-
 # 🎯 Context Mode
 
 ## Token Budget Management

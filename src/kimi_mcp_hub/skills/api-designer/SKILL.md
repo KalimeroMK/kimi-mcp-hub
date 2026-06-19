@@ -1,10 +1,10 @@
 ---
 name: api-designer
-description: API design patterns and best practicestype: prompt
-whenToUse: When the user mentions API design, REST, GraphQL, endpoints, or API architecture
+description: API design patterns and best practices for REST and GraphQL.
+type: prompt
+whenToUse: When the user asks about API design, REST, GraphQL, endpoints, schema, or API architecture.
 disableModelInvocation: false
 ---
-
 # 🔌 API Designer
 
 ## REST Principles

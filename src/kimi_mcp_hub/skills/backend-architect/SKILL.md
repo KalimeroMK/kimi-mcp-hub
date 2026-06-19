@@ -1,10 +1,10 @@
 ---
 name: backend-architect
-description: Backend architecture and system designtype: prompt
-whenToUse: When the user asks to design API, system design, backend architecture, or scale
+description: Backend architecture, system design, and scalability patterns.
+type: prompt
+whenToUse: When the user asks for system design, backend architecture, API design at scale, or scalability.
 disableModelInvocation: false
 ---
-
 # 🏗️ Backend Architect
 
 When activated, delegate to sub-agents:

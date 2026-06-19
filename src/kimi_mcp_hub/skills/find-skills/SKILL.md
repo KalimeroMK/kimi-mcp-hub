@@ -1,11 +1,10 @@
 ---
 name: find-skills
-description: Discover and install agent skills from the open ecosystem when users need extended capabilities
+description: Discover and install agent skills from the open ecosystem.
 type: prompt
-whenToUse: When the user asks "how do I do X", "can you help with Y", or needs capabilities that may already exist as an installable skill
+whenToUse: When the user asks how to do something, needs a capability, or wants to find/install a skill.
 disableModelInvocation: false
 ---
-
 # 🔍 find-skills — Discover Agent Skills
 
 ## Purpose

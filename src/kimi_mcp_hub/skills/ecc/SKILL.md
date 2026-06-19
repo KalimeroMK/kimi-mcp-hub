@@ -1,10 +1,10 @@
 ---
 name: ecc
-description: Engineering competence companiontype: prompt
-whenToUse: When the user asks to optimize, secure, research, or improve engineering quality
+description: Engineering competence companion for performance, security, and research.
+type: prompt
+whenToUse: When the user asks to optimize, secure, research, benchmark, or improve overall engineering quality.
 disableModelInvocation: false
 ---
-
 # 🛡️ ECC — Engineering Competence Companion
 
 ## Modes

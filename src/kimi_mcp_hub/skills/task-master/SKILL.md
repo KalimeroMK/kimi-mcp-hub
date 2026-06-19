@@ -1,10 +1,10 @@
 ---
 name: task-master
-description: Task management systemtype: prompt
-whenToUse: When the user mentions tasks, todos, backlog, project management, or tracking work
+description: Task management system for todos and project tracking.
+type: prompt
+whenToUse: When the user mentions tasks, todos, backlog, project management, sprint, or tracking work.
 disableModelInvocation: false
 ---
-
 # 📋 Task Master
 
 ## Task Format

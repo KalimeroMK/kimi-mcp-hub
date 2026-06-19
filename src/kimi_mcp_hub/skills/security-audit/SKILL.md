@@ -1,10 +1,10 @@
 ---
 name: security-audit
-description: Security review and hardeningtype: prompt
-whenToUse: When the user asks for security audit, vulnerability scan, or security review
+description: Security review checklist and audit workflow.
+type: prompt
+whenToUse: When the user explicitly asks for a security audit, vulnerability scan, or security review checklist.
 disableModelInvocation: false
 ---
-
 # 🔒 Security Audit
 
 ## Checklist

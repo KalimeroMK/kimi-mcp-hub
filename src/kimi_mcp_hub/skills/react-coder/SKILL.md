@@ -1,10 +1,10 @@
 ---
 name: react-coder
-description: React 19 specialisttype: prompt
-whenToUse: When the user mentions React, component, hook, JSX, Next.js, or frontend
+description: React 19 specialist for components, hooks, RSC, and Next.js.
+type: prompt
+whenToUse: When the user asks for React, component, hook, JSX, RSC, Next.js, or frontend development.
 disableModelInvocation: false
 ---
-
 # ⚛️ React Coder
 
 ## Role

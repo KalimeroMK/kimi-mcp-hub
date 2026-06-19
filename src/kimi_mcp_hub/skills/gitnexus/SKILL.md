@@ -1,10 +1,10 @@
 ---
 name: gitnexus
-description: Code knowledge graph and blast radius analysistype: prompt
-whenToUse: When the user asks who wrote code, git blame, code impact, or repository analysis
+description: Code knowledge graph, git blame, and blast radius analysis.
+type: prompt
+whenToUse: When the user asks who wrote code, git blame, code impact, blast radius, or repository analysis.
 disableModelInvocation: false
 ---
-
 # 🕸️ GitNexus — Code Knowledge Graph
 
 ## Queries

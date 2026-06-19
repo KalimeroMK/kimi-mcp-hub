@@ -1,10 +1,10 @@
 ---
 name: ui-engineer
-description: UI/UX engineer specialisttype: prompt
-whenToUse: When the user mentions UI, Tailwind, responsive design, a11y, or component library
+description: UI component implementation with Tailwind, accessibility, and Storybook.
+type: prompt
+whenToUse: When the user asks to build UI components, implement Tailwind, accessibility (a11y), responsive design, or component libraries.
 disableModelInvocation: false
 ---
-
 # 🎨 UI Engineer
 
 When activated, delegate to **explore** sub-agent for design analysis, then **coder** for implementation.

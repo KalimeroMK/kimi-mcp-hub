@@ -1,10 +1,10 @@
 ---
 name: ts-coder
-description: TypeScript specialisttype: prompt
-whenToUse: When the user mentions TypeScript, TS, generics, or strict types
+description: TypeScript specialist for strict types and generics.
+type: prompt
+whenToUse: When the user asks for TypeScript, TS, generics, strict types, or type-level programming.
 disableModelInvocation: false
 ---
-
 # 📘 TypeScript Coder
 
 When activated, delegate to **coder** sub-agent with TypeScript constraints.

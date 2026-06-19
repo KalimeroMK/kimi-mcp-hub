@@ -1,10 +1,10 @@
 ---
 name: visual-explainer
-description: HTML diagrams and slidestype: prompt
-whenToUse: When the user asks to visualize, diagram, create slides, or explain visually
+description: HTML diagrams, charts, and slides for explanations.
+type: prompt
+whenToUse: When the user asks to visualize, diagram, chart, create slides, or explain visually with HTML.
 disableModelInvocation: false
 ---
-
 # 📊 Visual Explainer
 
 ## Output Formats

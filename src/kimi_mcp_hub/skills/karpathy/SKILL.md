@@ -1,10 +1,10 @@
 ---
 name: karpathy
-description: Clean, simple, readable code disciplinetype: prompt
-whenToUse: When the user asks to write, review, or refactor code, or mentions functions, classes, or implementation
+description: Clean, simple, readable code discipline for writing and reviewing code.
+type: prompt
+whenToUse: When the user asks to write, review, or refactor code with emphasis on clarity and simplicity.
 disableModelInvocation: false
 ---
-
 # 🧠 Karpathy Skills — Code Discipline
 
 ## Principles

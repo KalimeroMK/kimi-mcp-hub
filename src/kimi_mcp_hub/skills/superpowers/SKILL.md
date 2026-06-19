@@ -1,10 +1,10 @@
 ---
 name: superpowers
-description: 14 agentic development workflowstype: prompt
-whenToUse: When the user asks to plan, debug, test, refactor, deploy, audit, or architect a complex feature
+description: 14 agentic development workflows for plan, debug, test, refactor, deploy.
+type: prompt
+whenToUse: When the user asks to plan, debug, test, refactor, deploy, audit, or architect a complex feature end-to-end.
 disableModelInvocation: false
 ---
-
 # 🦸 Superpowers — Agentic Skills Framework
 
 ## Available Skills

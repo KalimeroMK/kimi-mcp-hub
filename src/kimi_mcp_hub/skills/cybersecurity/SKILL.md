@@ -1,10 +1,10 @@
 ---
 name: cybersecurity
-description: Cybersecurity expert and threat analysistype: prompt
-whenToUse: When the user mentions security, hack, vulnerability, exploit, pentest, OWASP, XSS, SQL injection, or hardening
+description: Cybersecurity expert guidance for threats, OWASP, pentest, and cloud security.
+type: prompt
+whenToUse: When the user mentions security, hack, vulnerability, exploit, pentest, OWASP, XSS, SQL injection, or hardening.
 disableModelInvocation: false
 ---
-
 # 🔒 Cybersecurity Expert
 
 ## Coverage Areas

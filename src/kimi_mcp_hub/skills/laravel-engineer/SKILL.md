@@ -1,10 +1,10 @@
 ---
 name: laravel-engineer
-description: Laravel and PHP specialisttype: prompt
-whenToUse: When the user mentions Laravel, Eloquent, Blade, PHP, Livewire, or Artisan
+description: Laravel, PHP, Eloquent, Blade, Livewire, and Queues specialist.
+type: prompt
+whenToUse: When the user mentions Laravel, Eloquent, Blade, PHP, Livewire, or Artisan.
 disableModelInvocation: false
 ---
-
 # 🎨 Laravel Engineer
 
 When activated, delegate to **coder** sub-agent with Laravel constraints.

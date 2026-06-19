@@ -1,10 +1,10 @@
 ---
 name: code-review
-description: Multi-agent code review with sub-agentstype: prompt
-whenToUse: When the user asks for code review with explore, coder, and plan sub-agents
+description: Multi-agent code review using explore, coder, and plan sub-agents.
+type: prompt
+whenToUse: When the user asks for a thorough code review, PR review, or multi-agent code inspection.
 disableModelInvocation: false
 ---
-
 # 👀 Code Review — Multi-Agent
 
 ## Sub-Agent Dispatch

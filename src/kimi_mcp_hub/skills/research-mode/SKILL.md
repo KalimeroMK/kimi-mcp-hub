@@ -1,10 +1,10 @@
 ---
 name: research-mode
-description: Research-driven developmenttype: prompt
-whenToUse: When the user asks to research, compare, benchmark, or evaluate technologies
+description: Research-driven development for technology evaluation.
+type: prompt
+whenToUse: When the user asks to research, compare, benchmark, or evaluate technologies or approaches.
 disableModelInvocation: false
 ---
-
 # 🔬 Research Mode
 
 ## Process

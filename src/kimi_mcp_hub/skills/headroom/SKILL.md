@@ -1,10 +1,10 @@
 ---
 name: headroom
-description: Compress large tool outputs to save tokenstype: prompt
-whenToUse: When the user mentions large outputs, token limits, context compression, or saving tokens
+description: Compress large tool outputs to save tokens.
+type: prompt
+whenToUse: When the user mentions large outputs, token limits, context compression, or saving tokens on output.
 disableModelInvocation: false
 ---
-
 # 📉 Headroom — Output Compression
 
 ## When to compress

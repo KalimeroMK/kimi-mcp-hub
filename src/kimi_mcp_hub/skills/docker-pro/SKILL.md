@@ -1,10 +1,10 @@
 ---
 name: docker-pro
-description: Docker, Kubernetes and container best practicestype: prompt
-whenToUse: When the user mentions Docker, container, Kubernetes, k8s, Dockerfile, or deployment
+description: Docker, Kubernetes, and container best practices.
+type: prompt
+whenToUse: When the user mentions Docker, container, Kubernetes, k8s, Dockerfile, compose, or deployment.
 disableModelInvocation: false
 ---
-
 # 🐳 Docker Pro
 
 ## Dockerfile Best Practices

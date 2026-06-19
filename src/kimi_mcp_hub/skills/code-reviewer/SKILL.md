@@ -1,10 +1,10 @@
 ---
 name: code-reviewer
-description: Code review assistanttype: prompt
-whenToUse: When the user asks for code review, CR, feedback, or PR review
+description: Quick single-agent code review and feedback.
+type: prompt
+whenToUse: When the user asks for a quick code review, CR feedback, or PR feedback without deep multi-agent analysis.
 disableModelInvocation: false
 ---
-
 # 👀 Code Reviewer
 
 ## Review Checklist

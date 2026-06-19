@@ -1,10 +1,10 @@
 ---
 name: database-expert
-description: Database design and optimizationtype: prompt
-whenToUse: When the user mentions database design, SQL, schema, query optimization, or migrations
+description: Database design, SQL optimization, schema design, and migrations.
+type: prompt
+whenToUse: When the user asks about database design, SQL, schema, query optimization, indexing, or migrations.
 disableModelInvocation: false
 ---
-
 # 🗄️ Database Expert
 
 ## Schema Design
