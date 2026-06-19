@@ -813,22 +813,17 @@ def add_server_interactive(name: str, config: KimiConfig):
 
     elif name == "slack":
         choice = Prompt.ask(
-            "Auth method",
-            choices=["bot-token", "remote-oauth"],
-            default="bot-token",
+            "Token type",
+            choices=["bot", "user"],
+            default="bot",
         )
-        if choice == "remote-oauth":
-            cfg = SlackServer.get_official_config()
-            config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (Remote OAuth)[/green]")
-            console.print("[yellow]Note:[/yellow] Slack remote OAuth often fails due to DCR. If it fails, re-add with bot-token.")
-            _authenticate_server(name, "official-oauth")
-        else:
-            token = Prompt.ask("Slack Bot token (xoxb-...)", password=True)
-            team_id = Prompt.ask("Slack Team ID (T0...)")
-            cfg = SlackServer.get_stdio_config(token, team_id)
-            config.add_server(name, cfg)
-            console.print(f"[green]Added {display} (bot token)[/green]")
+        token = Prompt.ask(
+            "Slack token (xoxb-... for bot, xoxp-... for user)",
+            password=True,
+        )
+        cfg = SlackServer.get_stdio_config(token, token_type=choice)
+        config.add_server(name, cfg)
+        console.print(f"[green]Added {display} ({choice} token)[/green]")
 
     elif name == "datadog":
         api_key = Prompt.ask("Datadog API key", password=True)

@@ -4,53 +4,35 @@ from typing import Any
 
 
 class SlackServer:
-    """Slack MCP server — official Anthropic stdio server or remote OAuth."""
+    """Slack MCP server — community slack-mcp-server package."""
 
     name = "slack"
     display_name = "Slack"
     description = "Read channels, threads, DMs, post messages, search history."
     icon = "💬"
 
-    OFFICIAL_REMOTE_URL = "https://mcp.slack.com/mcp"
-
     @classmethod
-    def get_stdio_config(cls, bot_token: str, team_id: str) -> dict[str, Any]:
-        """Official Anthropic Slack MCP server using a bot token.
+    def get_stdio_config(cls, token: str, token_type: str = "bot") -> dict[str, Any]:
+        """Community slack-mcp-server using a bot or user token.
 
-        This is the most reliable option for Kimi CLI / Cursor / Windsurf.
+        npm package: slack-mcp-server (from korotovsky/slack-mcp-server)
         """
+        env_var = "SLACK_MCP_XOXB_TOKEN" if token_type == "bot" else "SLACK_MCP_XOXP_TOKEN"
         return {
             "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-slack"],
+            "args": ["-y", "slack-mcp-server@latest"],
             "env": {
-                "SLACK_BOT_TOKEN": bot_token,
-                "SLACK_TEAM_ID": team_id,
-            }
-        }
-
-    @classmethod
-    def get_official_config(cls) -> dict[str, Any]:
-        """Official Slack remote MCP server (OAuth 2.1).
-
-        Note: this can fail in some clients because Slack's OAuth server does
-        not support Dynamic Client Registration (DCR). Prefer the stdio bot
-        token option unless your client explicitly supports Slack remote MCP.
-        """
-        return {
-            "transport": "http",
-            "url": cls.OFFICIAL_REMOTE_URL,
-            "auth": "oauth",
+                env_var: token,
+            },
         }
 
     @classmethod
     def get_tools(cls) -> list[dict[str, str]]:
         """List of available tools (for display)."""
         return [
-            {"name": "slack_list_channels", "desc": "List channels"},
-            {"name": "slack_get_channel_history", "desc": "Channel messages"},
-            {"name": "slack_get_thread_replies", "desc": "Thread replies"},
-            {"name": "slack_post_message", "desc": "Post message"},
-            {"name": "slack_search_messages", "desc": "Search messages"},
-            {"name": "slack_get_unread_messages", "desc": "Unread messages"},
-            {"name": "slack_get_dm_history", "desc": "DM history"},
+            {"name": "conversations_history", "desc": "Get messages from a channel/DM"},
+            {"name": "conversations_replies", "desc": "Thread replies"},
+            {"name": "conversations_search_messages", "desc": "Search messages"},
+            {"name": "channels_list", "desc": "List channels"},
+            {"name": "users_search", "desc": "Search users"},
         ]

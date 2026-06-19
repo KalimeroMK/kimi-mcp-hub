@@ -355,15 +355,14 @@ def authenticate_slack() -> dict | None:
     if choice == "bot-token":
         console.print("\nGet Bot Token from: https://api.slack.com/apps -> Your App -> OAuth & Permissions")
         token = Prompt.ask("Bot User OAuth Token (xoxb-...)", password=True)
-        team_id = Prompt.ask("Slack Team ID (T0...)")
         if token:
             from ..servers.slack import SlackServer
             from ..config import KimiConfig
             config = KimiConfig()
-            cfg = SlackServer.get_stdio_config(token, team_id)
+            cfg = SlackServer.get_stdio_config(token, token_type="bot")
             config.add_server("slack", cfg)
             console.print("[green]Slack configured![/green]")
-            return {"token": token, "team_id": team_id}
+            return {"token": token}
     else:
         # Web Flow
         client_id = Prompt.ask("Slack Client ID")
