@@ -104,7 +104,7 @@ function installPackage(python) {
   // Prefer PyPI when the package is published and not running from a local repo.
   let installArgs;
   if (installSpec === LOCAL_REPO_DIR) {
-    installArgs = ["-m", "pip", "install", "--upgrade", installSpec];
+    installArgs = ["-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", installSpec];
   } else {
     const pypiDry = spawnSync(
       venvPy,
@@ -113,8 +113,8 @@ function installPackage(python) {
     );
     installArgs =
       pypiDry.status === 0
-        ? ["-m", "pip", "install", "--upgrade", PYPI_NAME]
-        : ["-m", "pip", "install", "--upgrade", installSpec];
+        ? ["-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", PYPI_NAME]
+        : ["-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", installSpec];
   }
 
   const installResult = run(venvPy, installArgs);
