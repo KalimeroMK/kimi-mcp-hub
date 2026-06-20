@@ -1175,32 +1175,19 @@ def add_server_interactive(name: str, config: KimiConfig):
         console.print(f"[green]Added {display}[/green]")
 
 
-def _run_kimi_mcp_auth(server_name: str) -> bool:
-    """Try to run `kimi mcp auth <server>` to trigger the browser popup.
-
-    Returns True if the Kimi CLI command executed successfully.
-    """
-    try:
-        console.print(f"[dim]Opening browser for {server_name} via Kimi CLI...[/dim]")
-        result = subprocess.run(
-            ["kimi", "mcp", "auth", server_name],
-            check=False,
-        )
-        return result.returncode == 0
-    except FileNotFoundError:
-        return False
-
-
 def _authenticate_server(name: str, method: str = "auto"):
-    """Trigger browser/popup auth after a server has been added.
+    """Tell the user how to trigger browser/popup auth after a server is added.
 
-    For official remote MCP servers we delegate to Kimi CLI (`kimi mcp auth`).
-    If Kimi CLI is missing we print the manual command.
+    Official remote MCP servers must be authorized from *inside* Kimi CLI so the
+    popup is attached to the active session. Running `kimi mcp auth` from a
+    separate terminal does not open the UI popup.
     """
     if method in ("official", "official-oauth"):
-        if not _run_kimi_mcp_auth(name):
-            console.print(f"[yellow]Kimi CLI not found or auth failed.[/yellow]")
-            console.print(f"[dim]   Run manually: kimi mcp auth {name}[/dim]")
+        console.print("\n[bold]Next step:[/bold] restart Kimi CLI, then run:")
+        console.print(f"  [cyan]/mcp-config login {name}[/cyan]")
+        console.print("   or")
+        console.print(f"  [cyan]kimi mcp auth {name}[/cyan]")
+        console.print("[dim]This will open the browser OAuth popup.[/dim]\n")
     elif method == "custom-oauth":
         # Caller is responsible for invoking the provider-specific web flow.
         pass
