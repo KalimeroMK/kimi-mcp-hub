@@ -131,6 +131,7 @@ SKILLS = {
     "ts-coder": "TypeScript specialist (strict, generics)",
     "ui-engineer": "UI component implementation (Tailwind, a11y)",
     "ui-ux-pro-max": "UI/UX design intelligence and design systems",
+    "design-system": "Design tokens, component specs, and systematic design systems",
     "vercel-react-best-practices": "React/Next.js performance optimization",
     "web-design-guidelines": "Audit UI code against Vercel guidelines",
     "agent-browser": "Browser automation for web tasks and testing",

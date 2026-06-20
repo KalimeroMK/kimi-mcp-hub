@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 53 AI skills (6 core + 47 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 54 AI skills (6 core + 48 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -16,7 +16,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
 - [MCP Servers](#23-mcp-servers)
-- [Skills](#53-skills)
+- [Skills](#54-skills)
 - [Architecture](#architecture)
 - [Ideas from Claude-Mem](#-ideas-from-claude-mem)
 
@@ -87,7 +87,7 @@ On first run you'll see:
 Kimi MCP Hub v0.1.0 e uspeshno instaliran!
 
 23 MCP serveri dostapni
-53 AI skills za podobro kodiranje
+54 AI skills za podobro kodiranje
 1  Persistent memory sistem
 
 Za da zapochnesh:
@@ -258,7 +258,7 @@ GitHub authorized successfully!
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub list` | All servers + skills + memory |
-| `kimi-mcp-hub list-skills` | All 53 available skills |
+| `kimi-mcp-hub list-skills` | All 54 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
 | `kimi-mcp-hub test <server>` | Test if server responds |
 | `kimi-mcp-hub doctor` | System health check |
@@ -319,6 +319,7 @@ GitHub authorized successfully!
 | **vercel-react-best-practices** | React/Next.js performance optimization |
 | **web-design-guidelines** | Audit UI code against Vercel guidelines |
 | **agent-browser** | Browser automation for web tasks and testing |
+| **design-system** | Design tokens, component specs, and systematic design systems |
 
 ### Code Quality & Review Skills
 
@@ -449,7 +450,7 @@ Features we adopted from the 81k-star `claude-mem` project:
 |              |                          |
 |  +---------------------------------+    |
 |  |  ~/.kimi-code/mcp.json          |    |
-|  |  ~/.kimi-code/skills/ (53 skills)|    |
+|  |  ~/.kimi-code/skills/ (54 skills)|    |
 |  |  ~/.config/kimi-mcp-hub/        |    |
 |  |    tokens.json + memory.db      |    |
 |  +---------------------------------+    |
