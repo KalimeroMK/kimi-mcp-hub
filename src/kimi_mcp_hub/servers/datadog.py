@@ -4,40 +4,28 @@ from typing import Any
 
 
 class DatadogServer:
-    """Datadog MCP server — metrics, logs, monitors, APM."""
+    """Datadog MCP server — official remote HTTP server."""
 
     name = "datadog"
     display_name = "Datadog"
     description = "Query metrics, search logs, analyze APM traces, manage monitors."
     icon = "🐕"
 
-    @classmethod
-    def get_stdio_config(cls, api_key: str, app_key: str, site: str = "datadoghq.com") -> dict[str, Any]:
-        return {
-            "command": "docker",
-            "args": [
-                "run", "-i", "--rm",
-                "-e", f"DD_API_KEY={api_key}",
-                "-e", f"DD_APP_KEY={app_key}",
-                "magistersart/datadog-mcp:latest"
-            ],
-            "env": {}
-        }
+    OFFICIAL_URL = "https://mcp.datadoghq.com/v1/mcp"
 
     @classmethod
-    def get_uv_config(cls, api_key: str, app_key: str) -> dict[str, Any]:
-        """Alternative: run via uv from git."""
+    def get_official_config(cls, api_key: str, app_key: str) -> dict[str, Any]:
+        """Official remote Datadog MCP server.
+
+        Docs: https://docs.datadoghq.com/mcp_server/setup/
+        """
         return {
-            "command": "uvx",
-            "args": [
-                "--from", "git+https://github.com/magistersart/dd-mcp.git",
-                "--spec", "server.py",
-                "datadog-mcp"
-            ],
-            "env": {
+            "transport": "http",
+            "url": cls.OFFICIAL_URL,
+            "headers": {
                 "DD_API_KEY": api_key,
-                "DD_APP_KEY": app_key
-            }
+                "DD_APPLICATION_KEY": app_key,
+            },
         }
 
     @classmethod

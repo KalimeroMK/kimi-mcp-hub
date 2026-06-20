@@ -3,8 +3,15 @@
 import sqlite3
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+import platformdirs
+
+
+def _default_memory_db() -> Path:
+    """Return the default memory database path."""
+    return Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI")) / "memory.db"
 
 
 class MemoryDB:
@@ -12,7 +19,7 @@ class MemoryDB:
 
     def __init__(self, db_path: Path | None = None):
         if db_path is None:
-            db_path = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
+            db_path = _default_memory_db()
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -61,7 +68,7 @@ class MemoryDB:
     ) -> int:
         """Add an observation and index it."""
         tags_str = json.dumps(tags or [])
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         with sqlite3.connect(str(self.db_path)) as conn:
             cursor = conn.execute(

@@ -274,7 +274,7 @@ GitHub authorized successfully!
 | **Confluence** | OAuth or API token | 5 | Docs, wiki, pages |
 | **GitHub** | Device Flow / PAT | 6 | Repos, PRs, issues, code |
 | **Slack** | Bot/User token (`slack-mcp-server`) | 7 | Channels, DMs, search |
-| **Datadog** | API + App keys | 12 | Metrics, logs, monitors, APM |
+| **Datadog** | Official remote MCP (API + App keys) | 12 | Metrics, logs, monitors, APM |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth | 9 | Designs, tokens, components |
 | **Figma Context** | Figma API access token | 3 | Design-to-code implementation |
 | **GitLab** | Official OAuth 2.1 or PAT | 8 | Repos, MRs, issues, CI/CD pipelines |

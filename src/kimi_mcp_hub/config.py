@@ -19,6 +19,7 @@ class KimiConfig:
         self.skills_dir = self.kimi_dir / "skills"
         self.hub_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
         self.tokens_file = self.hub_dir / "tokens.json"
+        self.memory_db = self.hub_dir / "memory.db"
         self.hub_dir.mkdir(parents=True, exist_ok=True)
         self.kimi_dir.mkdir(parents=True, exist_ok=True)
         # Migrate legacy config from ~/.kimi/mcp.json if the new path is empty

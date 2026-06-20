@@ -6,12 +6,14 @@ Also shows version-changed message when upgrading.
 
 from pathlib import Path
 
+import platformdirs
+
 from . import __version__, __title__, TOTAL_SERVERS, TOTAL_SKILLS
 
 
 def _get_state_file() -> Path:
     """Return path to the state file tracking first-run."""
-    state_dir = Path.home() / ".kimi" / "mcp-hub"
+    state_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
     state_dir.mkdir(parents=True, exist_ok=True)
     return state_dir / ".install-state.json"
 
@@ -62,15 +64,15 @@ def _print_first_install_message():
 
         console = Console()
         message = (
-            f"[bold green]{__title__} v{__version__} е успешно инсталиран![/bold green]\n\n"
-            f"[cyan]{TOTAL_SERVERS}[/cyan] MCP сервери достапни (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
-            f"[cyan]{TOTAL_SKILLS}[/cyan] AI skills за подобро кодирање\n"
-            f"[cyan]1[/cyan]  Persistent memory систем\n\n"
-            f"[bold]За да започнеш:[/bold]\n"
-            f"  [bold]kimi-mcp-hub init[/bold]    -- интерактивен wizard\n"
-            f"  [bold]kimi-mcp-hub welcome[/bold] -- детален преглед\n"
-            f"  [bold]kimi-mcp-hub status[/bold]  -- статус проверка\n"
-            f"  [bold]kimi-mcp-hub doctor[/bold]  -- здравје на системот"
+            f"[bold green]{__title__} v{__version__} installed successfully![/bold green]\n\n"
+            f"[cyan]{TOTAL_SERVERS}[/cyan] MCP servers available (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
+            f"[cyan]{TOTAL_SKILLS}[/cyan] AI skills for better coding\n"
+            f"[cyan]1[/cyan]  Persistent memory system\n\n"
+            f"[bold]Get started:[/bold]\n"
+            f"  [bold]kimi-mcp-hub init[/bold]    -- interactive wizard\n"
+            f"  [bold]kimi-mcp-hub welcome[/bold] -- detailed overview\n"
+            f"  [bold]kimi-mcp-hub status[/bold]  -- status check\n"
+            f"  [bold]kimi-mcp-hub doctor[/bold]  -- system health check"
         )
         console.print("")
         console.print(Panel.fit(message, title="🎯 Kimi MCP Hub", border_style="green"))
@@ -78,11 +80,11 @@ def _print_first_install_message():
     except Exception:
         # Fallback if rich is not available
         print(f"\n{'='*50}")
-        print(f"  {__title__} v{__version__} е успешно инсталиран!")
+        print(f"  {__title__} v{__version__} installed successfully!")
         print(f"{'='*50}")
-        print(f"  {TOTAL_SERVERS} MCP сервери | {TOTAL_SKILLS} AI skills | Persistent memory")
+        print(f"  {TOTAL_SERVERS} MCP servers | {TOTAL_SKILLS} AI skills | Persistent memory")
         print(f"")
-        print(f"  За да започнеш: kimi-mcp-hub init")
+        print(f"  Get started: kimi-mcp-hub init")
         print(f"{'='*50}\n")
 
 
@@ -94,11 +96,11 @@ def _print_upgrade_message(old_ver: str, new_ver: str):
 
         console = Console()
         message = (
-            f"[bold green]{__title__} е ажуриран од v{old_ver} на v{new_ver}![/bold green]\n\n"
-            f"[dim]Провери што е ново:[/dim] [bold]kimi-mcp-hub welcome[/bold]"
+            f"[bold green]{__title__} upgraded from v{old_ver} to v{new_ver}![/bold green]\n\n"
+            f"[dim]See what's new:[/dim] [bold]kimi-mcp-hub welcome[/bold]"
         )
         console.print("")
-        console.print(Panel.fit(message, title="⬆️ Ажурирање", border_style="blue"))
+        console.print(Panel.fit(message, title="⬆️ Upgrade", border_style="blue"))
         console.print("")
     except Exception:
-        print(f"\n{__title__} ажуриран: v{old_ver} → v{new_ver}\n")
+        print(f"\n{__title__} upgraded: v{old_ver} → v{new_ver}\n")

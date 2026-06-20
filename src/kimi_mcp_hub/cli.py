@@ -376,8 +376,8 @@ def status():
     table.add_row("MCP Servers", f"{counts['servers_configured']} / {counts['total_servers']} configured")
     table.add_row("Skills", f"{counts['skills_installed']} / {counts['total_skills']} installed")
 
-    memory_db = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
-    table.add_row("Memory", "[green]enabled[/green]" if memory_db.exists() else "[dim]disabled[/dim]")
+    config = KimiConfig()
+    table.add_row("Memory", "[green]enabled[/green]" if config.memory_db.exists() else "[dim]disabled[/dim]")
 
     # Check if Kimi CLI is installed
     try:
@@ -493,9 +493,9 @@ def list():
         console.print("\n[yellow]No skills installed.[/yellow]")
 
     # Memory
-    memory_db = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
-    if memory_db.exists():
-        console.print(f"\n[green]Memory enabled:[/green] {memory_db}")
+    config = KimiConfig()
+    if config.memory_db.exists():
+        console.print(f"\n[green]Memory enabled:[/green] {config.memory_db}")
     else:
         console.print(f"\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]")
 
@@ -505,7 +505,7 @@ def list():
 @main.command()
 @click.argument("skill_name")
 def install_skill_cmd(skill_name: str):
-    """Install a skill into ~/.kimi/skills/."""
+    """Install a skill into ~/.kimi-code/skills/."""
     print_header()
     config = KimiConfig()
     if skill_name not in SKILLS:
@@ -605,11 +605,10 @@ def auth(server_name: str):
         console.print("[bold]Datadog[/bold] uses API + App keys.\n")
         api_key = Prompt.ask("Datadog API key", password=True)
         app_key = Prompt.ask("Datadog App key", password=True)
-        site = Prompt.ask("Datadog site", default="datadoghq.com")
         if api_key and app_key:
-            cfg = DatadogServer.get_stdio_config(api_key, app_key, site)
+            cfg = DatadogServer.get_official_config(api_key, app_key)
             config.add_server("datadog", cfg)
-            console.print("[green]Datadog configured![/green]\n")
+            console.print("[green]Datadog configured (official remote MCP).[/green]\n")
 
     elif server_name == "hubspot":
         console.print("[bold]HubSpot[/bold] -- choose source:\n")
@@ -727,19 +726,18 @@ def doctor():
     config = KimiConfig()
     servers = config.list_servers()
     if servers:
-        console.print(f"\n[green]{len(servers)} MCP server(s) in ~/.kimi/mcp.json[/green]")
+        console.print(f"\n[green]{len(servers)} MCP server(s) in ~/.kimi-code/mcp.json[/green]")
     else:
         console.print("\n[yellow]No MCP servers configured yet[/yellow]")
 
     skills_installed = list_installed_skills(config)
     if skills_installed:
-        console.print(f"[green]{len(skills_installed)} skills in ~/.kimi/skills/[/green]")
+        console.print(f"[green]{len(skills_installed)} skills in ~/.kimi-code/skills/[/green]")
     else:
         console.print("[yellow]No skills installed yet[/yellow]")
 
-    memory_db = Path.home() / ".kimi" / "mcp-hub" / "memory.db"
-    if memory_db.exists():
-        console.print(f"[green]Memory database: {memory_db}[/green]")
+    if config.memory_db.exists():
+        console.print(f"[green]Memory database: {config.memory_db}[/green]")
     else:
         console.print("[dim]Memory not enabled[/dim]")
 
@@ -748,7 +746,7 @@ def doctor():
 
 @main.command()
 def repair():
-    """Fix broken/outdated MCP server configs in ~/.kimi/mcp.json."""
+    """Fix broken/outdated MCP server configs in ~/.kimi-code/mcp.json."""
     print_header()
     config = KimiConfig()
     servers = config.list_servers()
@@ -771,6 +769,25 @@ def repair():
             new_cfg = SlackServer.get_stdio_config(token, team_id)
             config.add_server(name, new_cfg)
             fixed.append("slack")
+
+        # Fix Datadog: old Docker/uvx configs -> official remote
+        elif name == "datadog" and (cfg.get("command") in ("docker", "uvx") or "magistersart" in str(args)):
+            console.print("[yellow]Fixing Datadog config to official remote MCP...[/yellow]")
+            api_key = Prompt.ask("Datadog API key", password=True)
+            app_key = Prompt.ask("Datadog App key", password=True)
+            if api_key and app_key:
+                new_cfg = DatadogServer.get_official_config(api_key, app_key)
+                config.add_server(name, new_cfg)
+                fixed.append("datadog")
+
+        # Fix Perplexity: old @perplexityai/mcp-server-perplexity package
+        elif name == "perplexity" and any("@perplexityai/mcp-server-perplexity" in str(a) for a in args):
+            console.print("[yellow]Fixing Perplexity config...[/yellow]")
+            token = env.get("PERPLEXITY_API_KEY") or Prompt.ask("Perplexity API key (ppx-...)", password=True)
+            if token:
+                new_cfg = PerplexityServer.get_stdio_config(token)
+                config.add_server(name, new_cfg)
+                fixed.append("perplexity")
 
         # Fix Supabase: old @supabase/mcp-server package
         elif name == "supabase" and any("@supabase/mcp-server" in str(a) for a in args):
@@ -894,14 +911,10 @@ def add_server_interactive(name: str, config: KimiConfig):
     elif name == "datadog":
         api_key = Prompt.ask("Datadog API key", password=True)
         app_key = Prompt.ask("Datadog App key", password=True)
-        site = Prompt.ask("Datadog site", default="datadoghq.com")
-        use_docker = Confirm.ask("Use Docker?", default=True)
-        if use_docker:
-            cfg = DatadogServer.get_stdio_config(api_key, app_key, site)
-        else:
-            cfg = DatadogServer.get_uv_config(api_key, app_key)
-        config.add_server(name, cfg)
-        console.print(f"[green]Added {display}[/green]")
+        if api_key and app_key:
+            cfg = DatadogServer.get_official_config(api_key, app_key)
+            config.add_server(name, cfg)
+            console.print(f"[green]Added {display} (official remote MCP)[/green]")
 
     elif name == "figma":
         choice = Prompt.ask(
@@ -1156,7 +1169,7 @@ def _authenticate_server(name: str, method: str = "auto"):
 
 
 def install_skill(skill_name: str, config: KimiConfig, overwrite: bool | None = None):
-    """Install a skill from package to ~/.kimi/skills/.
+    """Install a skill from package to ~/.kimi-code/skills/.
 
     Args:
         skill_name: Name of the skill directory inside the package.
@@ -1193,14 +1206,12 @@ def list_installed_skills(config: KimiConfig) -> list:
 
 def enable_memory(config: KimiConfig):
     """Enable persistent memory system."""
-    memory_dir = Path.home() / ".kimi" / "mcp-hub"
-    memory_dir.mkdir(parents=True, exist_ok=True)
-    memory_db = memory_dir / "memory.db"
+    config.memory_db.parent.mkdir(parents=True, exist_ok=True)
 
     # Initialize SQLite with FTS5 using the canonical schema from memory/db.py
-    MemoryDB(db_path=memory_db)
+    MemoryDB(db_path=config.memory_db)
 
-    console.print(f"[green]Memory database initialized: {memory_db}[/green]")
+    console.print(f"[green]Memory database initialized: {config.memory_db}[/green]")
     console.print("[dim]   Memory will persist across sessions.[/dim]")
 
 
