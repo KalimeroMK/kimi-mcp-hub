@@ -13,6 +13,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
   - [Verify](#verify)
 - [Uninstall](#uninstall)
 - [Quick Start](#quick-start)
+- [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
 - [MCP Servers](#23-mcp-servers)
@@ -193,6 +194,50 @@ kimi-mcp-hub install-skill docker-pro
 
 # Test a server
 kimi-mcp-hub test github
+```
+
+---
+
+## Managing MCP Servers and Skills
+
+### Skills
+
+Skills are toggled **inside Kimi CLI**:
+
+```text
+/skill:caveman
+/skill:headroom
+/skill:code-review
+```
+
+- Core skills (`karpathy`, `superpowers`, `caveman`, `headroom`, `context-mode`, `cybersecurity`) activate automatically on every Kimi start.
+- Install more skills from the terminal:
+  ```bash
+  kimi-mcp-hub install-skill docker-pro
+  ```
+
+### MCP Servers
+
+MCP servers are enabled **outside Kimi CLI**, in your regular terminal:
+
+```bash
+# Stdio / API-key servers
+kimi-mcp-hub add linear
+kimi-mcp-hub add github
+kimi-mcp-hub add slack
+
+# Official remote OAuth servers can also be connected inside Kimi:
+# /mcp-config login linear
+# /mcp-config login jira
+# /mcp-config login supabase
+```
+
+After adding a server, **restart Kimi CLI** (`exit` → `kimi`) so it picks up the new config.
+
+If you have **Desktop Commander** installed, you can also ask Kimi to run the command for you:
+
+```text
+run kimi-mcp-hub add linear in the terminal
 ```
 
 ---
