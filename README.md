@@ -103,7 +103,7 @@ kimi-mcp-hub init
 ```
 
 This walks you through:
-1. **MCP Servers** -- pick which services to connect
+1. **MCP Servers** -- Chrome DevTools, Context7, and Playwright are auto-installed if `npx` is available; pick additional services manually
 2. **Skills** -- install AI behavior patterns
 3. **Memory** -- enable persistent cross-session memory
 

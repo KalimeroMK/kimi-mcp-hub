@@ -86,6 +86,10 @@ FRONTEND_SKILLS = [
     "agent-browser",
 ]
 
+# Servers that are installed automatically during `init` if npx is available
+# (no API key required, broadly useful, low risk)
+AUTO_INSTALL_SERVERS = ["chrome-devtools", "context7", "playwright"]
+
 # Optional skills are presented in category groups during `init`
 OPTIONAL_SKILL_GROUPS = [
     ("Code Quality & Review", [
@@ -267,7 +271,27 @@ def init():
 
     # Step 1: MCP Servers
     console.print("[bold]Step 1: MCP Servers[/bold] (external tools)\n")
+
+    # Auto-install safe, no-key servers if npx is available
+    npx_available = shutil.which("npx") is not None
+    auto_installed = []
+    existing_servers = config.list_servers()
+    for key in AUTO_INSTALL_SERVERS:
+        if key in existing_servers:
+            continue
+        if not npx_available:
+            continue
+        cls = SERVERS[key]
+        cfg = cls.get_stdio_config()
+        config.add_server(key, cfg)
+        auto_installed.append(getattr(cls, "display_name", key.title()))
+    if auto_installed:
+        console.print(f"[green]Auto-installed:[/green] {', '.join(auto_installed)}\n")
+
+    # Prompt for remaining servers
     for key, cls in SERVERS.items():
+        if key in AUTO_INSTALL_SERVERS:
+            continue
         icon = getattr(cls, "icon", "")
         name = getattr(cls, "display_name", key.title())
         if Confirm.ask(f"{icon} Add [bold]{name}[/bold]?", default=False):
