@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 56 AI skills (7 core + 49 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 56 AI skills (6 core + 50 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -18,7 +18,6 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [MCP Servers](#23-mcp-servers)
 - [Skills](#56-skills)
 - [Architecture](#architecture)
-- [Ideas from Claude-Mem](#-ideas-from-claude-mem)
 
 ---
 
@@ -307,7 +306,6 @@ GitHub authorized successfully!
 | **context-mode** | Context window optimization and token budget |
 | **cybersecurity** | Cybersecurity expert (OWASP, cloud, IR, pentest) |
 | **caveman** | Ultra-compressed caveman communication mode |
-| **kimi-mcp-hub-status** | Show MCP Hub version and status |
 
 ### Frontend Skills (installed as a stack by default)
 
@@ -411,23 +409,6 @@ GitHub authorized successfully!
 | Skill | Description |
 |-------|-------------|
 | **stripe-best-practices** | Stripe integration best practices |
-
----
-
-## Ideas from Claude-Mem
-
-Features we adopted from the 81k-star `claude-mem` project:
-
-| Feature | Claude-Mem | Kimi MCP Hub |
-|---------|-----------|-------------|
-| **One-line install** | `npx claude-mem install` | `curl .../install.sh \| bash` |
-| **Auto-detect CLI** | `--ide gemini-cli`, `--ide opencode` | Auto-detect `kimi` CLI |
-| **Persistent memory** | AI-compressed observations | SQLite + FTS5 |
-| **Web viewer UI** | `http://localhost:37777` | Coming soon |
-| **Skills / memory search** | `mem-search` skill | Built-in `memory_palace` skill |
-| **Privacy tags** | `<private>` content exclusion | Planned |
-| **Plugin hooks** | `.claude/`, `.codex/` hooks | `~/.kimi-code/skills/` directory |
-| **Import from other tools** | - | Claude Desktop import |
 
 ---
 
