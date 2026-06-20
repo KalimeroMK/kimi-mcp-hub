@@ -136,7 +136,9 @@ SKILLS = {
     "web-design-guidelines": "Audit UI code against Vercel guidelines",
     "agent-browser": "Browser automation for web tasks and testing",
     # ---- Optional skills ----
-    "caveman": "Terse mode (75% token reduction)",
+    "caveman": "Ultra-compressed caveman communication mode",
+    "caveman-review": "Ultra-compressed code review comments",
+    "caveman-commit": "Ultra-compressed Conventional Commits messages",
     "ecc": "Engineering competence (perf, security, research)",
     "visual-explainer": "HTML diagrams and slides",
     "task-master": "Task management system",

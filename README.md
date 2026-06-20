@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 54 AI skills (6 core + 48 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 56 AI skills (6 core + 50 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -16,7 +16,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
 - [MCP Servers](#23-mcp-servers)
-- [Skills](#54-skills)
+- [Skills](#56-skills)
 - [Architecture](#architecture)
 - [Ideas from Claude-Mem](#-ideas-from-claude-mem)
 
@@ -87,7 +87,7 @@ On first run you'll see:
 Kimi MCP Hub v0.1.0 installed successfully!
 
 23 MCP servers available
-54 AI skills for better coding
+56 AI skills for better coding
 1  Persistent memory system
 
 To get started:
@@ -258,7 +258,7 @@ GitHub authorized successfully!
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub list` | All servers + skills + memory |
-| `kimi-mcp-hub list-skills` | All 54 available skills |
+| `kimi-mcp-hub list-skills` | All 56 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
 | `kimi-mcp-hub test <server>` | Test if server responds |
 | `kimi-mcp-hub doctor` | System health check |
@@ -295,7 +295,7 @@ GitHub authorized successfully!
 
 ---
 
-## 54 Skills
+## 56 Skills
 
 ### Core Skills (installed by default)
 
@@ -391,7 +391,9 @@ GitHub authorized successfully!
 
 | Skill | Description |
 |-------|-------------|
-| **caveman** | Terse mode (75% token reduction) |
+| **caveman** | Ultra-compressed caveman communication mode |
+| **caveman-review** | Ultra-compressed code review comments |
+| **caveman-commit** | Ultra-compressed Conventional Commits messages |
 | **memory-palace** | Advanced memory and context retrieval |
 | **hindsight** | Memory that learns from past decisions |
 | **task-master** | Task management system |
@@ -450,7 +452,7 @@ Features we adopted from the 81k-star `claude-mem` project:
 |              |                          |
 |  +---------------------------------+    |
 |  |  ~/.kimi-code/mcp.json          |    |
-|  |  ~/.kimi-code/skills/ (54 skills)|    |
+|  |  ~/.kimi-code/skills/ (56 skills)|    |
 |  |  ~/.config/kimi-mcp-hub/        |    |
 |  |    tokens.json + memory.db      |    |
 |  +---------------------------------+    |
