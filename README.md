@@ -453,9 +453,10 @@ GitHub authorized successfully!
 
 ## Security Notes
 
-- OAuth tokens are stored as plain JSON in `~/.config/kimi-mcp-hub/tokens.json`. This keeps the tool dependency-free, but means anyone with access to your user account can read them.
+- On macOS and Linux, `~/.config/kimi-mcp-hub/tokens.json`, `~/.config/kimi-mcp-hub/memory.db`, and `~/.kimi-code/mcp.json` are written with `chmod 600` (owner read/write only).
+- Run `kimi-mcp-hub doctor` to detect and fix overly permissive files.
+- OAuth tokens are still stored as plain JSON inside those files. This keeps the tool dependency-free, but a process running as your user can read them while Kimi CLI is active.
 - By default GitHub authentication uses a public OAuth app (`kimi-mcp-hub`). You can supply your own GitHub/Atlassian OAuth Client ID when running `kimi-mcp-hub auth <server>`.
-- API keys and PATs are written to `~/.kimi-code/mcp.json`. Protect that file accordingly.
 
 ---
 

@@ -1,6 +1,7 @@
 """Kimi MCP Hub CLI -- one-click MCP server and skills manager."""
 
 import json
+import stat
 import subprocess
 import sys
 import shutil
@@ -722,6 +723,24 @@ def doctor():
             table.add_row(name, "[red]Fail[/red]", str(e)[:50])
 
     console.print(table)
+
+    # Permission check / fix for sensitive files
+    if sys.platform != "win32":
+        config = KimiConfig()
+        fixed_files = []
+        for sensitive_path in (config.mcp_json, config.tokens_file, config.memory_db):
+            if sensitive_path.exists():
+                try:
+                    mode = sensitive_path.stat().st_mode
+                    if mode & stat.S_IRWXG or mode & stat.S_IRWXO:
+                        sensitive_path.chmod(0o600)
+                        fixed_files.append(str(sensitive_path))
+                except OSError:
+                    pass
+        if fixed_files:
+            console.print("\n[yellow]Fixed permissions (chmod 600):[/yellow]")
+            for fp in fixed_files:
+                console.print(f"  {fp}")
 
     config = KimiConfig()
     servers = config.list_servers()

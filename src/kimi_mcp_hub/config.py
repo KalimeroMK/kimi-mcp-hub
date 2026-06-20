@@ -2,6 +2,8 @@
 
 import json
 import os
+import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -40,18 +42,43 @@ class KimiConfig:
         """Load current ~/.kimi-code/mcp.json."""
         if not self.mcp_json.exists():
             return {"mcpServers": {}}
+        self._warn_if_readable_by_others(self.mcp_json)
         try:
             with open(self.mcp_json, "r", encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError:
             return {"mcpServers": {}}
 
-    def save_mcp(self, data: dict) -> None:
-        """Atomic write to ~/.kimi-code/mcp.json."""
-        tmp = self.mcp_json.with_suffix(".tmp")
+    def _secure_write(self, path: Path, data: dict) -> None:
+        """Atomic JSON write with restrictive permissions on Unix."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-        tmp.replace(self.mcp_json)
+        tmp.replace(path)
+        if sys.platform != "win32":
+            try:
+                path.chmod(0o600)
+            except OSError:
+                pass
+
+    def _warn_if_readable_by_others(self, path: Path) -> None:
+        """Warn if a sensitive file is readable by group or others."""
+        if sys.platform == "win32" or not path.exists():
+            return
+        try:
+            mode = path.stat().st_mode
+            if mode & stat.S_IRWXG or mode & stat.S_IRWXO:
+                print(
+                    f"Warning: {path} is readable by group/others. "
+                    "Run 'kimi-mcp-hub doctor' to fix permissions."
+                )
+        except OSError:
+            pass
+
+    def save_mcp(self, data: dict) -> None:
+        """Atomic write to ~/.kimi-code/mcp.json."""
+        self._secure_write(self.mcp_json, data)
 
     def add_server(self, name: str, config: dict) -> None:
         """Add or update an MCP server."""
@@ -75,16 +102,17 @@ class KimiConfig:
         """Save OAuth/token data securely."""
         tokens = {}
         if self.tokens_file.exists():
+            self._warn_if_readable_by_others(self.tokens_file)
             with open(self.tokens_file, "r", encoding="utf-8") as f:
                 tokens = json.load(f)
         tokens[server] = token_data
-        with open(self.tokens_file, "w", encoding="utf-8") as f:
-            json.dump(tokens, f, indent=2)
+        self._secure_write(self.tokens_file, tokens)
 
     def load_token(self, server: str) -> dict | None:
         """Load token for a server."""
         if not self.tokens_file.exists():
             return None
+        self._warn_if_readable_by_others(self.tokens_file)
         with open(self.tokens_file, "r", encoding="utf-8") as f:
             tokens = json.load(f)
         return tokens.get(server)
