@@ -84,17 +84,17 @@ kimi-mcp-hub --version
 On first run you'll see:
 
 ```
-Kimi MCP Hub v0.1.0 e uspeshno instaliran!
+Kimi MCP Hub v0.1.0 installed successfully!
 
-23 MCP serveri dostapni
-54 AI skills za podobro kodiranje
-1  Persistent memory sistem
+23 MCP servers available
+54 AI skills for better coding
+1  Persistent memory system
 
-Za da zapochnesh:
-  kimi-mcp-hub init    -- interaktiven wizard
-  kimi-mcp-hub welcome -- detalen pregled
-  kimi-mcp-hub status  -- status proverka
-  kimi-mcp-hub doctor  -- zdravje na sistemot
+To get started:
+  kimi-mcp-hub init    -- interactive wizard
+  kimi-mcp-hub welcome -- detailed overview
+  kimi-mcp-hub status  -- status check
+  kimi-mcp-hub doctor  -- system health check
 ```
 
 ### Run the wizard
@@ -295,7 +295,7 @@ GitHub authorized successfully!
 
 ---
 
-## 53 Skills
+## 54 Skills
 
 ### Core Skills (installed by default)
 
