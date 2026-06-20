@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 56 AI skills (6 core + 50 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 56 AI skills (7 core + 49 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -306,6 +306,7 @@ GitHub authorized successfully!
 | **headroom** | Compress large tool outputs to save tokens |
 | **context-mode** | Context window optimization and token budget |
 | **cybersecurity** | Cybersecurity expert (OWASP, cloud, IR, pentest) |
+| **caveman** | Ultra-compressed caveman communication mode |
 | **kimi-mcp-hub-status** | Show MCP Hub version and status |
 
 ### Frontend Skills (installed as a stack by default)
@@ -391,7 +392,6 @@ GitHub authorized successfully!
 
 | Skill | Description |
 |-------|-------------|
-| **caveman** | Ultra-compressed caveman communication mode |
 | **caveman-review** | Ultra-compressed code review comments |
 | **caveman-commit** | Ultra-compressed Conventional Commits messages |
 | **memory-palace** | Advanced memory and context retrieval |

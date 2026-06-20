@@ -70,6 +70,7 @@ CORE_SKILLS = [
     "headroom",
     "context-mode",
     "cybersecurity",
+    "caveman",
     "kimi-mcp-hub-status",
 ]
 
@@ -109,11 +110,9 @@ OPTIONAL_SKILL_GROUPS = [
         "search-first", "regex-vs-llm-structured-text",
     ]),
     ("Productivity & Meta", [
-        "caveman", "headroom", "context-mode", "memory-palace", "hindsight",
-        "task-master", "ralph", "grill-me", "visual-explainer",
-        "research-mode", "ecc", "superpowers", "karpathy",
+        "memory-palace", "hindsight", "task-master", "ralph", "grill-me",
+        "visual-explainer", "research-mode", "ecc",
         "skill-creator", "agent-automation-recommender", "find-skills",
-        "kimi-mcp-hub-status",
     ]),
     ("Integration", ["stripe-best-practices"]),
 ]
