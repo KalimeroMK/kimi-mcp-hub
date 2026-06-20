@@ -14,6 +14,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Uninstall](#uninstall)
 - [Quick Start](#quick-start)
 - [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
+- [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
 - [MCP Servers](#23-mcp-servers)
@@ -234,6 +235,8 @@ kimi-mcp-hub add slack
 
 After adding a server, **restart Kimi CLI** (`exit` → `kimi`) so it picks up the new config.
 
+For a detailed walkthrough of official remote OAuth servers (Linear, Jira, Confluence, Supabase, Figma, Stripe, GitLab), see [Remote MCP Server Setup](docs/remote-mcp-server-setup.md).
+
 If you have **Desktop Commander** installed, you can also ask Kimi to run the command for you:
 
 ```text
@@ -335,7 +338,7 @@ GitHub authorized successfully!
 | **Sentry** | Auth token + org | 6 | Error tracking, issue triage, stack traces |
 | **Context7** | STDIO (npx) | 4 | Live library docs, version-aware API lookup |
 | **Supabase** | Official remote OAuth or access-token stdio | 6 | Database, auth, storage, realtime, edge functions |
-| **Perplexity** | **API key (free tier)** | **3** | **Real-time web search with AI summaries + citations** |
+| **Perplexity** | **API key (paid, $5 trial credit)** | **3** | **Real-time web search with AI summaries + citations** |
 
 ---
 
