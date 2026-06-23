@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 
 from .oauth import DeviceFlowHandler, WebFlowHandler, TokenStore
+from ..preflight import maybe_install_npx_deps
 
 console = Console()
 
@@ -247,10 +248,10 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
         config = KimiConfig()
         if service == "jira":
             cfg = JiraServer.get_stdio_config(base_url, token, email)
-            config.add_server("jira", cfg)
         else:
             cfg = ConfluenceServer.get_stdio_config(base_url, token, email)
-            config.add_server("confluence", cfg)
+        maybe_install_npx_deps(cfg, console)
+        config.add_server(service, cfg)
 
         console.print(f"[green]{service.title()} configured with API token![/green]")
         return {"token": token, "email": email, "base_url": base_url}
@@ -309,6 +310,7 @@ def authenticate_google() -> dict | None:
         from ..config import KimiConfig
         config = KimiConfig()
         cfg = GmailServer.get_npx_config()
+        maybe_install_npx_deps(cfg, console)
         config.add_server("gmail", cfg)
         console.print("[green]Gmail configured (npx mode)![/green]")
         return {"mode": "npx"}
@@ -360,6 +362,7 @@ def authenticate_slack() -> dict | None:
             from ..config import KimiConfig
             config = KimiConfig()
             cfg = SlackServer.get_stdio_config(token, token_type="bot")
+            maybe_install_npx_deps(cfg, console)
             config.add_server("slack", cfg)
             console.print("[green]Slack configured![/green]")
             return {"token": token}
@@ -415,6 +418,7 @@ def authenticate_figma() -> dict | None:
         from ..config import KimiConfig
         config = KimiConfig()
         cfg = FigmaServer.get_official_config()
+        maybe_install_npx_deps(cfg, console)
         config.add_server("figma", cfg)
         console.print("[green]Figma configured (Official OAuth 2.1).[/green]")
         console.print("[dim]   Run: kimi mcp auth figma[/dim]")
@@ -427,6 +431,7 @@ def authenticate_figma() -> dict | None:
             from ..config import KimiConfig
             config = KimiConfig()
             cfg = FigmaServer.get_console_config(token)
+            maybe_install_npx_deps(cfg, console)
             config.add_server("figma", cfg)
             console.print("[green]Figma configured (PAT)![/green]")
             return {"access_token": token}

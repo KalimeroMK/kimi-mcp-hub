@@ -35,6 +35,8 @@ from .auth.providers import (
 from .import_claude import import_claude_servers
 from ._post_install import check_first_run
 from .memory.db import MemoryDB
+from .preflight import maybe_install_npx_deps
+from .project import ProjectConfig, find_project_root, merge_mcp_configs, resolve_placeholders
 
 console = Console()
 
@@ -261,10 +263,20 @@ def main(ctx):
 
 
 @main.command()
-def init():
+@click.option("--project", is_flag=True, help="Save servers to the current project config (.kimi/mcp.json) instead of global.")
+def init(project: bool):
     """Interactive setup wizard for servers, skills, and memory."""
     config = KimiConfig()
     print_welcome()
+
+    project_root = None
+    if project:
+        project_root = find_project_root()
+        if not project_root:
+            console.print("[red]No project root found.[/red]")
+            console.print("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
+            sys.exit(1)
+        console.print(f"\n[dim]Saving MCP servers to project: {project_root}[/dim]\n")
 
     console.print("\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n")
     console.print("This wizard will set up MCP servers, skills, and optional memory.\n")
@@ -276,6 +288,9 @@ def init():
     npx_available = shutil.which("npx") is not None
     auto_installed = []
     existing_servers = config.list_servers()
+    if project_root:
+        pc = ProjectConfig(project_root)
+        existing_servers.update(pc.load_mcp().get("mcpServers", {}))
     for key in AUTO_INSTALL_SERVERS:
         if key in existing_servers:
             continue
@@ -283,7 +298,7 @@ def init():
             continue
         cls = SERVERS[key]
         cfg = cls.get_stdio_config()
-        config.add_server(key, cfg)
+        add_server_with_preflight(key, cfg, config, project_root=project_root)
         auto_installed.append(getattr(cls, "display_name", key.title()))
     if auto_installed:
         console.print(f"[green]Auto-installed:[/green] {', '.join(auto_installed)}\n")
@@ -295,7 +310,7 @@ def init():
         icon = getattr(cls, "icon", "")
         name = getattr(cls, "display_name", key.title())
         if Confirm.ask(f"{icon} Add [bold]{name}[/bold]?", default=False):
-            add_server_interactive(key, config)
+            add_server_interactive(key, config, project_root=project_root)
 
     # Step 2: Skills
     console.print("\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n")
@@ -401,6 +416,12 @@ def status():
     table.add_row("MCP Servers", f"{counts['servers_configured']} / {counts['total_servers']} configured")
     table.add_row("Skills", f"{counts['skills_installed']} / {counts['total_skills']} installed")
 
+    project_root = find_project_root()
+    if project_root:
+        pc = ProjectConfig(project_root)
+        project_status = f"[green]{project_root.name}[/green]" if pc.exists() else f"[dim]{project_root.name} (no .kimi/mcp.json)[/dim]"
+        table.add_row("Project", project_status)
+
     config = KimiConfig()
     table.add_row("Memory", "[green]enabled[/green]" if config.memory_db.exists() else "[dim]disabled[/dim]")
 
@@ -457,7 +478,8 @@ def welcome():
 
 @main.command()
 @click.argument("server_name")
-def add(server_name: str):
+@click.option("--project", is_flag=True, help="Add to the current project config (.kimi/mcp.json) instead of global.")
+def add(server_name: str, project: bool):
     """Add an MCP server (jira, linear, confluence, github, slack, datadog,
     figma, gmail, hubspot, grain, chrome-devtools, postgres, playwright,
     sentry, context7, supabase, perplexity)."""
@@ -467,16 +489,37 @@ def add(server_name: str):
         console.print(f"[red]Unknown server: {server_name}[/red]")
         console.print(f"Available: {', '.join(SERVERS.keys())}")
         sys.exit(1)
-    add_server_interactive(server_name, config)
+
+    project_root = None
+    if project:
+        project_root = find_project_root()
+        if not project_root:
+            console.print("[red]No project root found.[/red]")
+            console.print("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
+            sys.exit(1)
+        console.print(f"[dim]Adding to project: {project_root}[/dim]\n")
+
+    add_server_interactive(server_name, config, project_root=project_root)
 
 
 @main.command()
 @click.argument("server_name")
-def remove(server_name: str):
+@click.option("--project", is_flag=True, help="Remove from the current project config (.kimi/mcp.json) instead of global.")
+def remove(server_name: str, project: bool):
     """Remove an MCP server."""
-    config = KimiConfig()
-    config.remove_server(server_name)
-    console.print(f"[green]Removed {server_name}[/green]")
+    if project:
+        project_root = find_project_root()
+        if not project_root:
+            console.print("[red]No project root found.[/red]")
+            sys.exit(1)
+        pc = ProjectConfig(project_root)
+        pc.remove_server(server_name)
+        console.print(f"[green]Removed {server_name} from project config[/green]")
+        console.print(f"[dim]{pc.mcp_json}[/dim]")
+    else:
+        config = KimiConfig()
+        config.remove_server(server_name)
+        console.print(f"[green]Removed {server_name}[/green]")
 
 
 @main.command()
@@ -563,10 +606,19 @@ def list_skills():
 
 @main.command()
 @click.argument("server_name")
-def auth(server_name: str):
+@click.option("--project", is_flag=True, help="Save to the current project config (.kimi/mcp.json) instead of global.")
+def auth(server_name: str, project: bool):
     """Authorize an MCP server with auto browser open (OAuth/Device Flow)."""
     print_header()
     config = KimiConfig()
+
+    project_root = None
+    if project:
+        project_root = find_project_root()
+        if not project_root:
+            console.print("[red]No project root found.[/red]")
+            sys.exit(1)
+        console.print(f"[dim]Saving to project: {project_root}[/dim]\n")
 
     # Servers with new auto-browser OAuth
     oauth_servers = {"github", "jira", "confluence", "gmail", "slack", "figma"}
@@ -595,7 +647,7 @@ def auth(server_name: str):
         if token_data:
             # Write to mcp.json if we got server config back
             if "server_config" in token_data:
-                config.add_server(server_name, token_data["server_config"])
+                add_server_with_preflight(server_name, token_data["server_config"], config, project_root=project_root)
             console.print(f"\n[bold green]>{server_name.title()} is ready![/bold green]")
             console.print(f"[dim]Run 'kimi-mcp-hub list' to verify.[/dim]\n")
         else:
@@ -618,11 +670,11 @@ def auth(server_name: str):
             token = Prompt.ask("Linear API key", password=True)
             if token:
                 cfg = LinearServer.get_stdio_config(token)
-                config.add_server("linear", cfg)
+                add_server_with_preflight("linear", cfg, config, project_root=project_root)
                 console.print("[green]Linear configured (API key)![/green]\n")
         else:
             cfg = LinearServer.get_official_config()
-            config.add_server("linear", cfg)
+            add_server_with_preflight("linear", cfg, config, project_root=project_root)
             console.print("[green]Linear configured (Official OAuth).[/green]")
             console.print("[dim]   Run: kimi mcp auth linear[/dim]\n")
 
@@ -632,7 +684,7 @@ def auth(server_name: str):
         app_key = Prompt.ask("Datadog App key", password=True)
         if api_key and app_key:
             cfg = DatadogServer.get_official_config(api_key, app_key)
-            config.add_server("datadog", cfg)
+            add_server_with_preflight("datadog", cfg, config, project_root=project_root)
             console.print("[green]Datadog configured (official remote MCP).[/green]\n")
 
     elif server_name == "hubspot":
@@ -646,14 +698,14 @@ def auth(server_name: str):
                 cfg = HubSpotServer.get_official_config(token)
             else:
                 cfg = HubSpotServer.get_docker_config(token)
-            config.add_server("hubspot", cfg)
+            add_server_with_preflight("hubspot", cfg, config, project_root=project_root)
             console.print(f"[green]HubSpot configured ({src})[/green]\n")
 
     elif server_name == "grain":
         console.print("[bold]Grain[/bold] -- uses browser automation.\n")
         data_dir = Prompt.ask("Browser data directory", default="~/.grain-mcp/data")
         cfg = GrainServer.get_uv_config(data_dir)
-        config.add_server("grain", cfg)
+        add_server_with_preflight("grain", cfg, config, project_root=project_root)
         console.print("[green]Grain configured![/green]\n")
 
     elif server_name == "perplexity":
@@ -662,7 +714,7 @@ def auth(server_name: str):
         token = Prompt.ask("Perplexity API key (ppx-...)", password=True)
         if token:
             cfg = PerplexityServer.get_stdio_config(token)
-            config.add_server("perplexity", cfg)
+            add_server_with_preflight("perplexity", cfg, config, project_root=project_root)
             console.print("[green]Perplexity configured![/green]\n")
 
     elif server_name in ("postgres", "playwright", "sentry", "context7", "supabase", "chrome-devtools"):
@@ -810,7 +862,7 @@ def repair():
             token = env.get("SLACK_TOKEN") or env.get("SLACK_BOT_TOKEN") or Prompt.ask("Slack Bot token (xoxb-...)", password=True)
             team_id = Prompt.ask("Slack Team ID (T0...)")
             new_cfg = SlackServer.get_stdio_config(token, team_id)
-            config.add_server(name, new_cfg)
+            add_server_with_preflight(name, new_cfg, config)
             fixed.append("slack")
 
         # Fix Datadog: old Docker/uvx configs -> official remote
@@ -820,7 +872,7 @@ def repair():
             app_key = Prompt.ask("Datadog App key", password=True)
             if api_key and app_key:
                 new_cfg = DatadogServer.get_official_config(api_key, app_key)
-                config.add_server(name, new_cfg)
+                add_server_with_preflight(name, new_cfg, config)
                 fixed.append("datadog")
 
         # Fix Perplexity: old @perplexityai/mcp-server-perplexity package
@@ -829,7 +881,7 @@ def repair():
             token = env.get("PERPLEXITY_API_KEY") or Prompt.ask("Perplexity API key (ppx-...)", password=True)
             if token:
                 new_cfg = PerplexityServer.get_stdio_config(token)
-                config.add_server(name, new_cfg)
+                add_server_with_preflight(name, new_cfg, config)
                 fixed.append("perplexity")
 
         # Fix Supabase: old @supabase/mcp-server package
@@ -855,7 +907,7 @@ def repair():
                         project_ref=project_ref or None,
                         read_only=read_only,
                     )
-                config.add_server(name, new_cfg)
+                add_server_with_preflight(name, new_cfg, config)
                 fixed.append("supabase")
 
     if fixed:
@@ -865,9 +917,73 @@ def repair():
         console.print("\n[green]No broken configs found.[/green]\n")
 
 
+@main.command()
+@click.argument("project_path", required=False, type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+def sync(project_path: Path | None):
+    """Merge project-level .kimi/mcp.json into ~/.kimi/mcp.json.
+
+    When run inside a project (git root or directory with .kimi/), reads the
+    project's MCP config and environment file, resolves ${VAR} placeholders,
+    and writes the merged result to the global Kimi config.
+    """
+    print_header()
+    config = KimiConfig()
+
+    start_dir = project_path or Path.cwd()
+    project_root = find_project_root(start_dir)
+    if not project_root:
+        console.print("[yellow]No project root found.[/yellow]")
+        console.print("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
+        sys.exit(1)
+
+    pc = ProjectConfig(project_root)
+    if not pc.exists():
+        console.print(f"[yellow]No {pc.mcp_json} found.[/yellow]")
+        console.print("[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]")
+        sys.exit(1)
+
+    global_cfg = config.load_mcp()
+    project_cfg = pc.load_mcp()
+    env = pc.load_env()
+    resolved_cfg = resolve_placeholders(project_cfg, env)
+    merged_cfg = merge_mcp_configs(global_cfg, resolved_cfg)
+    config.save_mcp(merged_cfg)
+
+    project_servers = resolved_cfg.get("mcpServers", {})
+    if project_servers:
+        console.print(f"\n[green]Synced {len(project_servers)} project MCP server(s)[/green]")
+        for name in project_servers:
+            console.print(f"  [cyan]{name}[/cyan]")
+    else:
+        console.print("\n[yellow]Project config exists but contains no servers.[/yellow]")
+
+    console.print(f"\n[dim]Project:[/dim] {project_root}")
+    console.print(f"[dim]Global config updated:[/dim] {config.mcp_json}\n")
+
+
 # -- Helper functions --
 
-def add_server_interactive(name: str, config: KimiConfig):
+def add_server_with_preflight(
+    name: str,
+    cfg: dict,
+    config: KimiConfig,
+    project_root: Path | None = None,
+):
+    """Add a server after prompting to install any missing npx packages."""
+    maybe_install_npx_deps(cfg, console)
+    if project_root:
+        pc = ProjectConfig(project_root)
+        pc.add_server(name, cfg)
+        console.print(f"[dim]Saved to {pc.mcp_json}[/dim]")
+    else:
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
+
+
+def add_server_interactive(
+    name: str,
+    config: KimiConfig,
+    project_root: Path | None = None,
+):
     """Interactive prompt to add a server."""
     cls = SERVERS[name]
     icon = getattr(cls, "icon", "")
@@ -884,7 +1000,7 @@ def add_server_interactive(name: str, config: KimiConfig):
         )
         if choice == "official":
             cfg = JiraServer.get_oauth_config() if name == "jira" else ConfluenceServer.get_oauth_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official")
         else:
@@ -892,7 +1008,7 @@ def add_server_interactive(name: str, config: KimiConfig):
             email = Prompt.ask("Email")
             token = Prompt.ask("API token", password=True)
             cfg = JiraServer.get_stdio_config(base, token, email) if name == "jira" else ConfluenceServer.get_stdio_config(base, token, email)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (API token)[/green]")
 
     elif name == "linear":
@@ -903,18 +1019,18 @@ def add_server_interactive(name: str, config: KimiConfig):
         )
         if choice == "official-oauth":
             cfg = LinearServer.get_official_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             cfg = LinearServer.get_official_stdio_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
             token = Prompt.ask("Linear API key (https://linear.app/settings/api)", password=True)
             cfg = LinearServer.get_stdio_config(token)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (API key)[/green]")
 
     elif name == "github":
@@ -927,14 +1043,14 @@ def add_server_interactive(name: str, config: KimiConfig):
             token_data = authenticate_github()
             if token_data and "access_token" in token_data:
                 cfg = GitHubServer.get_stdio_config(token_data["access_token"])
-                config.add_server(name, cfg)
+                add_server_with_preflight(name, cfg, config, project_root=project_root)
                 console.print(f"[green]Added {display} (OAuth device flow)[/green]")
             else:
                 console.print(f"[yellow]{display} OAuth not completed.[/yellow]")
         else:
             token = Prompt.ask("GitHub PAT (https://github.com/settings/tokens)", password=True)
             cfg = GitHubServer.get_stdio_config(token)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (PAT)[/green]")
 
     elif name == "slack":
@@ -948,7 +1064,7 @@ def add_server_interactive(name: str, config: KimiConfig):
             password=True,
         )
         cfg = SlackServer.get_stdio_config(token, token_type=choice)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice} token)[/green]")
 
     elif name == "datadog":
@@ -956,7 +1072,7 @@ def add_server_interactive(name: str, config: KimiConfig):
         app_key = Prompt.ask("Datadog App key", password=True)
         if api_key and app_key:
             cfg = DatadogServer.get_official_config(api_key, app_key)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (official remote MCP)[/green]")
 
     elif name == "figma":
@@ -967,24 +1083,24 @@ def add_server_interactive(name: str, config: KimiConfig):
         )
         if choice == "official-oauth":
             cfg = FigmaServer.get_official_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             cfg = FigmaServer.get_official_stdio_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
             token = Prompt.ask("Figma PAT (figd_...)", password=True)
             cfg = FigmaServer.get_console_config(token)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Console)[/green]")
 
     elif name == "figma-context":
         token = Prompt.ask("Figma API access token (figd_...)", password=True)
         cfg = FigmaContextServer.get_stdio_config(token)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "gitlab":
@@ -996,20 +1112,20 @@ def add_server_interactive(name: str, config: KimiConfig):
         if choice == "official-oauth":
             instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
             cfg = GitLabServer.get_official_config(instance_url)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
             cfg = GitLabServer.get_official_stdio_config(instance_url)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
             instance_url = Prompt.ask("GitLab URL", default="https://gitlab.com")
             token = Prompt.ask("GitLab Personal Access Token", password=True)
             cfg = GitLabServer.get_stdio_config(token, instance_url)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (PAT stdio)[/green]")
 
     elif name == "gmail":
@@ -1022,7 +1138,7 @@ def add_server_interactive(name: str, config: KimiConfig):
             creds = Prompt.ask("Path to credentials.json")
             tokens = Prompt.ask("Path to tokens.json", default="~/.gmail-mcp/tokens.json")
             cfg = GmailServer.get_python_config(creds, tokens)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "hubspot":
@@ -1034,7 +1150,7 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = HubSpotServer.get_official_config(token)
         else:
             cfg = HubSpotServer.get_docker_config(token)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "stripe":
@@ -1045,31 +1161,31 @@ def add_server_interactive(name: str, config: KimiConfig):
         )
         if choice == "official-oauth":
             cfg = StripeServer.get_official_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official-oauth")
         elif choice == "official-stdio":
             cfg = StripeServer.get_official_stdio_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         elif choice == "api-key":
             api_key = Prompt.ask("Stripe restricted API key (rk_...)", password=True)
             tools = Prompt.ask("Enabled tools", default="all")
             cfg = StripeServer.get_stdio_config(api_key, tools)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (API key)[/green]")
         else:
             api_key = Prompt.ask("Stripe restricted API key (rk_...)", password=True)
             tools = Prompt.ask("Enabled tools", default="all")
             cfg = StripeServer.get_docker_config(api_key, tools)
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Docker)[/green]")
 
     elif name == "grain":
         data_dir = Prompt.ask("Browser data directory", default="~/.grain-mcp/data")
         cfg = GrainServer.get_uv_config(data_dir)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
         console.print(f"[dim]   Login via browser on first use.[/dim]")
 
@@ -1077,7 +1193,7 @@ def add_server_interactive(name: str, config: KimiConfig):
         console.print("[bold]Chrome DevTools[/bold] -- requires Node 22+ and Chrome.\n")
         if Confirm.ask("Install chrome-devtools-mcp?", default=True):
             cfg = ChromeDevToolsServer.get_stdio_config()
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display}[/green]")
             console.print("[dim]   Make sure Chrome is installed and Node >= 22.[/dim]")
 
@@ -1087,20 +1203,20 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = DesktopCommanderServer.get_stdio_config()
         else:
             cfg = DesktopCommanderServer.get_docker_config()
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice})[/green]")
         console.print("[dim]   Warning: this server can execute arbitrary commands.[/dim]")
 
     elif name == "mobile":
         cfg = MobileMCPServer.get_stdio_config()
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
         console.print("[dim]   Requires iOS Simulator/Android Emulator or a connected device.[/dim]")
 
     elif name == "postgres":
         dsn = Prompt.ask("PostgreSQL DSN", default="postgresql://user:pass@localhost/db")
         cfg = PostgreSQLServer.get_stdio_config(dsn)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "dbhub":
@@ -1115,26 +1231,26 @@ def add_server_interactive(name: str, config: KimiConfig):
             cfg = DBHubServer.get_docker_config(dsn, readonly)
         else:
             cfg = DBHubServer.get_demo_config()
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "playwright":
         console.print("[bold]Playwright[/bold] -- browser automation.\n")
         cfg = PlaywrightServer.get_stdio_config()
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "sentry":
         token = Prompt.ask("Sentry Auth token", password=True)
         org = Prompt.ask("Sentry organization slug")
         cfg = SentryServer.get_stdio_config(token, org)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "context7":
         console.print("[bold]Context7[/bold] -- live library docs.\n")
         cfg = Context7Server.get_stdio_config()
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
     elif name == "supabase":
@@ -1150,7 +1266,7 @@ def add_server_interactive(name: str, config: KimiConfig):
                 project_ref=project_ref or None,
                 read_only=read_only,
             )
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official-oauth")
         else:
@@ -1163,7 +1279,7 @@ def add_server_interactive(name: str, config: KimiConfig):
                 project_ref=project_ref or None,
                 read_only=read_only,
             )
-            config.add_server(name, cfg)
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (stdio token)[/green]")
 
     elif name == "perplexity":
@@ -1171,7 +1287,7 @@ def add_server_interactive(name: str, config: KimiConfig):
         console.print("Get free API key at: https://www.perplexity.ai/settings/api")
         token = Prompt.ask("Perplexity API key (ppx-...)", password=True)
         cfg = PerplexityServer.get_stdio_config(token)
-        config.add_server(name, cfg)
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
 

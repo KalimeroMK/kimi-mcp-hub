@@ -12,6 +12,8 @@ from rich.table import Table
 from rich.prompt import Confirm
 from rich import box
 
+from .preflight import maybe_install_npx_deps
+
 console = Console()
 
 
@@ -142,6 +144,7 @@ def import_claude_servers(config: KimiConfig) -> None:
                 if Confirm.ask(f"Import {name} config (you'll need to re-auth)?", default=False):
                     # Import config only, strip env if any
                     clean_cfg = {k: v for k, v in cfg.items() if k != "env"}
+                    maybe_install_npx_deps(clean_cfg, console)
                     config.add_server(name, clean_cfg)
                     console.print(f"[green]✅ Imported {name} config[/green] — run [bold]kimi mcp auth {name}[/bold]")
                     imported += 1
@@ -149,6 +152,7 @@ def import_claude_servers(config: KimiConfig) -> None:
 
         # Fully importable
         if Confirm.ask(f"Import {icon} {name} with credentials?", default=True):
+            maybe_install_npx_deps(cfg, console)
             config.add_server(name, cfg)
             console.print(f"[green]✅ Imported {name}[/green]")
             imported += 1
