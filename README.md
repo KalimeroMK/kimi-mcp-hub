@@ -14,6 +14,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Uninstall](#uninstall)
 - [Quick Start](#quick-start)
 - [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
+- [Project-Level MCP Configuration](#project-level-mcp-configuration)
 - [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [All Commands](#all-commands)
@@ -186,6 +187,10 @@ kimi-mcp-hub notify
 # Fix broken configs after package updates
 kimi-mcp-hub repair
 
+# Per-project MCP configuration
+kimi-mcp-hub add --project linear   # save to ./.kimi/mcp.json
+kimi-mcp-hub sync                   # merge project config into global config
+
 # Import from Claude Desktop
 kimi-mcp-hub import-claude
 
@@ -233,9 +238,77 @@ kimi-mcp-hub add slack
 # /mcp-config login supabase
 ```
 
+When you add an `npx`-based server for the first time, `kimi-mcp-hub` checks if the package is already installed and prompts to install it globally. This prevents the 30-second timeout that can happen when Kimi CLI tries to launch a not-yet-cached npx package.
+
 After adding a server, **restart Kimi CLI** (`exit` → `kimi`) so it picks up the new config.
 
 For a detailed walkthrough of official remote OAuth servers (Linear, Jira, Confluence, Supabase, Figma, Stripe, GitLab), see [Remote MCP Server Setup](docs/remote-mcp-server-setup.md).
+
+---
+
+## Project-Level MCP Configuration
+
+If you work on multiple projects that need different MCP accounts (for example, a different Linear team/API key per client), you can store MCP servers inside each project:
+
+```bash
+cd my-project
+kimi-mcp-hub add --project linear
+kimi-mcp-hub sync
+```
+
+This creates:
+
+```text
+my-project/
+└── .kimi/
+    ├── mcp.json          # server config with ${VAR} placeholders
+    └── mcp.env           # secret values (add this to .gitignore)
+```
+
+`.kimi/mcp.env` example:
+
+```bash
+LINEAR_API_KEY=lin_api_your_project_key
+```
+
+`.kimi/mcp.json` example:
+
+```json
+{
+  "mcpServers": {
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "@emmett.deen/linear-mcp-server"],
+      "env": {
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+### Switching between projects
+
+When you switch projects, run `sync` to rewrite the global `~/.kimi-code/mcp.json` with that project's servers:
+
+```bash
+cd project-a && kimi-mcp-hub sync   # global config now uses project-a's Linear
+cd project-b && kimi-mcp-hub sync   # global config now uses project-b's Linear
+```
+
+Project servers override global servers with the same name. Global servers that are not overridden remain available.
+
+### Commands with --project
+
+```bash
+kimi-mcp-hub init --project          # save wizard servers to current project
+kimi-mcp-hub add --project linear    # add server to current project
+kimi-mcp-hub auth --project github   # authorize and save to current project
+kimi-mcp-hub remove --project linear # remove server from current project
+kimi-mcp-hub sync                    # merge current project into global config
+kimi-mcp-hub sync /path/to/project   # merge a specific project
+```
+
 
 If you have **Desktop Commander** installed, you can also ask Kimi to run the command for you:
 
@@ -300,8 +373,12 @@ GitHub authorized successfully!
 | `kimi-mcp-hub welcome` | Detailed welcome banner |
 | `kimi-mcp-hub notify` | Short startup notification for shell wrappers |
 | `kimi-mcp-hub add <server>` | Add an MCP server |
+| `kimi-mcp-hub add --project <server>` | Add an MCP server to the current project |
 | `kimi-mcp-hub remove <server>` | Remove an MCP server |
+| `kimi-mcp-hub remove --project <server>` | Remove an MCP server from the current project |
 | `kimi-mcp-hub auth <server>` | OAuth with auto-browser |
+| `kimi-mcp-hub auth --project <server>` | OAuth and save to the current project |
+| `kimi-mcp-hub sync` | Merge project `.kimi/mcp.json` into global config |
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub list` | All servers + skills + memory |
@@ -470,6 +547,8 @@ GitHub authorized successfully!
 |  |  install -> PyPI/GitHub update  |    |
 |  |  init -> interactive wizard     |    |
 |  |  add  -> writes ~/.kimi-code/...|    |
+|  |  add --project -> writes ./.kimi|    |
+|  |  sync -> merge project + global |    |
 |  |  auth -> OAuth + auto browser   |    |
 |  |  repair -> fix broken configs   |    |
 |  |  import-claude -> migrate config|    |
@@ -480,7 +559,9 @@ GitHub authorized successfully!
 |  +---------------------------------+    |
 |              |                          |
 |  +---------------------------------+    |
-|  |  ~/.kimi-code/mcp.json          |    |
+|  |  Global: ~/.kimi-code/mcp.json  |    |
+|  |  Project: ./.kimi/mcp.json      |    |
+|  |  Project secrets: ./.kimi/mcp.env|   |
 |  |  ~/.kimi-code/skills/ (56 skills)|    |
 |  |  <config-dir>/kimi-mcp-hub/     |    |
 |  |    tokens.json + memory.db      |    |
