@@ -120,6 +120,7 @@ OPTIONAL_SKILL_GROUPS = [
         "memory-palace", "hindsight", "task-master", "ralph", "grill-me",
         "visual-explainer", "research-mode", "ecc",
         "skill-creator", "agent-automation-recommender", "find-skills",
+        "claude-compat",
     ]),
     ("Integration", ["stripe-best-practices"]),
 ]
@@ -184,6 +185,7 @@ SKILLS = {
     "api-design": "REST API design patterns",
     "deployment-patterns": "CI/CD and deployment best practices",
     "regex-vs-llm-structured-text": "Regex vs LLM parsing decision framework",
+    "claude-compat": "Auto-load CLAUDE.md and CLAUDE.local.md at session start",
 }
 
 
@@ -602,6 +604,48 @@ def list_skills():
 
     console.print(table)
     console.print("\n[dim]* = core skill | Install with: [bold]kimi-mcp-hub install-skill <name>[/bold][/dim]\n")
+
+
+@main.command(name="claude-compat")
+def claude_compat_cmd():
+    """Patch ~/.kimi-code/AGENTS.md to auto-load CLAUDE.md and CLAUDE.local.md."""
+    print_header()
+
+    MARKER_START = "<!-- claude-compat -->"
+    MARKER_END = "<!-- /claude-compat -->"
+    PATCH = f"""\n{MARKER_START}\n## Claude Code Compatibility — Auto-load CLAUDE.md\n\nAt the start of every session, before doing anything else, check for the\nfollowing files in the current working directory (project root):\n\n| Priority | File | Purpose |\n|----------|------|---------|\n| 1 | `CLAUDE.local.md` | Local overrides — machine-specific, gitignored |\n| 2 | `CLAUDE.md` | Project-wide instructions — committed to the repo |\n\n**Discovery logic (in order):**\n1. `<cwd>/CLAUDE.local.md` — read if exists\n2. `<cwd>/CLAUDE.md` — read if exists\n3. If neither exists, skip silently\n\n**How to apply the content:**\n- Treat both files as authoritative project instructions, equivalent to `AGENTS.md`.\n- `CLAUDE.local.md` takes precedence over `CLAUDE.md` when they conflict.\n- Never modify these files unless the user explicitly asks.\n- If a file is found, print one line: `📋 Loaded <filename> (N lines)`\n{MARKER_END}\n"""
+
+    agents_md = Path.home() / ".kimi-code" / "AGENTS.md"
+
+    existing = ""
+    if agents_md.exists():
+        existing = agents_md.read_text(encoding="utf-8")
+
+    if MARKER_START in existing:
+        console.print("[yellow]⚠️  claude-compat patch already present in ~/.kimi-code/AGENTS.md[/yellow]")
+        console.print("[dim]Nothing to do. To re-apply, remove the <!-- claude-compat --> block first.[/dim]")
+        return
+
+    console.print("\n[bold cyan]Claude Code Compatibility Patch[/bold cyan]\n")
+    console.print("This will append the following block to [bold]~/.kimi-code/AGENTS.md[/bold]:\n")
+    console.print(Panel(
+        PATCH.strip(),
+        title="Patch preview",
+        border_style="dim",
+        padding=(1, 2),
+    ))
+
+    if not Confirm.ask("\nDodaj go ova vo ~/.kimi-code/AGENTS.md?", default=True):
+        console.print("[dim]Cancelled.[/dim]")
+        return
+
+    agents_md.parent.mkdir(parents=True, exist_ok=True)
+    with open(agents_md, "a", encoding="utf-8") as f:
+        f.write(PATCH)
+
+    console.print("\n[green]✅ Patch applied to ~/.kimi-code/AGENTS.md[/green]")
+    console.print("[dim]Kimi will now auto-read CLAUDE.local.md and CLAUDE.md at session start.[/dim]")
+    console.print("[dim]Restart Kimi CLI for the change to take effect.[/dim]\n")
 
 
 @main.command()
