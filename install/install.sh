@@ -44,18 +44,27 @@ print_error() {
 check_requirements() {
     print_info "Checking requirements..."
     
-    # Check Python
-    if command -v python3 &>/dev/null; then
-        PYTHON="python3"
-    elif command -v python &>/dev/null; then
-        PYTHON="python"
-    else
+    # Check Python (prefer 3.10+ specifically)
+    PYTHON=""
+    for py in python3.13 python3.12 python3.11 python3.10 python3 python; do
+        if command -v "$py" &>/dev/null; then
+            ver=$($py --version 2>&1 | cut -d' ' -f2)
+            major=$(echo "$ver" | cut -d'.' -f1)
+            minor=$(echo "$ver" | cut -d'.' -f2)
+            if [ "$major" -gt 3 ] || { [ "$major" -eq 3 ] && [ "$minor" -ge 10 ]; }; then
+                PYTHON="$py"
+                PYTHON_VERSION="$ver"
+                break
+            fi
+        fi
+    done
+    
+    if [ -z "$PYTHON" ]; then
         print_error "Python 3.10+ is required but not found."
         echo "   Install from: https://python.org/downloads"
         exit 1
     fi
     
-    PYTHON_VERSION=$($PYTHON --version 2>&1 | cut -d' ' -f2)
     print_success "Python $PYTHON_VERSION found"
     
     # Check pip

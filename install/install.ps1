@@ -25,23 +25,35 @@ function Write-Header {
 function Check-Requirements {
     Write-Host "Checking requirements..." -ForegroundColor Cyan
     
-    # Check Python
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $pyVersion = (python --version 2>&1).ToString().Split()[1]
-        Write-Host "  Python $pyVersion found" -ForegroundColor Green
-    } elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
-        $pyVersion = (python3 --version 2>&1).ToString().Split()[1]
-        Write-Host "  Python $pyVersion found" -ForegroundColor Green
-    } else {
+    # Check Python (prefer 3.10+)
+    $PYTHON = $null
+    foreach ($py in @("python3.13", "python3.12", "python3.11", "python3.10", "python", "python3")) {
+        if (Get-Command $py -ErrorAction SilentlyContinue) {
+            $verStr = (& $py --version 2>&1).ToString()
+            if ($verStr -match "Python (\d+)\.(\d+)") {
+                $major = [int]$matches[1]
+                $minor = [int]$matches[2]
+                if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 10)) {
+                    $PYTHON = $py
+                    $pyVersion = "$major.$minor"
+                    break
+                }
+            }
+        }
+    }
+    
+    if (-not $PYTHON) {
         Write-Host "  Python 3.10+ is required. Install from https://python.org/downloads" -ForegroundColor Red
         exit 1
     }
+    $script:PYTHON = $PYTHON
+    Write-Host "  Python $pyVersion found" -ForegroundColor Green
     
     # Check pip
-    if (python -m pip --version -ErrorAction SilentlyContinue) {
+    if (& $PYTHON -m pip --version -ErrorAction SilentlyContinue) {
         Write-Host "  pip found" -ForegroundColor Green
     } else {
-        Write-Host "  pip not found. Run: python -m ensurepip --upgrade" -ForegroundColor Red
+        Write-Host "  pip not found. Run: $PYTHON -m ensurepip --upgrade" -ForegroundColor Red
         exit 1
     }
     
@@ -66,13 +78,13 @@ function Install-FromGitHub {
     Write-Host "  Cloned to $INSTALL_DIR" -ForegroundColor Green
     
     Set-Location $INSTALL_DIR
-    python -m pip install --upgrade --user -e .
+    & $script:PYTHON -m pip install --upgrade --user -e .
     Write-Host "  Package installed" -ForegroundColor Green
 }
 
 function Install-PipGit {
     Write-Host "Installing directly from GitHub (pip)..." -ForegroundColor Cyan
-    python -m pip install --upgrade --user "git+https://github.com/$REPO.git"
+    & $script:PYTHON -m pip install --upgrade --user "git+https://github.com/$REPO.git"
     Write-Host "  Installed from GitHub" -ForegroundColor Green
 }
 
