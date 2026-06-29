@@ -1199,7 +1199,7 @@ def install_plugin_cmd(repo: str, yes: bool, name: str | None):
             console.print("[dim]Cancelled.[/dim]")
             return
 
-    install_plugin(repo, config, yes=yes, name=name)
+    install_plugin(repo, config, name=name)
 
 
 @main.command()
