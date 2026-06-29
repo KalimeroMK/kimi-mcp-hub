@@ -138,6 +138,7 @@ def discover_plugin_layout(plugin_dir: Path) -> dict[str, Any]:
         (plugin_dir / "hooks.json", "hooks.json"),
         (plugin_dir / ".claude" / "settings.json", "claude-settings"),
         (plugin_dir / "hooks" / "hooks.json", "hooks/hooks.json"),
+        (plugin_dir / "hooks" / "claude-codex-hooks.json", "hooks/claude-codex-hooks.json"),
         (plugin_dir / "gemini-extension.json", "gemini-extension"),
     ]
     for candidate, fmt in hook_candidates:
@@ -164,7 +165,7 @@ def _load_hooks_json(config_path: Path, fmt: str | None) -> dict[str, Any]:
 
     if fmt == "hooks.json":
         return data.get("hooks", data)
-    if fmt in ("claude-settings", "hooks/hooks.json"):
+    if fmt in ("claude-settings", "hooks/hooks.json", "hooks/claude-codex-hooks.json"):
         return data.get("hooks", {})
     if fmt == "gemini-extension":
         # Gemini extension may nest hooks under a hooks key.
@@ -201,7 +202,10 @@ def convert_hooks(
                     continue
                 # Run the original command from inside the plugin directory so
                 # relative paths and node_modules resolve correctly.
-                command = f'cd "{plugin_dir}" && {raw_command}'
+                # Replace Claude-specific plugin-root variables with the actual path.
+                command = raw_command.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_dir))
+                command = command.replace("${CLAUDE_CODE_PLUGIN_ROOT}", str(plugin_dir))
+                command = f'cd "{plugin_dir}" && {command}'
                 kimi_hooks.append({
                     "event": event,
                     "matcher": _map_matcher(matcher),
