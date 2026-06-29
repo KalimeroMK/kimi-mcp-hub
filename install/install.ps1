@@ -2,10 +2,13 @@
 # Usage:
 #   iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | iex
 #   iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes
+#   iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes -WithObsidian
 
 [CmdletBinding()]
 param(
-    [switch]$Yes
+    [switch]$Yes,
+    [switch]$WithObsidian,
+    [string]$ObsidianVault = "$env:USERPROFILE\Documents\Kimi-Memory"
 )
 
 $REPO = "KalimeroMK/kimi-mcp-hub"
@@ -15,7 +18,7 @@ function Write-Header {
     Write-Host ""
     Write-Host "  KIMI MCP HUB" -ForegroundColor Cyan -NoNewline
     Write-Host " - One-click MCP server & skills manager" -ForegroundColor Gray
-    Write-Host "  23 MCP Servers | 34 AI Skills | Persistent Memory" -ForegroundColor DarkGray
+    Write-Host "  24 MCP Servers | 57 AI Skills | Persistent Memory" -ForegroundColor DarkGray
     Write-Host ""
 }
 
@@ -95,6 +98,11 @@ function Show-Welcome {
         Write-Host "  iwr -useb .../install.ps1 | & ([scriptblock]::create(`$_)) -Yes"
         Write-Host ""
     }
+    if ($WithObsidian) {
+        Write-Host "Install with Obsidian local memory:" -ForegroundColor Cyan
+        Write-Host "  iwr -useb .../install.ps1 | & ([scriptblock]::create(`$_)) -Yes -WithObsidian"
+        Write-Host ""
+    }
 }
 
 function Apply-ClaudeCompat {
@@ -108,11 +116,58 @@ function Apply-ClaudeCompat {
     }
 }
 
+function Setup-ObsidianMcp {
+    Write-Host "Setting up Obsidian as local memory..." -ForegroundColor Cyan
+    
+    if (-not $Yes -and [console]::IsInputRedirected -eq $false) {
+        $inputVault = Read-Host "Obsidian vault path [$ObsidianVault]"
+        if ($inputVault) { $ObsidianVault = $inputVault }
+    }
+    
+    New-Item -ItemType Directory -Force -Path "$ObsidianVault\.obsidian" | Out-Null
+    
+    if (-not (Test-Path "$ObsidianVault\README.md")) {
+        @"
+# Kimi Memory Vault
+
+This vault is used by Kimi CLI as local memory.
+
+- Notes created by Kimi are stored here.
+- Open this folder in Obsidian to browse and edit.
+- Source: https://obsidian.md
+"@ | Set-Content -Path "$ObsidianVault\README.md" -Encoding UTF8
+    }
+    
+    $mcpJson = "$env:USERPROFILE\.kimi-code\mcp.json"
+    New-Item -ItemType Directory -Force -Path (Split-Path $mcpJson) | Out-Null
+    $data = @{ mcpServers = @{} }
+    if (Test-Path $mcpJson) {
+        try {
+            $data = Get-Content $mcpJson -Raw | ConvertFrom-Json -AsHashtable
+        } catch {
+            $data = @{ mcpServers = @{} }
+        }
+    }
+    if (-not $data.ContainsKey("mcpServers")) { $data["mcpServers"] = @{} }
+    $data["mcpServers"]["obsidian"] = @{
+        command = "npx"
+        args = @("-y", "obsidian-mcp", $ObsidianVault)
+        env = @{}
+    }
+    $data | ConvertTo-Json -Depth 10 | Set-Content -Path $mcpJson -Encoding UTF8
+    
+    Write-Host "  Obsidian vault ready: $ObsidianVault" -ForegroundColor Green
+    Write-Host "  Install Obsidian from https://obsidian.md and open this vault." -ForegroundColor Gray
+}
+
 # Main
 Write-Header
 Check-Requirements
 Install-PipGit
 if ($Yes) {
     Apply-ClaudeCompat
+}
+if ($WithObsidian) {
+    Setup-ObsidianMcp
 }
 Show-Welcome

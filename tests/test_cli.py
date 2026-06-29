@@ -13,6 +13,7 @@ from kimi_mcp_hub import __version__, TOTAL_SERVERS, TOTAL_SKILLS
 from kimi_mcp_hub.auth.oauth import WebFlowHandler
 from kimi_mcp_hub.servers.linear import LinearServer
 from kimi_mcp_hub.servers.figma import FigmaServer
+from kimi_mcp_hub.servers.obsidian import ObsidianServer
 from kimi_mcp_hub.servers.stripe import StripeServer
 from kimi_mcp_hub.servers.gitlab import GitLabServer
 from kimi_mcp_hub.servers.figma_context import FigmaContextServer
@@ -49,6 +50,12 @@ class TestServerDefinitions:
 
     def test_server_count_matches_constant(self):
         assert len(SERVERS) == TOTAL_SERVERS
+
+    def test_obsidian_server_config(self):
+        cfg = ObsidianServer.get_stdio_config("/path/to/vault")
+        assert cfg["command"] == "npx"
+        assert "obsidian-mcp" in cfg["args"]
+        assert "/path/to/vault" in cfg["args"]
 
     def test_linear_has_oauth_and_api_key_modes(self):
         assert LinearServer.get_official_config()["url"] == "https://mcp.linear.app/mcp"

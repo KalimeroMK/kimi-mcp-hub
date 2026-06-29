@@ -6,7 +6,7 @@ __description__ = "One-click MCP server and skills manager for Kimi CLI"
 __author__ = "KalimeroMK"
 
 # Total counts for display (kept in sync with cli.py SERVERS and SKILLS)
-TOTAL_SERVERS = 23
+TOTAL_SERVERS = 24
 TOTAL_SKILLS = 57
 
 from .config import KimiConfig

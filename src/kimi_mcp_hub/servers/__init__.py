@@ -23,6 +23,7 @@ from .stripe import StripeServer
 from .desktop_commander import DesktopCommanderServer
 from .dbhub import DBHubServer
 from .mobile_mcp import MobileMCPServer
+from .obsidian import ObsidianServer
 
 __all__ = [
     "JiraServer", "LinearServer", "ConfluenceServer", "GitHubServer",
@@ -31,4 +32,5 @@ __all__ = [
     "ChromeDevToolsServer", "PostgreSQLServer", "PlaywrightServer",
     "SentryServer", "Context7Server", "SupabaseServer", "PerplexityServer",
     "StripeServer", "DesktopCommanderServer", "DBHubServer", "MobileMCPServer",
+    "ObsidianServer",
 ]

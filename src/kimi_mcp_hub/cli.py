@@ -23,7 +23,7 @@ from .servers import (
     GitLabServer, GmailServer, HubSpotServer, GrainServer,
     PostgreSQLServer, PlaywrightServer, SentryServer,
     Context7Server, SupabaseServer, PerplexityServer, StripeServer,
-    DesktopCommanderServer, DBHubServer, MobileMCPServer,
+    DesktopCommanderServer, DBHubServer, MobileMCPServer, ObsidianServer,
 )
 from .auth.oauth import OAuthHandler
 from .auth.providers import (
@@ -65,6 +65,7 @@ SERVERS = {
     "desktop-commander": DesktopCommanderServer,
     "dbhub": DBHubServer,
     "mobile": MobileMCPServer,
+    "obsidian": ObsidianServer,
 }
 
 # Core skills are installed by default
@@ -502,7 +503,7 @@ def welcome():
 @click.option("--project", is_flag=True, help="Add to the current project config (.kimi/mcp.json) instead of global.")
 def add(server_name: str, project: bool):
     """Add an MCP server (jira, linear, confluence, github, slack, datadog,
-    figma, gmail, hubspot, grain, chrome-devtools, postgres, playwright,
+    figma, gmail, hubspot, grain, obsidian, chrome-devtools, postgres, playwright,
     sentry, context7, supabase, perplexity)."""
     print_header()
     config = KimiConfig()
@@ -1417,6 +1418,17 @@ def add_server_interactive(
         cfg = PerplexityServer.get_stdio_config(token)
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
+
+    elif name == "obsidian":
+        default_vault = str(Path.home() / "Documents" / "Kimi-Memory")
+        vault = Prompt.ask("Obsidian vault path", default=default_vault)
+        vault_path = Path(vault).expanduser().resolve()
+        ObsidianServer.scaffold_vault(vault_path)
+        cfg = ObsidianServer.get_stdio_config(str(vault_path))
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
+        console.print(f"[green]Added {display}[/green]")
+        console.print(f"[dim]   Vault: {vault_path}[/dim]")
+        console.print("[yellow]Install Obsidian from https://obsidian.md and open this vault to browse notes.[/yellow]")
 
 
 def _authenticate_server(name: str, method: str = "auto"):

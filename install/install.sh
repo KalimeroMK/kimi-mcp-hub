@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Kimi MCP Hub - One-line installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh | bash
+# Usage with Obsidian: curl -fsSL .../install.sh | bash -s -- --with-obsidian
 
 set -e
 
 REPO="KalimeroMK/kimi-mcp-hub"
 INSTALL_DIR="${KIMI_MCP_HUB_DIR:-$HOME/.kimi-mcp-hub}"
 BIN_DIR="${KIMI_MCP_HUB_BIN:-$HOME/.local/bin}"
+DEFAULT_VAULT="$HOME/Documents/Kimi-Memory"
 
 # Colors
 RED='\033[0;31m'
@@ -19,7 +21,7 @@ NC='\033[0m'
 print_header() {
     echo ""
     echo -e "${CYAN}  KIMI MCP HUB${NC} - One-click MCP server & skills manager"
-    echo -e "${DIM}  23 MCP Servers | 34 AI Skills | Persistent Memory${NC}"
+    echo -e "${DIM}  24 MCP Servers | 57 AI Skills | Persistent Memory${NC}"
     echo ""
 }
 
@@ -172,6 +174,58 @@ post_install() {
     print_success "Setup complete"
 }
 
+setup_obsidian_mcp() {
+    print_info "Setting up Obsidian as local memory..."
+    
+    local vault_path="${OBSIDIAN_VAULT:-$DEFAULT_VAULT}"
+    
+    if [ "$AUTO_YES" = false ] && [ -t 0 ]; then
+        read -rp "Obsidian vault path [$vault_path]: " input
+        [ -n "$input" ] && vault_path="$input"
+    fi
+    
+    vault_path="$(eval echo "$vault_path")"
+    mkdir -p "$vault_path/.obsidian"
+    
+    if [ ! -f "$vault_path/README.md" ]; then
+        cat > "$vault_path/README.md" << 'EOF'
+# Kimi Memory Vault
+
+This vault is used by Kimi CLI as local memory.
+
+- Notes created by Kimi are stored here.
+- Open this folder in Obsidian to browse and edit.
+- Source: https://obsidian.md
+EOF
+    fi
+    
+    # Add Obsidian MCP server to mcp.json via Python
+    $PYTHON - << PY
+import json
+from pathlib import Path
+
+mcp_json = Path.home() / ".kimi-code" / "mcp.json"
+mcp_json.parent.mkdir(parents=True, exist_ok=True)
+data = {"mcpServers": {}}
+if mcp_json.exists():
+    try:
+        data = json.loads(mcp_json.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        pass
+data.setdefault("mcpServers", {})
+data["mcpServers"]["obsidian"] = {
+    "command": "npx",
+    "args": ["-y", "obsidian-mcp", "$vault_path"],
+    "env": {}
+}
+mcp_json.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+print("Obsidian MCP server configured")
+PY
+    
+    print_success "Obsidian vault ready: $vault_path"
+    print_info "Install Obsidian from https://obsidian.md and open this vault."
+}
+
 show_welcome() {
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
@@ -195,6 +249,9 @@ show_welcome() {
     echo -e "${CYAN}Install with auto CLAUDE.md support:${NC}"
     echo "  curl -fsSL .../install.sh | bash -s -- -y"
     echo ""
+    echo -e "${CYAN}Install with Obsidian local memory:${NC}"
+    echo "  curl -fsSL .../install.sh | bash -s -- --with-obsidian"
+    echo ""
     echo -e "${DIM}Need help? Run: kimi-mcp-hub --help${NC}"
     echo ""
 }
@@ -205,18 +262,31 @@ main() {
     
     # Parse arguments
     AUTO_YES=false
+    WITH_OBSIDIAN=false
+    OBSIDIAN_VAULT="$DEFAULT_VAULT"
     METHOD="auto"
     
-    for arg in "$@"; do
-        case "$arg" in
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             -y|--yes)
                 AUTO_YES=true
+                shift
+                ;;
+            --with-obsidian)
+                WITH_OBSIDIAN=true
+                shift
+                ;;
+            --obsidian-vault)
+                OBSIDIAN_VAULT="$2"
+                shift 2
                 ;;
             --pip|--clone|--pypi|pip|clone|pypi)
-                METHOD="$arg"
+                METHOD="$1"
+                shift
                 ;;
             *)
-                print_warning "Unknown argument: $arg"
+                print_warning "Unknown argument: $1"
+                shift
                 ;;
         esac
     done
@@ -253,6 +323,11 @@ main() {
             print_warning "kimi-mcp-hub not found in PATH. Skipping claude-compat patch."
             print_info "Run manually after adding it to PATH: kimi-mcp-hub claude-compat --yes"
         fi
+    fi
+    
+    # Setup Obsidian MCP server
+    if [ "$WITH_OBSIDIAN" = true ]; then
+        OBSIDIAN_VAULT="$OBSIDIAN_VAULT" setup_obsidian_mcp
     fi
     
     show_welcome

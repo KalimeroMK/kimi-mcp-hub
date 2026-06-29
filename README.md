@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (6 core + 51 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 24 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (6 core + 51 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -20,7 +20,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [CLAUDE.md Compatibility](#claudemd-compatibility)
 - [All Commands](#all-commands)
-- [MCP Servers](#23-mcp-servers)
+- [MCP Servers](#24-mcp-servers)
 - [Skills](#57-skills)
 - [Architecture](#architecture)
 
@@ -49,11 +49,17 @@ curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/instal
 # macOS / Linux with auto CLAUDE.md support
 curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh | bash -s -- -y
 
+# macOS / Linux with Obsidian local memory
+curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh | bash -s -- --with-obsidian
+
 # Windows (PowerShell)
 iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | iex
 
 # Windows with auto CLAUDE.md support
 iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes
+
+# Windows with Obsidian local memory
+iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes -WithObsidian
 ```
 
 ### From GitHub (pip)
@@ -99,7 +105,7 @@ On first run you'll see:
 ```
 Kimi MCP Hub v0.1.0 installed successfully!
 
-23 MCP servers available
+24 MCP servers available
 57 AI skills for better coding
 1  Persistent memory system
 
@@ -473,6 +479,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub welcome` | Detailed welcome banner |
 | `kimi-mcp-hub notify` | Short startup notification for shell wrappers |
 | `kimi-mcp-hub add <server>` | Add an MCP server |
+| `kimi-mcp-hub add obsidian` | Add Obsidian vault as local memory |
 | `kimi-mcp-hub add --project <server>` | Add an MCP server to the current project |
 | `kimi-mcp-hub remove <server>` | Remove an MCP server |
 | `kimi-mcp-hub remove --project <server>` | Remove an MCP server from the current project |
@@ -490,7 +497,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 
 ---
 
-## 23 MCP Servers
+## 24 MCP Servers
 
 | Server | Auth | Tools | Best for |
 |--------|------|:-----:|----------|
@@ -499,6 +506,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **Confluence** | OAuth or API token | 5 | Docs, wiki, pages |
 | **GitHub** | Device Flow / PAT | 6 | Repos, PRs, issues, code |
 | **Slack** | Bot/User token (`slack-mcp-server`) | 7 | Channels, DMs, search |
+| **Obsidian** | STDIO (npx) — vault path | 4 | Local memory, notes, knowledge base |
 | **Datadog** | Official remote MCP (API + App keys) | 12 | Metrics, logs, monitors, APM |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth | 9 | Designs, tokens, components |
 | **Figma Context** | Figma API access token | 3 | Design-to-code implementation |
