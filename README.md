@@ -28,19 +28,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 
 ## Install
 
-### One-liner with npx (recommended)
-
-```bash
-# macOS / Linux / Windows
-npx kimi-mcp-hub install
-
-# Auto-apply CLAUDE.md / CLAUDE.local.md compatibility patch
-npx kimi-mcp-hub init --yes
-```
-
-This creates an isolated Python virtual environment in `~/.kimi-mcp-hub/venv`, installs the package, and runs the interactive setup wizard.
-
-### One-liner (curl / PowerShell)
+### One-liner (curl / PowerShell) (recommended)
 
 ```bash
 # macOS / Linux (curl + pip from GitHub)
@@ -62,20 +50,21 @@ iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install
 iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes -WithObsidian
 ```
 
-### From GitHub (pip)
+### From GitHub (pip) inside a venv
 
 ```bash
 # Direct from GitHub -- no clone needed
-pip install --user git+https://github.com/KalimeroMK/kimi-mcp-hub.git
-
-# Upgrade
-pip install --user --upgrade git+https://github.com/KalimeroMK/kimi-mcp-hub.git
+python3 -m venv ~/.kimi-mcp-hub/.venv
+~/.kimi-mcp-hub/.venv/bin/pip install --upgrade git+https://github.com/KalimeroMK/kimi-mcp-hub.git
+ln -s ~/.kimi-mcp-hub/.venv/bin/kimi-mcp-hub ~/.local/bin/kimi-mcp-hub
 ```
 
 ### From PyPI (when published)
 
 ```bash
-pip install --user kimi-mcp-hub
+python3 -m venv ~/.kimi-mcp-hub/.venv
+~/.kimi-mcp-hub/.venv/bin/pip install --upgrade kimi-mcp-hub
+ln -s ~/.kimi-mcp-hub/.venv/bin/kimi-mcp-hub ~/.local/bin/kimi-mcp-hub
 ```
 
 ### Clone + Install (development)
@@ -83,6 +72,8 @@ pip install --user kimi-mcp-hub
 ```bash
 git clone https://github.com/KalimeroMK/kimi-mcp-hub.git
 cd kimi-mcp-hub
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 
@@ -146,11 +137,12 @@ This converts the plugin's lifecycle hooks to Kimi's `~/.kimi-code/config.toml` 
 
 ```bash
 # Full reset
-pip uninstall kimi-mcp-hub
 rm -f ~/.kimi-code/mcp.json
 rm -rf ~/.kimi-code/skills/
 rm -rf ~/.kimi-mcp-hub/
 rm -rf ~/.config/kimi-mcp-hub/
+rm -f ~/.local/bin/kimi-mcp-hub
+rm -f ~/.local/bin/kmcp
 
 # Or use the CLI
 kimi-mcp-hub remove jira      # remove one server
@@ -160,9 +152,8 @@ kimi-mcp-hub remove github    # remove another
 **Complete reinstall:**
 
 ```bash
-pip uninstall kimi-mcp-hub
 rm -rf ~/.kimi-code/mcp.json ~/.kimi-code/skills/ ~/.kimi-mcp-hub/
-pip install --user git+https://github.com/KalimeroMK/kimi-mcp-hub.git
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh)"
 kimi-mcp-hub init
 ```
 

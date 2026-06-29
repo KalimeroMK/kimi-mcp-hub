@@ -383,45 +383,69 @@ def init(project: bool, yes: bool):
 def install():
     """Install or update Kimi MCP Hub."""
     print_header()
-    
+
     console.print("[bold cyan]Installing Kimi MCP Hub...[/bold cyan]\n")
-    
+
     # Check if running from repo or pip
     repo_dir = Path(__file__).parent.parent.parent.parent
     if (repo_dir / ".git").exists():
         console.print("[dim]Detected development install (git repo)[/dim]")
-        console.print("Run: [bold]pip install -e .[/bold] from repo root\n")
+        console.print("Run: [bold]python3 -m venv .venv && source .venv/bin/activate && pip install -e .[/bold] from repo root\n")
         return
-    
-    # Try to install from PyPI
-    console.print("[cyan]Installing from PyPI...[/cyan]")
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "--user", "kimi-mcp-hub"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        if result.returncode == 0:
-            console.print("[green]Kimi MCP Hub installed from PyPI![/green]\n")
-        else:
-            # Fallback to GitHub
-            console.print("[yellow]PyPI not available, trying GitHub...[/yellow]")
+
+    # Determine target Python: use current venv if active, otherwise ~/.kimi-mcp-hub/.venv
+    in_venv = sys.prefix != sys.base_prefix
+    if in_venv:
+        target_python = sys.executable
+        console.print("[dim]Detected virtual environment; upgrading in-place[/dim]")
+    else:
+        venv_dir = Path.home() / ".kimi-mcp-hub" / ".venv"
+        venv_dir.parent.mkdir(parents=True, exist_ok=True)
+        console.print(f"[cyan]Creating isolated environment at {venv_dir}...[/cyan]")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "venv", str(venv_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except subprocess.CalledProcessError as e:
+            console.print(f"[red]Failed to create virtual environment:[/red]\n{e.stderr}")
+            return
+        target_python = str(venv_dir / "bin" / "python")
+
+    pip_cmd = [target_python, "-m", "pip", "install", "--upgrade"]
+
+    # Try PyPI first, then GitHub
+    for source, package in [("PyPI", "kimi-mcp-hub"), ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git")]:
+        console.print(f"[cyan]Installing from {source}...[/cyan]")
+        try:
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "--upgrade", "--user",
-                 "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"],
+                pip_cmd + [package],
                 capture_output=True,
                 text=True,
                 timeout=180,
             )
             if result.returncode == 0:
-                console.print("[green]Kimi MCP Hub installed from GitHub![/green]\n")
-            else:
-                console.print("[red]Install failed. Try:[/red]")
-                console.print("  [bold]pip install git+https://github.com/KalimeroMK/kimi-mcp-hub.git[/bold]\n")
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        console.print("[dim]Try: pip install git+https://github.com/KalimeroMK/kimi-mcp-hub.git[/dim]\n")
+                console.print(f"[green]Kimi MCP Hub installed from {source}![/green]\n")
+                if not in_venv:
+                    bin_dir = Path.home() / ".local" / "bin"
+                    bin_dir.mkdir(parents=True, exist_ok=True)
+                    for script in ["kimi-mcp-hub", "kmcp"]:
+                        src = venv_dir / "bin" / script
+                        dst = bin_dir / script
+                        if src.exists():
+                            dst.symlink_to(src)
+                    console.print(f"[dim]Linked binaries to {bin_dir}. Ensure it is in your PATH.[/dim]\n")
+                return
+            elif source == "PyPI":
+                console.print("[yellow]PyPI install failed, trying GitHub...[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Error installing from {source}: {e}[/red]")
+
+    console.print("[red]Install failed. Try:[/red]")
+    console.print("  [bold]bash <(curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh)[/bold]\n")
 
 
 @main.command()
