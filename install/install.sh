@@ -192,6 +192,9 @@ show_welcome() {
     echo "  /mcp       # List available tools"
     echo "  /skills    # List installed skills"
     echo ""
+    echo -e "${CYAN}Install with auto CLAUDE.md support:${NC}"
+    echo "  curl -fsSL .../install.sh | bash -s -- -y"
+    echo ""
     echo -e "${DIM}Need help? Run: kimi-mcp-hub --help${NC}"
     echo ""
 }
@@ -201,7 +204,22 @@ main() {
     check_requirements
     
     # Parse arguments
-    METHOD="${1:-auto}"
+    AUTO_YES=false
+    METHOD="auto"
+    
+    for arg in "$@"; do
+        case "$arg" in
+            -y|--yes)
+                AUTO_YES=true
+                ;;
+            --pip|--clone|--pypi|pip|clone|pypi)
+                METHOD="$arg"
+                ;;
+            *)
+                print_warning "Unknown argument: $arg"
+                ;;
+        esac
+    done
     
     case "$METHOD" in
         --pip|pip)
@@ -225,6 +243,18 @@ main() {
     esac
     
     post_install
+    
+    # Auto-apply claude-compat patch when -y is passed
+    if [ "$AUTO_YES" = true ]; then
+        if command -v kimi-mcp-hub &>/dev/null; then
+            print_info "Applying claude-compat patch (auto-load CLAUDE.md and CLAUDE.local.md)..."
+            kimi-mcp-hub claude-compat --yes
+        else
+            print_warning "kimi-mcp-hub not found in PATH. Skipping claude-compat patch."
+            print_info "Run manually after adding it to PATH: kimi-mcp-hub claude-compat --yes"
+        fi
+    fi
+    
     show_welcome
 }
 

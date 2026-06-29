@@ -264,9 +264,17 @@ def main(ctx):
         console.print("[dim]     or [bold]kimi-mcp-hub --help[/bold] to see all commands.[/dim]\n")
 
 
+def _confirm(text: str, default: bool = False, yes: bool = False) -> bool:
+    """Return default value in non-interactive mode, otherwise prompt the user."""
+    if yes:
+        return default
+    return Confirm.ask(text, default=default)
+
+
 @main.command()
 @click.option("--project", is_flag=True, help="Save servers to the current project config (.kimi/mcp.json) instead of global.")
-def init(project: bool):
+@click.option("--yes", is_flag=True, help="Non-interactive mode: accept defaults, auto-install core + frontend skills, enable memory, and apply claude-compat.")
+def init(project: bool, yes: bool):
     """Interactive setup wizard for servers, skills, and memory."""
     config = KimiConfig()
     print_welcome()
@@ -305,14 +313,17 @@ def init(project: bool):
     if auto_installed:
         console.print(f"[green]Auto-installed:[/green] {', '.join(auto_installed)}\n")
 
-    # Prompt for remaining servers
-    for key, cls in SERVERS.items():
-        if key in AUTO_INSTALL_SERVERS:
-            continue
-        icon = getattr(cls, "icon", "")
-        name = getattr(cls, "display_name", key.title())
-        if Confirm.ask(f"{icon} Add [bold]{name}[/bold]?", default=False):
-            add_server_interactive(key, config, project_root=project_root)
+    # Prompt for remaining servers (skipped in non-interactive mode)
+    if not yes:
+        for key, cls in SERVERS.items():
+            if key in AUTO_INSTALL_SERVERS:
+                continue
+            icon = getattr(cls, "icon", "")
+            name = getattr(cls, "display_name", key.title())
+            if Confirm.ask(f"{icon} Add [bold]{name}[/bold]?", default=False):
+                add_server_interactive(key, config, project_root=project_root)
+    else:
+        console.print("[dim]Skipping interactive server selection in --yes mode.[/dim]")
 
     # Step 2: Skills
     console.print("\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n")
@@ -321,15 +332,16 @@ def init(project: bool):
     console.print("[bold cyan]Core Skills (Recommended)[/bold cyan]\n")
     for key in CORE_SKILLS:
         if key in SKILLS:
-            if Confirm.ask(f"  {SKILLS[key]} -- Install?", default=True):
+            if _confirm(f"  {SKILLS[key]} -- Install?", default=True, yes=yes):
                 install_skill(key, config, overwrite=False)
 
     # Frontend skills -- installed as a recommended stack, default=True
     console.print("\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n")
     frontend_desc = ", ".join(SKILLS[k] for k in FRONTEND_SKILLS if k in SKILLS)
-    if Confirm.ask(
+    if _confirm(
         f"Install recommended frontend stack ({len(FRONTEND_SKILLS)} skills)?",
         default=True,
+        yes=yes,
     ):
         for key in FRONTEND_SKILLS:
             install_skill(key, config, overwrite=False)
@@ -340,17 +352,23 @@ def init(project: bool):
         available = [k for k in keys if k in SKILLS and k not in CORE_SKILLS and k not in FRONTEND_SKILLS]
         if not available:
             continue
-        if Confirm.ask(
+        if _confirm(
             f"Install [bold]{category}[/bold] skills ({len(available)} skills)?",
             default=False,
+            yes=yes,
         ):
             for key in available:
                 install_skill(key, config, overwrite=False)
 
     # Step 3: Memory
     console.print("\n[bold]Step 3: Persistent Memory[/bold]\n")
-    if Confirm.ask("Enable persistent memory across sessions?", default=True):
+    if _confirm("Enable persistent memory across sessions?", default=True, yes=yes):
         enable_memory(config)
+
+    # Auto-apply claude-compat patch in non-interactive mode
+    if yes:
+        console.print("\n[dim]Auto-applying claude-compat patch...[/dim]")
+        apply_claude_compat_patch(yes=True)
 
     console.print("\n[bold green]Setup complete![/bold green]")
     console.print("Run [bold]kimi[/bold] and type:")
@@ -606,46 +624,80 @@ def list_skills():
     console.print("\n[dim]* = core skill | Install with: [bold]kimi-mcp-hub install-skill <name>[/bold][/dim]\n")
 
 
-@main.command(name="claude-compat")
-def claude_compat_cmd():
-    """Patch ~/.kimi-code/AGENTS.md to auto-load CLAUDE.md and CLAUDE.local.md."""
-    print_header()
+CLAUDE_COMPAT_MARKER_START = "<!-- claude-compat -->"
+CLAUDE_COMPAT_MARKER_END = "<!-- /claude-compat -->"
+CLAUDE_COMPAT_PATCH = f"""\n{CLAUDE_COMPAT_MARKER_START}\n## Claude Code Compatibility — Auto-load CLAUDE.md
 
-    MARKER_START = "<!-- claude-compat -->"
-    MARKER_END = "<!-- /claude-compat -->"
-    PATCH = f"""\n{MARKER_START}\n## Claude Code Compatibility — Auto-load CLAUDE.md\n\nAt the start of every session, before doing anything else, check for the\nfollowing files in the current working directory (project root):\n\n| Priority | File | Purpose |\n|----------|------|---------|\n| 1 | `CLAUDE.local.md` | Local overrides — machine-specific, gitignored |\n| 2 | `CLAUDE.md` | Project-wide instructions — committed to the repo |\n\n**Discovery logic (in order):**\n1. `<cwd>/CLAUDE.local.md` — read if exists\n2. `<cwd>/CLAUDE.md` — read if exists\n3. If neither exists, skip silently\n\n**How to apply the content:**\n- Treat both files as authoritative project instructions, equivalent to `AGENTS.md`.\n- `CLAUDE.local.md` takes precedence over `CLAUDE.md` when they conflict.\n- Never modify these files unless the user explicitly asks.\n- If a file is found, print one line: `📋 Loaded <filename> (N lines)`\n{MARKER_END}\n"""
+At the start of every session, before doing anything else, check for the
+following files in the current working directory (project root):
 
+| Priority | File | Purpose |
+|----------|------|---------|
+| 1 | `CLAUDE.local.md` | Local overrides — machine-specific, gitignored |
+| 2 | `CLAUDE.md` | Project-wide instructions — committed to the repo |
+
+**Discovery logic (in order):**
+1. `<cwd>/CLAUDE.local.md` — read if exists
+2. `<cwd>/CLAUDE.md` — read if exists
+3. If neither exists, skip silently
+
+**How to apply the content:**
+- Treat both files as authoritative project instructions, equivalent to `AGENTS.md`.
+- `CLAUDE.local.md` takes precedence over `CLAUDE.md` when they conflict.
+- Never modify these files unless the user explicitly asks.
+- If a file is found, print one line: `📋 Loaded <filename> (N lines)`
+{CLAUDE_COMPAT_MARKER_END}\n"""
+
+
+def apply_claude_compat_patch(yes: bool = False) -> bool:
+    """Apply the CLAUDE.md / CLAUDE.local.md compatibility patch to AGENTS.md.
+
+    Returns True if the patch was applied or already present, False if the
+    user cancelled in interactive mode.
+    """
     agents_md = Path.home() / ".kimi-code" / "AGENTS.md"
 
     existing = ""
     if agents_md.exists():
         existing = agents_md.read_text(encoding="utf-8")
 
-    if MARKER_START in existing:
+    if CLAUDE_COMPAT_MARKER_START in existing:
         console.print("[yellow]⚠️  claude-compat patch already present in ~/.kimi-code/AGENTS.md[/yellow]")
         console.print("[dim]Nothing to do. To re-apply, remove the <!-- claude-compat --> block first.[/dim]")
-        return
+        return True
 
-    console.print("\n[bold cyan]Claude Code Compatibility Patch[/bold cyan]\n")
-    console.print("This will append the following block to [bold]~/.kimi-code/AGENTS.md[/bold]:\n")
-    console.print(Panel(
-        PATCH.strip(),
-        title="Patch preview",
-        border_style="dim",
-        padding=(1, 2),
-    ))
+    if yes:
+        console.print("[dim]Applying claude-compat patch in non-interactive mode...[/dim]")
+    else:
+        console.print("\n[bold cyan]Claude Code Compatibility Patch[/bold cyan]\n")
+        console.print("This will append the following block to [bold]~/.kimi-code/AGENTS.md[/bold]:\n")
+        console.print(Panel(
+            CLAUDE_COMPAT_PATCH.strip(),
+            title="Patch preview",
+            border_style="dim",
+            padding=(1, 2),
+        ))
 
-    if not Confirm.ask("\nDodaj go ova vo ~/.kimi-code/AGENTS.md?", default=True):
-        console.print("[dim]Cancelled.[/dim]")
-        return
+        if not Confirm.ask("\nDodaj go ova vo ~/.kimi-code/AGENTS.md?", default=True):
+            console.print("[dim]Cancelled.[/dim]")
+            return False
 
     agents_md.parent.mkdir(parents=True, exist_ok=True)
     with open(agents_md, "a", encoding="utf-8") as f:
-        f.write(PATCH)
+        f.write(CLAUDE_COMPAT_PATCH)
 
     console.print("\n[green]✅ Patch applied to ~/.kimi-code/AGENTS.md[/green]")
     console.print("[dim]Kimi will now auto-read CLAUDE.local.md and CLAUDE.md at session start.[/dim]")
     console.print("[dim]Restart Kimi CLI for the change to take effect.[/dim]\n")
+    return True
+
+
+@main.command(name="claude-compat")
+@click.option("--yes", is_flag=True, help="Apply the patch without asking for confirmation.")
+def claude_compat_cmd(yes: bool):
+    """Patch ~/.kimi-code/AGENTS.md to auto-load CLAUDE.md and CLAUDE.local.md."""
+    print_header()
+    apply_claude_compat_patch(yes=yes)
 
 
 @main.command()
@@ -1020,7 +1072,7 @@ def add_server_with_preflight(
         pc.add_server(name, cfg)
         console.print(f"[dim]Saved to {pc.mcp_json}[/dim]")
     else:
-        add_server_with_preflight(name, cfg, config, project_root=project_root)
+        config.add_server(name, cfg)
 
 
 def add_server_interactive(

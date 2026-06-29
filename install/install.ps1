@@ -1,5 +1,12 @@
 # Kimi MCP Hub - One-line installer for Windows (PowerShell)
-# Usage: iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | iex
+# Usage:
+#   iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | iex
+#   iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes
+
+[CmdletBinding()]
+param(
+    [switch]$Yes
+)
 
 $REPO = "KalimeroMK/kimi-mcp-hub"
 $INSTALL_DIR = if ($env:KIMI_MCP_HUB_DIR) { $env:KIMI_MCP_HUB_DIR } else { "$env:USERPROFILE\.kimi-mcp-hub" }
@@ -83,10 +90,29 @@ function Show-Welcome {
     Write-Host "  /mcp       # List available tools"
     Write-Host "  /skills    # List installed skills"
     Write-Host ""
+    if ($Yes) {
+        Write-Host "Install with auto CLAUDE.md support:" -ForegroundColor Cyan
+        Write-Host "  iwr -useb .../install.ps1 | & ([scriptblock]::create(`$_)) -Yes"
+        Write-Host ""
+    }
+}
+
+function Apply-ClaudeCompat {
+    Write-Host "Applying claude-compat patch (auto-load CLAUDE.md and CLAUDE.local.md)..." -ForegroundColor Cyan
+    $kimi = Get-Command kimi-mcp-hub -ErrorAction SilentlyContinue
+    if ($kimi) {
+        & kimi-mcp-hub claude-compat --yes
+    } else {
+        Write-Host "  kimi-mcp-hub not found in PATH. Skipping claude-compat patch." -ForegroundColor Yellow
+        Write-Host "  Run manually after adding it to PATH: kimi-mcp-hub claude-compat --yes" -ForegroundColor Gray
+    }
 }
 
 # Main
 Write-Header
 Check-Requirements
 Install-PipGit
+if ($Yes) {
+    Apply-ClaudeCompat
+}
 Show-Welcome

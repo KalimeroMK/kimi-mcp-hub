@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 56 AI skills (6 core + 50 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 23 MCP servers (Jira, GitHub, Slack, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (6 core + 51 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -17,9 +17,10 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Project-Level MCP Configuration](#project-level-mcp-configuration)
 - [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
 - [OAuth Auto-Browser](#oauth-auto-browser)
+- [CLAUDE.md Compatibility](#claudemd-compatibility)
 - [All Commands](#all-commands)
 - [MCP Servers](#23-mcp-servers)
-- [Skills](#56-skills)
+- [Skills](#57-skills)
 - [Architecture](#architecture)
 
 ---
@@ -31,6 +32,9 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 ```bash
 # macOS / Linux / Windows
 npx kimi-mcp-hub install
+
+# Auto-apply CLAUDE.md / CLAUDE.local.md compatibility patch
+npx kimi-mcp-hub init --yes
 ```
 
 This creates an isolated Python virtual environment in `~/.kimi-mcp-hub/venv`, installs the package, and runs the interactive setup wizard.
@@ -41,8 +45,14 @@ This creates an isolated Python virtual environment in `~/.kimi-mcp-hub/venv`, i
 # macOS / Linux (curl + pip from GitHub)
 curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh | bash
 
+# macOS / Linux with auto CLAUDE.md support
+curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh | bash -s -- -y
+
 # Windows (PowerShell)
 iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | iex
+
+# Windows with auto CLAUDE.md support
+iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.ps1 | & ([scriptblock]::create($_)) -Yes
 ```
 
 ### From GitHub (pip)
@@ -89,7 +99,7 @@ On first run you'll see:
 Kimi MCP Hub v0.1.0 installed successfully!
 
 23 MCP servers available
-56 AI skills for better coding
+57 AI skills for better coding
 1  Persistent memory system
 
 To get started:
@@ -149,6 +159,13 @@ kimi-mcp-hub doctor
 
 # Full interactive setup
 kimi-mcp-hub init
+
+# Non-interactive setup (auto-installs core + frontend skills, memory, and claude-compat)
+kimi-mcp-hub init --yes
+
+# Auto-load CLAUDE.md and CLAUDE.local.md at every session start
+kimi-mcp-hub claude-compat
+kimi-mcp-hub claude-compat --yes
 
 # Add servers individually
 kimi-mcp-hub add jira
@@ -361,6 +378,29 @@ GitHub authorized successfully!
 
 ---
 
+## CLAUDE.md Compatibility
+
+If you are migrating from Claude Code or want Kimi to automatically read project instructions, apply the `claude-compat` patch:
+
+```bash
+# Interactive
+kimi-mcp-hub claude-compat
+
+# Non-interactive (useful in install scripts)
+kimi-mcp-hub claude-compat --yes
+```
+
+This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for two files at the start of every session:
+
+| Priority | File | Purpose |
+|----------|------|---------|
+| 1 | `CLAUDE.local.md` | Local overrides — machine-specific, gitignored |
+| 2 | `CLAUDE.md` | Project-wide instructions — committed to the repo |
+
+`CLAUDE.local.md` takes precedence over `CLAUDE.md` when they conflict.
+
+---
+
 ## All Commands
 
 | Command | Description |
@@ -369,6 +409,9 @@ GitHub authorized successfully!
 | `kimi-mcp-hub --version` | Show version |
 | `kimi-mcp-hub install` | Install/update from PyPI/GitHub |
 | `kimi-mcp-hub init` | Full interactive wizard |
+| `kimi-mcp-hub init --yes` | Non-interactive setup with defaults |
+| `kimi-mcp-hub claude-compat` | Patch AGENTS.md for CLAUDE.md auto-load |
+| `kimi-mcp-hub claude-compat --yes` | Apply patch without confirmation |
 | `kimi-mcp-hub status` | Version, servers, skills, memory |
 | `kimi-mcp-hub welcome` | Detailed welcome banner |
 | `kimi-mcp-hub notify` | Short startup notification for shell wrappers |
@@ -382,7 +425,7 @@ GitHub authorized successfully!
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub list` | All servers + skills + memory |
-| `kimi-mcp-hub list-skills` | All 56 available skills |
+| `kimi-mcp-hub list-skills` | All 57 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
 | `kimi-mcp-hub test <server>` | Test if server responds |
 | `kimi-mcp-hub doctor` | System health check |
@@ -419,7 +462,7 @@ GitHub authorized successfully!
 
 ---
 
-## 56 Skills
+## 57 Skills
 
 ### Core Skills (installed by default)
 
@@ -515,6 +558,7 @@ GitHub authorized successfully!
 
 | Skill | Description |
 |-------|-------------|
+| **claude-compat** | Auto-load CLAUDE.md and CLAUDE.local.md at session start |
 | **caveman-review** | Ultra-compressed code review comments |
 | **caveman-commit** | Ultra-compressed Conventional Commits messages |
 | **memory-palace** | Advanced memory and context retrieval |
@@ -562,7 +606,7 @@ GitHub authorized successfully!
 |  |  Global: ~/.kimi-code/mcp.json  |    |
 |  |  Project: ./.kimi/mcp.json      |    |
 |  |  Project secrets: ./.kimi/mcp.env|   |
-|  |  ~/.kimi-code/skills/ (56 skills)|    |
+|  |  ~/.kimi-code/skills/ (57 skills)|    |
 |  |  <config-dir>/kimi-mcp-hub/     |    |
 |  |    tokens.json + memory.db      |    |
 |  +---------------------------------+    |
