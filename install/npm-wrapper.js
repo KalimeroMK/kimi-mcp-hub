@@ -11,7 +11,7 @@ const REPO = "KalimeroMK/kimi-mcp-hub";
 const PYPI_NAME = "kimi-mcp-hub";
 const PYTHON_MODULE = "kimi_mcp_hub";
 const INSTALL_DIR = path.join(os.homedir(), ".kimi-mcp-hub");
-const VENV_DIR = process.env.KIMI_MCP_HUB_VENV || path.join(INSTALL_DIR, "venv");
+const VENV_DIR = process.env.KIMI_MCP_HUB_VENV || path.join(INSTALL_DIR, ".venv");
 const LOCAL_REPO_DIR = path.resolve(path.join(__dirname, ".."));
 
 function log(...args) {

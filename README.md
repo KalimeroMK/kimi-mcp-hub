@@ -7,10 +7,14 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 ## Table of Contents
 
 - [Install](#install)
-  - [One-liner (no clone)](#one-liner-no-clone)
-  - [From GitHub (pip)](#from-github-pip)
-  - [Clone + Install](#clone--install)
+  - [One-liner with npx (recommended)](#one-liner-with-npx-recommended)
+  - [One-liner (curl / PowerShell)](#one-liner-curl-powershell)
+  - [From GitHub (pip) inside a venv](#from-github-pip-inside-a-venv)
+  - [From PyPI (when published)](#from-pypi-when-published)
+  - [Clone + Install (development)](#clone-install-development)
+  - [Requirements](#requirements)
   - [Verify](#verify)
+  - [Run the wizard](#run-the-wizard)
 - [Uninstall](#uninstall)
 - [Quick Start](#quick-start)
 - [Update](#update)
@@ -30,7 +34,15 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 
 ## Install
 
-### One-liner (curl / PowerShell) (recommended)
+### One-liner with npx (recommended)
+
+```bash
+npx kimi-mcp-hub install
+```
+
+This creates an isolated Python virtual environment at `~/.kimi-mcp-hub/.venv`, installs the package, and runs the interactive setup.
+
+### One-liner (curl / PowerShell)
 
 ```bash
 # macOS / Linux (curl + pip from GitHub)
@@ -120,18 +132,6 @@ This walks you through:
 2. **Skills** -- install AI behavior patterns
 3. **Memory** -- enable persistent cross-session memory
 
-### Install Claude/Codex plugins
-
-```bash
-# Install Ponytail (anti-over-engineering plugin) into Kimi CLI
-kimi-mcp-hub install-plugin DietrichGebert/ponytail
-
-# Or from a full URL / local path
-kimi-mcp-hub install-plugin https://github.com/DietrichGebert/ponytail
-kimi-mcp-hub install-plugin ./path/to/ponytail
-```
-
-This discovers the plugin's manifest format, converts lifecycle hooks to Kimi's `~/.kimi-code/config.toml` format, merges `AGENTS.md`, and copies skills.
 
 ---
 
