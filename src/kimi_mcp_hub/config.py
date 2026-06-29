@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Any
 
 import platformdirs
+import tomli_w
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    import tomli as tomllib
 
 
 class KimiConfig:
@@ -19,11 +25,15 @@ class KimiConfig:
         self.kimi_dir = Path.home() / ".kimi-code"
         self.mcp_json = self.kimi_dir / "mcp.json"
         self.skills_dir = self.kimi_dir / "skills"
+        self.config_toml = self.kimi_dir / "config.toml"
+        self.agents_md = self.kimi_dir / "AGENTS.md"
         self.hub_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
         self.tokens_file = self.hub_dir / "tokens.json"
         self.memory_db = self.hub_dir / "memory.db"
+        self.plugins_dir = self.hub_dir / "plugins"
         self.hub_dir.mkdir(parents=True, exist_ok=True)
         self.kimi_dir.mkdir(parents=True, exist_ok=True)
+        self.plugins_dir.mkdir(parents=True, exist_ok=True)
         # Migrate legacy config from ~/.kimi/mcp.json if the new path is empty
         self._migrate_legacy_config()
 
@@ -125,6 +135,64 @@ class KimiConfig:
         with open(skill_file, "w", encoding="utf-8") as f:
             f.write(content)
         return skill_file
+
+    def plugin_dir(self, name: str) -> Path:
+        """Return the installation directory for a plugin."""
+        path = self.plugins_dir / name
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def load_toml_config(self) -> dict[str, Any]:
+        """Load ~/.kimi-code/config.toml, returning an empty dict if missing."""
+        if not self.config_toml.exists():
+            return {}
+        try:
+            with open(self.config_toml, "rb") as f:
+                return tomllib.load(f)
+        except (OSError, tomllib.TOMLDecodeError):
+            return {}
+
+    def save_toml_config(self, data: dict[str, Any]) -> None:
+        """Atomically write ~/.kimi-code/config.toml."""
+        self.config_toml.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.config_toml.with_suffix(".tmp")
+        with open(tmp, "wb") as f:
+            tomli_w.dump(data, f)
+        tmp.replace(self.config_toml)
+        if sys.platform != "win32":
+            try:
+                self.config_toml.chmod(0o600)
+            except OSError:
+                pass
+
+    def merge_agents_md(self, content: str, marker: str) -> bool:
+        """Merge plugin AGENTS.md content into ~/.kimi-code/AGENTS.md.
+
+        Uses <!-- plugin: marker --> markers to make reinstalls idempotent.
+        Returns True if the file was changed, False if the marker already exists.
+        """
+        start_marker = f"<!-- plugin: {marker} -->"
+        end_marker = f"<!-- /plugin: {marker} -->"
+        block = f"\n{start_marker}\n{content.rstrip()}\n{end_marker}\n"
+
+        existing = ""
+        if self.agents_md.exists():
+            existing = self.agents_md.read_text(encoding="utf-8")
+
+        if start_marker in existing:
+            # Replace existing block
+            import re
+            pattern = re.escape(start_marker) + ".*?" + re.escape(end_marker)
+            new_text = re.sub(pattern, block.strip(), existing, flags=re.DOTALL)
+            if new_text == existing:
+                return False
+            self.agents_md.write_text(new_text, encoding="utf-8")
+            return True
+
+        self.agents_md.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.agents_md, "a", encoding="utf-8") as f:
+            f.write(block)
+        return True
 
     def reload_kimi_mcp(self) -> None:
         """Signal Kimi CLI to reload MCP config (if running)."""

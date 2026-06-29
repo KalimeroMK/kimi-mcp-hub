@@ -1,7 +1,7 @@
 [project]
 name = "kimi-mcp-hub"
 version = "0.1.0"
-description = "One-click MCP server and skills manager for Kimi CLI -- 23 MCP servers, 34 AI skills, persistent memory"
+description = "One-click MCP server and skills manager for Kimi CLI -- 23 MCP servers, 57 AI skills, persistent memory"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -29,6 +29,8 @@ dependencies = [
     "requests>=2.28",
     "pydantic>=2.0",
     "platformdirs>=3.0",
+    "tomli>=2.0.0; python_version<'3.11'",
+    "tomli-w>=1.0.0",
 ]
 
 [project.scripts]

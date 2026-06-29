@@ -33,6 +33,7 @@ from .auth.providers import (
     authenticate_figma,
 )
 from .import_claude import import_claude_servers
+from .plugin_installer import install_plugin
 from ._post_install import check_first_run
 from .memory.db import MemoryDB
 from .preflight import maybe_install_npx_deps
@@ -861,6 +862,37 @@ def import_claude_cmd():
     print_header()
     config = KimiConfig()
     import_claude_servers(config)
+
+
+@main.command(name="install-plugin")
+@click.argument("repo")
+@click.option("--yes", is_flag=True, help="Skip confirmation prompts and overwrite existing plugin install.")
+@click.option("--name", help="Override the auto-detected plugin name.")
+def install_plugin_cmd(repo: str, yes: bool, name: str | None):
+    """Install a Claude Code / Codex plugin (e.g. Ponytail) into Kimi CLI.
+
+    REPO can be:
+      owner/repo
+      https://github.com/owner/repo
+      /local/path/to/plugin
+    """
+    print_header()
+    config = KimiConfig()
+
+    from .plugin_installer import resolve_repo
+    _, plugin_name = resolve_repo(repo)
+    plugin_name = (name or plugin_name).strip()
+    plugin_dir = config.plugin_dir(plugin_name)
+
+    if plugin_dir.exists() and any(plugin_dir.iterdir()) and not yes:
+        if not Confirm.ask(
+            f"Plugin '{plugin_name}' already installed. Reinstall/Update?",
+            default=False,
+        ):
+            console.print("[dim]Cancelled.[/dim]")
+            return
+
+    install_plugin(repo, config, yes=yes, name=name)
 
 
 @main.command()

@@ -14,6 +14,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Uninstall](#uninstall)
 - [Quick Start](#quick-start)
 - [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
+- [Install Claude/Codex Plugins](#install-claudecodex-plugins)
 - [Project-Level MCP Configuration](#project-level-mcp-configuration)
 - [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
 - [OAuth Auto-Browser](#oauth-auto-browser)
@@ -119,6 +120,19 @@ This walks you through:
 1. **MCP Servers** -- Chrome DevTools, Context7, and Playwright are auto-installed if `npx` is available; pick additional services manually
 2. **Skills** -- install AI behavior patterns
 3. **Memory** -- enable persistent cross-session memory
+
+### Install Claude/Codex plugins
+
+```bash
+# Install Ponytail (anti-over-engineering plugin) into Kimi CLI
+kimi-mcp-hub install-plugin DietrichGebert/ponytail
+
+# Or from a full URL / local path
+kimi-mcp-hub install-plugin https://github.com/DietrichGebert/ponytail
+kimi-mcp-hub install-plugin ./path/to/ponytail --yes
+```
+
+This converts the plugin's lifecycle hooks to Kimi's `~/.kimi-code/config.toml` format, merges `AGENTS.md`, and copies skills.
 
 ---
 
@@ -260,6 +274,49 @@ When you add an `npx`-based server for the first time, `kimi-mcp-hub` checks if 
 After adding a server, **restart Kimi CLI** (`exit` → `kimi`) so it picks up the new config.
 
 For a detailed walkthrough of official remote OAuth servers (Linear, Jira, Confluence, Supabase, Figma, Stripe, GitLab), see [Remote MCP Server Setup](docs/remote-mcp-server-setup.md).
+
+---
+
+## Install Claude/Codex Plugins
+
+Kimi CLI now supports lifecycle hooks (`PreToolUse`, `PostToolUse`, `Stop`, etc.) via `~/.kimi-code/config.toml`. Because Kimi uses the same JSON wire protocol as Claude Code and Codex, plugins written for those agents can be adapted automatically.
+
+```bash
+# Install Ponytail (reduces over-engineering)
+kimi-mcp-hub install-plugin DietrichGebert/ponytail
+
+# From a full URL
+kimi-mcp-hub install-plugin https://github.com/DietrichGebert/ponytail
+
+# From a local checkout, non-interactive
+kimi-mcp-hub install-plugin ./ponytail --yes
+```
+
+`install-plugin` does the following:
+
+1. Clones the repo to `~/.config/kimi-mcp-hub/plugins/<name>/`
+2. Converts `hooks.json` / `.claude/settings.json` to Kimi `[[hooks]]` entries in `~/.kimi-code/config.toml`
+3. Merges the plugin's `AGENTS.md` into `~/.kimi-code/AGENTS.md` (idempotent by marker)
+4. Copies plugin skills into `~/.kimi-code/skills/`
+
+**What this unlocks**
+
+1. **Ponytail** works immediately — reduces over-engineering in every project.
+2. **Security hooks** — block edits to `.env` files or dangerous `rm` commands.
+3. **Auto-format / auto-lint** hooks after every `WriteFile`.
+4. **Stop hooks** — verify tests passed before the session ends.
+5. `kimi-mcp-hub` becomes a hub for agent extensions, not just an MCP manager.
+
+**Tool-name mapping**
+
+| Claude/Codex | Kimi matcher |
+|--------------|--------------|
+| `Write` | `WriteFile\|StrReplaceFile` |
+| `Edit` | `Edit\|StrReplaceFile` |
+| `Read` | `ReadFile` |
+| `Bash` | `Shell\|Bash` |
+
+After installing a plugin, **restart Kimi CLI** for the hooks to take effect.
 
 ---
 
@@ -424,6 +481,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub sync` | Merge project `.kimi/mcp.json` into global config |
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
+| `kimi-mcp-hub install-plugin <repo>` | Install Claude/Codex plugin into Kimi |
 | `kimi-mcp-hub list` | All servers + skills + memory |
 | `kimi-mcp-hub list-skills` | All 57 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
