@@ -84,6 +84,74 @@ def resolve_repo(repo: str) -> tuple[str, str]:
     return url, name
 
 
+# Files that may embed absolute paths to the plugin root. When installing from a
+# local directory, occurrences of the source path are rewritten to the install
+# path so that downstream relativization works correctly.
+_HOOK_CONFIG_FILES: tuple[str, ...] = (
+    "hooks.json",
+    ".claude/settings.json",
+    "hooks/hooks.json",
+    "hooks/claude-codex-hooks.json",
+    ".codex/hooks.json",
+    ".codex-plugin/plugin.json",
+    "gemini-extension.json",
+)
+
+
+def _quote_if_needed(path: str) -> str:
+    """Return *path* unchanged if safe as an unquoted shell word, else shlex.quote it."""
+    if (
+        not path
+        or any(c.isspace() for c in path)
+        or not re.match(r"^[\w@%+=:,./-]+$", path)
+    ):
+        return shlex.quote(path)
+    return path
+
+
+def _rewrite_source_paths(plugin_dir: Path, source_path: Path) -> None:
+    """Replace source-path references with install-path references in hook/config files."""
+    candidates: list[str] = []
+    for path in (source_path, source_path.resolve()):
+        path_str = str(path)
+        candidates.append(path_str)
+        if path_str.startswith("/private/"):
+            candidates.append(path_str[len("/private") :])
+
+    # Deduplicate while preserving longest-first order so overlapping prefixes
+    # replace the most specific match first.
+    seen: set[str] = set()
+    unique_candidates: list[str] = []
+    for candidate in sorted(set(candidates), key=len, reverse=True):
+        if candidate not in seen and candidate:
+            seen.add(candidate)
+            unique_candidates.append(candidate)
+
+    plugin_str = str(plugin_dir)
+
+    def _repl(match: re.Match[str]) -> str:
+        suffix = match.group(1)
+        return _quote_if_needed(plugin_str + suffix)
+
+    for relative_path in _HOOK_CONFIG_FILES:
+        file_path = plugin_dir / relative_path
+        if file_path.exists():
+            text = file_path.read_text(encoding="utf-8")
+            changed = False
+            for candidate in unique_candidates:
+                # Replace each path occurrence (candidate plus any contiguous
+                # path suffix) with the corresponding install path, quoting it
+                # when needed so spaced paths remain a single shell token and
+                # downstream relativization works.
+                pattern = re.compile(re.escape(candidate) + r"([^\s\"'|&;<>()$`\\]*)")
+                new_text, count = pattern.subn(_repl, text)
+                if count:
+                    text = new_text
+                    changed = True
+            if changed:
+                file_path.write_text(text, encoding="utf-8")
+
+
 def clone_or_update_repo(url: str, plugin_dir: Path) -> None:
     """Clone a git repo into plugin_dir, or pull if it already exists.
 
@@ -95,6 +163,7 @@ def clone_or_update_repo(url: str, plugin_dir: Path) -> None:
         if plugin_dir.exists():
             shutil.rmtree(plugin_dir, ignore_errors=True)
         shutil.copytree(source_path, plugin_dir)
+        _rewrite_source_paths(plugin_dir, source_path)
         return
 
     if (plugin_dir / ".git").exists():

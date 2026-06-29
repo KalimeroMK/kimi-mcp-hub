@@ -506,6 +506,125 @@ class TestInstallPlugin:
         toml_data = config.load_toml_config()
         assert len(toml_data["hooks"]) == 1
 
+    def test_local_plugin_path_rewrite(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        # Use a hub directory without spaces so unquoted path replacements stay
+        # valid shell tokens and downstream relativization works predictably.
+        hub_dir = tmp_path / "hub"
+        monkeypatch.setattr(
+            "kimi_mcp_hub.config.platformdirs.user_config_dir",
+            lambda *args, **kwargs: str(hub_dir),
+        )
+        config = KimiConfig()
+
+        plugin_dir = tmp_path / "test-codex-plugin"
+        plugin_dir.mkdir()
+        script = plugin_dir / "scripts" / "guard.sh"
+        script.parent.mkdir(parents=True)
+        script.write_text("#!/bin/sh")
+
+        codex_hooks = plugin_dir / ".codex" / "hooks.json"
+        codex_hooks.parent.mkdir(parents=True)
+        codex_hooks.write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "Write",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": f"{plugin_dir}/scripts/guard.sh",
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+
+        result = install_plugin(str(plugin_dir), config)
+        assert result["plugin_name"] == "test-codex-plugin"
+        assert result["hooks_installed"] == 1
+
+        toml_data = config.load_toml_config()
+        command = toml_data["hooks"][0]["command"]
+        assert str(plugin_dir) not in command
+        assert "scripts/guard.sh" in command
+        assert str(config.plugins_dir) not in command.split("&&", 1)[1]
+
+    def test_local_plugin_path_rewrite_symlink_source(self, monkeypatch, tmp_path):
+        """Regression test for macOS /tmp -> /private/tmp symlink bug.
+
+        The hook file references the unresolved source path (/tmp/...), but the
+        installer is given the resolved path (/private/tmp/...). The installer
+        must rewrite the unresolved path too so the command is relativized.
+        """
+        import shutil
+        import uuid
+
+        monkeypatch.setenv("HOME", str(tmp_path))
+        # Use a hub directory with spaces to verify spaced install paths are
+        # quoted during rewrite and then correctly relativized.
+        hub_dir = tmp_path / "hub with spaces"
+        monkeypatch.setattr(
+            "kimi_mcp_hub.config.platformdirs.user_config_dir",
+            lambda *args, **kwargs: str(hub_dir),
+        )
+        config = KimiConfig()
+
+        # Use the real /private/tmp directory so the source path begins with
+        # /private/tmp, matching the macOS symlink scenario.
+        resolved_source = Path(f"/private/tmp/kimi-mcp-hub-test-{uuid.uuid4().hex}")
+        resolved_source.mkdir(parents=True)
+        try:
+            unresolved_source = Path("/tmp") / resolved_source.name
+
+            script = resolved_source / "scripts" / "guard.sh"
+            script.parent.mkdir(parents=True)
+            script.write_text("#!/bin/sh")
+
+            codex_hooks = resolved_source / ".codex" / "hooks.json"
+            codex_hooks.parent.mkdir(parents=True)
+            codex_hooks.write_text(
+                json.dumps(
+                    {
+                        "hooks": {
+                            "PreToolUse": [
+                                {
+                                    "matcher": "Write",
+                                    "hooks": [
+                                        {
+                                            "type": "command",
+                                            "command": f"{unresolved_source}/scripts/guard.sh",
+                                        }
+                                    ],
+                                }
+                            ]
+                        }
+                    }
+                )
+            )
+
+            result = install_plugin(
+                str(resolved_source), config, name="test-codex-plugin"
+            )
+            assert result["plugin_name"] == "test-codex-plugin"
+            assert result["hooks_installed"] == 1
+
+            toml_data = config.load_toml_config()
+            command = toml_data["hooks"][0]["command"]
+            command_body = command.split("&&", 1)[1]
+            assert str(resolved_source) not in command
+            assert str(unresolved_source) not in command
+            assert str(config.plugins_dir) not in command_body
+            assert "scripts/guard.sh" in command
+            assert not command_body.startswith("/")
+        finally:
+            shutil.rmtree(resolved_source, ignore_errors=True)
+
 
 class TestMalformedJson:
     def test_malformed_hooks_json_graceful(self, monkeypatch, tmp_path, capsys):
