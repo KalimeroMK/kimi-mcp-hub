@@ -1128,7 +1128,7 @@ def auth(server_name: str, project: bool):
 @main.command()
 @click.argument("server_name")
 def test(server_name: str):
-    """Test if an MCP server is responding."""
+    """Check if a configured MCP server's binary or HTTP endpoint is present."""
     config = KimiConfig()
     servers = config.list_servers()
     if server_name not in servers:

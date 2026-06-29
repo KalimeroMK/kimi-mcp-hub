@@ -128,10 +128,10 @@ kimi-mcp-hub install-plugin DietrichGebert/ponytail
 
 # Or from a full URL / local path
 kimi-mcp-hub install-plugin https://github.com/DietrichGebert/ponytail
-kimi-mcp-hub install-plugin ./path/to/ponytail --yes
+kimi-mcp-hub install-plugin ./path/to/ponytail
 ```
 
-This converts the plugin's lifecycle hooks to Kimi's `~/.kimi-code/config.toml` format, merges `AGENTS.md`, and copies skills.
+This discovers the plugin's manifest format, converts lifecycle hooks to Kimi's `~/.kimi-code/config.toml` format, merges `AGENTS.md`, and copies skills.
 
 ---
 
@@ -196,9 +196,9 @@ kimi-mcp-hub add mobile
 # Update to the latest version
 kimi-mcp-hub update
 
-# Auth with auto-browser (OAuth) -- like Claude Code CLI
-kimi-mcp-hub auth github
-kimi-mcp-hub auth figma
+# Add and authorize OAuth servers -- like Claude Code CLI
+kimi-mcp-hub add github   # choose oauth-device to configure and authorize
+kimi-mcp-hub add figma
 
 # GitLab and Stripe are official remote MCP servers; authorize via Kimi CLI:
 # kimi mcp auth gitlab
@@ -280,8 +280,7 @@ MCP servers are enabled **outside Kimi CLI**, in your regular terminal:
 
 ```bash
 # Stdio / API-key servers
-kimi-mcp-hub add linear
-kimi-mcp-hub add github
+kimi-mcp-hub add github   # choose PAT or oauth-device
 kimi-mcp-hub add slack
 
 # Official remote OAuth servers can also be connected inside Kimi:
@@ -289,6 +288,8 @@ kimi-mcp-hub add slack
 # /mcp-config login jira
 # /mcp-config login supabase
 ```
+
+`linear` also supports an API-key stdio mode via `kimi-mcp-hub add linear` → choose `api-key`.
 
 When you add an `npx`-based server for the first time, `kimi-mcp-hub` checks if the package is already installed and prompts to install it globally. This prevents the 30-second timeout that can happen when Kimi CLI tries to launch a not-yet-cached npx package.
 
@@ -337,16 +338,27 @@ kimi-mcp-hub install-plugin DietrichGebert/ponytail
 # From a full URL
 kimi-mcp-hub install-plugin https://github.com/DietrichGebert/ponytail
 
-# From a local checkout, non-interactive
-kimi-mcp-hub install-plugin ./ponytail --yes
+# From a local checkout
+kimi-mcp-hub install-plugin ./ponytail
+
+# Non-interactive reinstall/update
+kimi-mcp-hub install-plugin DietrichGebert/ponytail --yes
 ```
 
 `install-plugin` does the following:
 
-1. Clones the repo to `~/.config/kimi-mcp-hub/plugins/<name>/`
-2. Converts `hooks.json` / `.claude/settings.json` to Kimi `[[hooks]]` entries in `~/.kimi-code/config.toml`
-3. Merges the plugin's `AGENTS.md` into `~/.kimi-code/AGENTS.md` (idempotent by marker)
-4. Copies plugin skills into `~/.kimi-code/skills/`
+1. Clones the repo to `~/.config/kimi-mcp-hub/plugins/<name>/` (or copies a local directory)
+2. Discovers the plugin manifest among supported formats:
+   - `hooks.json` / `hooks/hooks.json` / `hooks/claude-codex-hooks.json`
+   - `.claude/settings.json`
+   - `.codex/hooks.json`
+   - `.claude-plugin/plugin.json` (Claude marketplace format)
+   - `gemini-extension.json`
+3. Converts discovered hooks to Kimi `[[hooks]]` entries in `~/.kimi-code/config.toml`
+4. Expands `${PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`, and `${CLAUDE_CODE_PLUGIN_ROOT}` to the install directory
+5. Relativizes hardcoded absolute paths that still point inside the plugin directory so commands stay portable
+6. Merges the plugin's `AGENTS.md` into `~/.kimi-code/AGENTS.md` (idempotent by marker)
+7. Copies plugin skills into `~/.kimi-code/skills/`
 
 **What this unlocks**
 
@@ -371,11 +383,11 @@ After installing a plugin, **restart Kimi CLI** for the hooks to take effect.
 
 ## Project-Level MCP Configuration
 
-If you work on multiple projects that need different MCP accounts (for example, a different Linear team/API key per client), you can store MCP servers inside each project:
+If you work on multiple projects that need different MCP accounts, you can store MCP servers inside each project. The example below adds Linear's official remote OAuth server:
 
 ```bash
 cd my-project
-kimi-mcp-hub add --project linear
+kimi-mcp-hub add --project linear   # choose the default "official-oauth" mode
 kimi-mcp-hub sync
 ```
 
@@ -384,31 +396,25 @@ This creates:
 ```text
 my-project/
 └── .kimi/
-    ├── mcp.json          # server config with ${VAR} placeholders
-    └── mcp.env           # secret values (add this to .gitignore)
+    ├── mcp.json          # server config
+    └── mcp.env           # only needed for API-key / stdio servers (add this to .gitignore)
 ```
 
-`.kimi/mcp.env` example:
-
-```bash
-LINEAR_API_KEY=lin_api_your_project_key
-```
-
-`.kimi/mcp.json` example:
+`.kimi/mcp.json` example (Linear official remote OAuth — no `env`):
 
 ```json
 {
   "mcpServers": {
     "linear": {
-      "command": "npx",
-      "args": ["-y", "@emmett.deen/linear-mcp-server"],
-      "env": {
-        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
-      }
+      "transport": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "auth": "oauth"
     }
   }
 }
 ```
+
+`.kimi/mcp.env` is only required for servers that store secrets in environment variables (for example, API-key stdio servers such as Perplexity or a GitHub PAT). OAuth servers like Linear keep tokens inside Kimi CLI's own secure storage and do not need a project `.env` file.
 
 ### Switching between projects
 
@@ -425,9 +431,10 @@ Project servers override global servers with the same name. Global servers that 
 
 ```bash
 kimi-mcp-hub init --project          # save wizard servers to current project
-kimi-mcp-hub add --project linear    # add server to current project
-kimi-mcp-hub auth --project github   # authorize and save to current project
-kimi-mcp-hub remove --project linear # remove server from current project
+kimi-mcp-hub add --project perplexity # add API-key server to current project
+kimi-mcp-hub add --project linear    # add official remote OAuth server to current project
+kimi-mcp-hub auth --project figma    # authorize and save an OAuth server to current project
+kimi-mcp-hub remove --project perplexity # remove server from current project
 kimi-mcp-hub sync                    # merge current project into global config
 kimi-mcp-hub sync /path/to/project   # merge a specific project
 ```
@@ -533,10 +540,11 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub install-plugin <repo>` | Install Claude/Codex plugin into Kimi |
+| `kimi-mcp-hub install-plugin <repo> --yes` | Install plugin without confirmation |
 | `kimi-mcp-hub list` | All servers + skills + memory |
 | `kimi-mcp-hub list-skills` | All 57 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
-| `kimi-mcp-hub test <server>` | Test if server responds |
+| `kimi-mcp-hub test <server>` | Check if server binary/HTTP endpoint is configured |
 | `kimi-mcp-hub doctor` | System health check |
 | `kimi-mcp-hub obsidian status` | Show configured Obsidian vaults |
 | `kimi-mcp-hub obsidian add <path>` | Add an Obsidian vault path |
