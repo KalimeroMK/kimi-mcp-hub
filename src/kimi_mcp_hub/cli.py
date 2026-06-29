@@ -1,6 +1,7 @@
 """Kimi MCP Hub CLI -- one-click MCP server and skills manager."""
 
-import json
+from __future__ import annotations
+
 import stat
 import subprocess
 import sys
@@ -14,30 +15,48 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 from rich import box
 
-from . import __version__, __title__, TOTAL_SERVERS, TOTAL_SKILLS
+from . import __version__, __title__
 from .config import KimiConfig
 from .servers import (
     ChromeDevToolsServer,
-    JiraServer, LinearServer, ConfluenceServer, GitHubServer,
-    SlackServer, DatadogServer, FigmaServer, FigmaContextServer,
-    GitLabServer, GmailServer, HubSpotServer, GrainServer,
-    PostgreSQLServer, PlaywrightServer, SentryServer,
-    Context7Server, SupabaseServer, PerplexityServer, StripeServer,
-    DesktopCommanderServer, DBHubServer, MobileMCPServer, ObsidianServer,
+    JiraServer,
+    LinearServer,
+    ConfluenceServer,
+    GitHubServer,
+    SlackServer,
+    DatadogServer,
+    FigmaServer,
+    FigmaContextServer,
+    GitLabServer,
+    GmailServer,
+    HubSpotServer,
+    GrainServer,
+    PostgreSQLServer,
+    PlaywrightServer,
+    SentryServer,
+    Context7Server,
+    SupabaseServer,
+    PerplexityServer,
+    StripeServer,
+    DesktopCommanderServer,
+    DBHubServer,
+    MobileMCPServer,
+    ObsidianServer,
 )
-from .auth.oauth import OAuthHandler
 from .auth.providers import (
     authenticate_github,
-    authenticate_atlassian,
-    authenticate_slack,
-    authenticate_figma,
 )
 from .import_claude import import_claude_servers
 from .plugin_installer import install_plugin
 from ._post_install import check_first_run
 from .memory.db import MemoryDB
 from .preflight import maybe_install_npx_deps
-from .project import ProjectConfig, find_project_root, merge_mcp_configs, resolve_placeholders
+from .project import (
+    ProjectConfig,
+    find_project_root,
+    merge_mcp_configs,
+    resolve_placeholders,
+)
 
 console = Console()
 
@@ -96,34 +115,84 @@ AUTO_INSTALL_SERVERS = ["chrome-devtools", "context7", "playwright"]
 
 # Optional skills are presented in category groups during `init`
 OPTIONAL_SKILL_GROUPS = [
-    ("Code Quality & Review", [
-        "code-reviewer", "code-review", "surgical-refactoring", "tdd",
-        "perf-optimization", "security-audit", "security-guidance",
-    ]),
-    ("Architecture & Design", [
-        "api-designer", "backend-architect", "backend-typescript-architect",
-        "codebase-design", "domain-modeling", "database-expert", "api-design",
-    ]),
-    ("DevOps & Deployment", [
-        "docker-pro", "gitnexus", "resolving-merge-conflicts", "deployment-patterns",
-    ]),
-    ("Language / Framework", [
-        "python-engineer", "laravel-engineer", "php-pro", "wp-plugin-development",
-        "react-coder", "ts-coder", "ui-engineer", "ui-ux-pro-max",
-    ]),
+    (
+        "Code Quality & Review",
+        [
+            "code-reviewer",
+            "code-review",
+            "surgical-refactoring",
+            "tdd",
+            "perf-optimization",
+            "security-audit",
+            "security-guidance",
+        ],
+    ),
+    (
+        "Architecture & Design",
+        [
+            "api-designer",
+            "backend-architect",
+            "backend-typescript-architect",
+            "codebase-design",
+            "domain-modeling",
+            "database-expert",
+            "api-design",
+        ],
+    ),
+    (
+        "DevOps & Deployment",
+        [
+            "docker-pro",
+            "gitnexus",
+            "resolving-merge-conflicts",
+            "deployment-patterns",
+        ],
+    ),
+    (
+        "Language / Framework",
+        [
+            "python-engineer",
+            "laravel-engineer",
+            "php-pro",
+            "wp-plugin-development",
+            "react-coder",
+            "ts-coder",
+            "ui-engineer",
+            "ui-ux-pro-max",
+        ],
+    ),
     ("Data & Migrations", ["database-migrations"]),
-    ("Testing & Browser", [
-        "playwright-best-practices", "chrome-devtools-skill",
-    ]),
-    ("Research & Automation", [
-        "search-first", "regex-vs-llm-structured-text",
-    ]),
-    ("Productivity & Meta", [
-        "memory-palace", "hindsight", "task-master", "ralph", "grill-me",
-        "visual-explainer", "research-mode", "ecc",
-        "skill-creator", "agent-automation-recommender", "find-skills",
-        "claude-compat",
-    ]),
+    (
+        "Testing & Browser",
+        [
+            "playwright-best-practices",
+            "chrome-devtools-skill",
+        ],
+    ),
+    (
+        "Research & Automation",
+        [
+            "search-first",
+            "regex-vs-llm-structured-text",
+        ],
+    ),
+    (
+        "Productivity & Meta",
+        [
+            "memory-palace",
+            "hindsight",
+            "task-master",
+            "ralph",
+            "grill-me",
+            "visual-explainer",
+            "research-mode",
+            "ecc",
+            "skill-creator",
+            "agent-automation-recommender",
+            "find-skills",
+            "claude-compat",
+        ],
+    ),
     ("Integration", ["stripe-best-practices"]),
 ]
 
@@ -211,13 +280,13 @@ def print_welcome():
     # Build status line
     server_line = (
         f"[green]{counts['servers_configured']} configured[/green]"
-        if counts['servers_configured'] > 0
-        else f"[dim]0 configured[/dim]"
+        if counts["servers_configured"] > 0
+        else "[dim]0 configured[/dim]"
     )
     skill_line = (
         f"[green]{counts['skills_installed']} installed[/green]"
-        if counts['skills_installed'] > 0
-        else f"[dim]0 installed[/dim]"
+        if counts["skills_installed"] > 0
+        else "[dim]0 installed[/dim]"
     )
 
     welcome_text = (
@@ -229,21 +298,25 @@ def print_welcome():
         f"[cyan]1[/cyan]  Persistent memory"
     )
 
-    console.print(Panel.fit(
-        welcome_text,
-        title=f"[bold]Kimi MCP Hub v{__version__}[/bold]",
-        subtitle="[dim]Run: kimi-mcp-hub init[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            welcome_text,
+            title=f"[bold]Kimi MCP Hub v{__version__}[/bold]",
+            subtitle="[dim]Run: kimi-mcp-hub init[/dim]",
+            border_style="cyan",
+        )
+    )
 
 
 def print_header():
     """Print compact header (used by subcommands)."""
-    console.print(Panel.fit(
-        f"[bold cyan]{__title__}[/bold cyan] [dim]v{__version__}[/dim]\n"
-        f"[dim]{len(SERVERS)} MCP Servers  |  {len(SKILLS)} Skills  |  Persistent Memory[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold cyan]{__title__}[/bold cyan] [dim]v{__version__}[/dim]\n"
+            f"[dim]{len(SERVERS)} MCP Servers  |  {len(SKILLS)} Skills  |  Persistent Memory[/dim]",
+            border_style="cyan",
+        )
+    )
 
 
 @click.group(invoke_without_command=True)
@@ -262,8 +335,12 @@ def main(ctx):
 
     if ctx.invoked_subcommand is None:
         print_welcome()
-        console.print("\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] for interactive setup,[/dim]")
-        console.print("[dim]     or [bold]kimi-mcp-hub --help[/bold] to see all commands.[/dim]\n")
+        console.print(
+            "\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] for interactive setup,[/dim]"
+        )
+        console.print(
+            "[dim]     or [bold]kimi-mcp-hub --help[/bold] to see all commands.[/dim]\n"
+        )
 
 
 def _confirm(text: str, default: bool = False, yes: bool = False) -> bool:
@@ -274,8 +351,16 @@ def _confirm(text: str, default: bool = False, yes: bool = False) -> bool:
 
 
 @main.command()
-@click.option("--project", is_flag=True, help="Save servers to the current project config (.kimi/mcp.json) instead of global.")
-@click.option("--yes", is_flag=True, help="Non-interactive mode: accept defaults, auto-install core + frontend skills, enable memory, and apply claude-compat.")
+@click.option(
+    "--project",
+    is_flag=True,
+    help="Save servers to the current project config (.kimi/mcp.json) instead of global.",
+)
+@click.option(
+    "--yes",
+    is_flag=True,
+    help="Non-interactive mode: accept defaults, auto-install core + frontend skills, enable memory, and apply claude-compat.",
+)
 def init(project: bool, yes: bool):
     """Interactive setup wizard for servers, skills, and memory."""
     config = KimiConfig()
@@ -286,7 +371,9 @@ def init(project: bool, yes: bool):
         project_root = find_project_root()
         if not project_root:
             console.print("[red]No project root found.[/red]")
-            console.print("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
+            console.print(
+                "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+            )
             sys.exit(1)
         console.print(f"\n[dim]Saving MCP servers to project: {project_root}[/dim]\n")
 
@@ -339,7 +426,6 @@ def init(project: bool, yes: bool):
 
     # Frontend skills -- installed as a recommended stack, default=True
     console.print("\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n")
-    frontend_desc = ", ".join(SKILLS[k] for k in FRONTEND_SKILLS if k in SKILLS)
     if _confirm(
         f"Install recommended frontend stack ({len(FRONTEND_SKILLS)} skills)?",
         default=True,
@@ -351,7 +437,11 @@ def init(project: bool, yes: bool):
     # Optional skills -- grouped by category, default=False
     console.print("\n[bold cyan]Optional Skills[/bold cyan] (pick categories)\n")
     for category, keys in OPTIONAL_SKILL_GROUPS:
-        available = [k for k in keys if k in SKILLS and k not in CORE_SKILLS and k not in FRONTEND_SKILLS]
+        available = [
+            k
+            for k in keys
+            if k in SKILLS and k not in CORE_SKILLS and k not in FRONTEND_SKILLS
+        ]
         if not available:
             continue
         if _confirm(
@@ -376,31 +466,30 @@ def init(project: bool, yes: bool):
     console.print("Run [bold]kimi[/bold] and type:")
     console.print("  [bold]/mcp[/bold]    -- see your tools")
     console.print("  [bold]/skills[/bold] -- see installed skills")
-    console.print("\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n")
+    console.print(
+        "\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n"
+    )
 
 
-@main.command()
-def install():
-    """Install or update Kimi MCP Hub."""
-    print_header()
+def _is_dev_install() -> bool:
+    """Return True if running from a git checkout."""
+    repo_dir = Path(__file__).parent.parent.parent
+    return (repo_dir / ".git").exists()
 
-    console.print("[bold cyan]Installing Kimi MCP Hub...[/bold cyan]\n")
 
-    # Check if running from repo or pip
-    repo_dir = Path(__file__).parent.parent.parent.parent
-    if (repo_dir / ".git").exists():
-        console.print("[dim]Detected development install (git repo)[/dim]")
-        console.print("Run: [bold]python3 -m venv .venv && source .venv/bin/activate && pip install -e .[/bold] from repo root\n")
-        return
+def _get_venv_info() -> tuple[str, Path | None, bool]:
+    """Return (target_python, venv_dir, in_existing_venv).
 
-    # Determine target Python: use current venv if active, otherwise ~/.kimi-mcp-hub/.venv
+    If already inside a venv, upgrade in-place. Otherwise create/use
+    ~/.kimi-mcp-hub/.venv.
+    """
     in_venv = sys.prefix != sys.base_prefix
     if in_venv:
-        target_python = sys.executable
-        console.print("[dim]Detected virtual environment; upgrading in-place[/dim]")
-    else:
-        venv_dir = Path.home() / ".kimi-mcp-hub" / ".venv"
-        venv_dir.parent.mkdir(parents=True, exist_ok=True)
+        return sys.executable, None, True
+
+    venv_dir = Path.home() / ".kimi-mcp-hub" / ".venv"
+    venv_dir.parent.mkdir(parents=True, exist_ok=True)
+    if not (venv_dir / "bin" / "python").exists():
         console.print(f"[cyan]Creating isolated environment at {venv_dir}...[/cyan]")
         try:
             subprocess.run(
@@ -410,15 +499,46 @@ def install():
                 text=True,
                 timeout=60,
             )
+        except subprocess.TimeoutExpired:
+            console.print("[red]Timed out creating virtual environment.[/red]")
+            raise RuntimeError("venv creation timed out")
         except subprocess.CalledProcessError as e:
-            console.print(f"[red]Failed to create virtual environment:[/red]\n{e.stderr}")
-            return
-        target_python = str(venv_dir / "bin" / "python")
+            console.print(
+                f"[red]Failed to create virtual environment:[/red]\n{e.stderr}"
+            )
+            raise RuntimeError("venv creation failed")
+    return str(venv_dir / "bin" / "python"), venv_dir, False
 
+
+def _link_venv_binaries(venv_dir: Path) -> None:
+    """Symlink scripts from venv into ~/.local/bin."""
+    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    for script in ["kimi-mcp-hub", "kmcp"]:
+        src = venv_dir / "bin" / script
+        dst = bin_dir / script
+        if not src.exists():
+            console.print(
+                f"[yellow]Skipping {script}: source binary not found in venv.[/yellow]"
+            )
+            continue
+        try:
+            if dst.exists() or dst.is_symlink():
+                dst.unlink()
+            dst.symlink_to(src)
+        except OSError as e:
+            console.print(
+                f"[yellow]Warning: could not link {script} to {bin_dir}: {e}[/yellow]"
+            )
+    console.print(
+        f"[dim]Linked binaries to {bin_dir}. Ensure it is in your PATH.[/dim]\n"
+    )
+
+
+def _run_pip_upgrade(target_python: str, sources: list[tuple[str, str]]) -> bool:
+    """Try to upgrade kimi-mcp-hub from the given sources. Return True on success."""
     pip_cmd = [target_python, "-m", "pip", "install", "--upgrade"]
-
-    # Try PyPI first, then GitHub
-    for source, package in [("PyPI", "kimi-mcp-hub"), ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git")]:
+    for idx, (source, package) in enumerate(sources):
         console.print(f"[cyan]Installing from {source}...[/cyan]")
         try:
             result = subprocess.run(
@@ -429,23 +549,91 @@ def install():
             )
             if result.returncode == 0:
                 console.print(f"[green]Kimi MCP Hub installed from {source}![/green]\n")
-                if not in_venv:
-                    bin_dir = Path.home() / ".local" / "bin"
-                    bin_dir.mkdir(parents=True, exist_ok=True)
-                    for script in ["kimi-mcp-hub", "kmcp"]:
-                        src = venv_dir / "bin" / script
-                        dst = bin_dir / script
-                        if src.exists():
-                            dst.symlink_to(src)
-                    console.print(f"[dim]Linked binaries to {bin_dir}. Ensure it is in your PATH.[/dim]\n")
-                return
-            elif source == "PyPI":
-                console.print("[yellow]PyPI install failed, trying GitHub...[/yellow]")
+                return True
+            if result.stderr:
+                console.print(
+                    f"[red]Error output from {source}:[/red]\n{result.stderr}"
+                )
+            if result.stdout:
+                console.print(f"[dim]Output from {source}:[/dim]\n{result.stdout}")
+            if idx < len(sources) - 1:
+                console.print("[yellow]Install failed, trying next source...[/yellow]")
         except Exception as e:
             console.print(f"[red]Error installing from {source}: {e}[/red]")
+    return False
 
-    console.print("[red]Install failed. Try:[/red]")
-    console.print("  [bold]bash <(curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh)[/bold]\n")
+
+def _perform_upgrade(
+    sources: list[tuple[str, str]],
+    success_message: str,
+    failure_message: str,
+) -> None:
+    """Shared upgrade logic for install and update commands."""
+    try:
+        target_python, venv_dir, in_venv = _get_venv_info()
+    except RuntimeError:
+        console.print("[red]Failed to prepare virtual environment.[/red]")
+        sys.exit(1)
+
+    if _run_pip_upgrade(target_python, sources):
+        if venv_dir and not in_venv:
+            _link_venv_binaries(venv_dir)
+        if success_message:
+            console.print(f"[green]{success_message}[/green]\n")
+    else:
+        console.print(f"[red]{failure_message}[/red]")
+        console.print(
+            "  [bold]bash <(curl -fsSL https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install/install.sh)[/bold]\n"
+        )
+        sys.exit(1)
+
+
+@main.command()
+def install():
+    """Install or update Kimi MCP Hub."""
+    print_header()
+    console.print("[bold cyan]Installing Kimi MCP Hub...[/bold cyan]\n")
+
+    if _is_dev_install():
+        console.print("[dim]Detected development install (git repo)[/dim]")
+        console.print(
+            "Run: [bold]python3 -m venv .venv && source .venv/bin/activate && pip install -e .[/bold] from repo root\n"
+        )
+        return
+
+    sources = [
+        ("PyPI", "kimi-mcp-hub"),
+        ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"),
+    ]
+    _perform_upgrade(
+        sources,
+        success_message="Installation complete.",
+        failure_message="Install failed. Try:",
+    )
+
+
+@main.command()
+def update():
+    """Update Kimi MCP Hub to the latest version."""
+    print_header()
+    console.print("[bold cyan]Updating Kimi MCP Hub...[/bold cyan]\n")
+
+    if _is_dev_install():
+        console.print("[dim]Detected development install (git repo)[/dim]")
+        console.print("Run: [bold]git pull && pip install -e .[/bold] from repo root\n")
+        return
+
+    # For updates prefer GitHub (latest main) over PyPI, since the package may
+    # not be published yet.
+    sources = [
+        ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"),
+        ("PyPI", "kimi-mcp-hub"),
+    ]
+    _perform_upgrade(
+        sources,
+        success_message="Update complete. Restart your terminal to use the new version.",
+        failure_message="Update failed. Try:",
+    )
 
 
 @main.command()
@@ -459,34 +647,54 @@ def status():
     table.add_column("Value", style="bold")
 
     table.add_row("Version", f"[cyan]{__version__}[/cyan]")
-    table.add_row("MCP Servers", f"{counts['servers_configured']} / {counts['total_servers']} configured")
-    table.add_row("Skills", f"{counts['skills_installed']} / {counts['total_skills']} installed")
+    table.add_row(
+        "MCP Servers",
+        f"{counts['servers_configured']} / {counts['total_servers']} configured",
+    )
+    table.add_row(
+        "Skills", f"{counts['skills_installed']} / {counts['total_skills']} installed"
+    )
 
     project_root = find_project_root()
     if project_root:
         pc = ProjectConfig(project_root)
-        project_status = f"[green]{project_root.name}[/green]" if pc.exists() else f"[dim]{project_root.name} (no .kimi/mcp.json)[/dim]"
+        project_status = (
+            f"[green]{project_root.name}[/green]"
+            if pc.exists()
+            else f"[dim]{project_root.name} (no .kimi/mcp.json)[/dim]"
+        )
         table.add_row("Project", project_status)
 
     config = KimiConfig()
-    table.add_row("Memory", "[green]enabled[/green]" if config.memory_db.exists() else "[dim]disabled[/dim]")
+    table.add_row(
+        "Memory",
+        "[green]enabled[/green]"
+        if config.memory_db.exists()
+        else "[dim]disabled[/dim]",
+    )
 
     # Check if Kimi CLI is installed
     try:
-        result = subprocess.run(["kimi", "--version"], capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ["kimi", "--version"], capture_output=True, text=True, timeout=5
+        )
         kimi_ver = result.stdout.strip() if result.returncode == 0 else "not found"
     except (FileNotFoundError, subprocess.TimeoutExpired):
         kimi_ver = "[red]not installed[/red]"
     table.add_row("Kimi CLI", kimi_ver)
 
-    console.print(Panel.fit(
-        table,
-        title=f"[bold]{__title__} Status[/bold]",
-        border_style="green" if counts['servers_configured'] > 0 else "yellow"
-    ))
+    console.print(
+        Panel.fit(
+            table,
+            title=f"[bold]{__title__} Status[/bold]",
+            border_style="green" if counts["servers_configured"] > 0 else "yellow",
+        )
+    )
 
-    if counts['servers_configured'] == 0:
-        console.print("\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] to set up your first MCP server.[/dim]\n")
+    if counts["servers_configured"] == 0:
+        console.print(
+            "\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] to set up your first MCP server.[/dim]\n"
+        )
 
 
 @main.command()
@@ -524,7 +732,11 @@ def welcome():
 
 @main.command()
 @click.argument("server_name")
-@click.option("--project", is_flag=True, help="Add to the current project config (.kimi/mcp.json) instead of global.")
+@click.option(
+    "--project",
+    is_flag=True,
+    help="Add to the current project config (.kimi/mcp.json) instead of global.",
+)
 def add(server_name: str, project: bool):
     """Add an MCP server (jira, linear, confluence, github, slack, datadog,
     figma, gmail, hubspot, grain, obsidian, chrome-devtools, postgres, playwright,
@@ -541,7 +753,9 @@ def add(server_name: str, project: bool):
         project_root = find_project_root()
         if not project_root:
             console.print("[red]No project root found.[/red]")
-            console.print("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
+            console.print(
+                "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+            )
             sys.exit(1)
         console.print(f"[dim]Adding to project: {project_root}[/dim]\n")
 
@@ -550,7 +764,11 @@ def add(server_name: str, project: bool):
 
 @main.command()
 @click.argument("server_name")
-@click.option("--project", is_flag=True, help="Remove from the current project config (.kimi/mcp.json) instead of global.")
+@click.option(
+    "--project",
+    is_flag=True,
+    help="Remove from the current project config (.kimi/mcp.json) instead of global.",
+)
 def remove(server_name: str, project: bool):
     """Remove an MCP server."""
     if project:
@@ -594,7 +812,9 @@ def list():
         console.print(table)
     else:
         console.print("[yellow]No MCP servers configured.[/yellow]")
-        console.print("Run [bold]kimi-mcp-hub add <server>[/bold] or [bold]kimi-mcp-hub init[/bold].\n")
+        console.print(
+            "Run [bold]kimi-mcp-hub add <server>[/bold] or [bold]kimi-mcp-hub init[/bold].\n"
+        )
 
     # Skills
     skills_installed = list_installed_skills(config)
@@ -611,9 +831,13 @@ def list():
     if config.memory_db.exists():
         console.print(f"\n[green]Memory enabled:[/green] {config.memory_db}")
     else:
-        console.print(f"\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]")
+        console.print(
+            "\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]"
+        )
 
-    console.print("\n[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for skills.[/dim]\n")
+    console.print(
+        "\n[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for skills.[/dim]\n"
+    )
 
 
 @main.command()
@@ -642,12 +866,18 @@ def list_skills():
     table.add_column("Status", style="green")
 
     for key, desc in SKILLS.items():
-        status = "[green]installed[/green]" if key in installed else "[dim]not installed[/dim]"
+        status = (
+            "[green]installed[/green]"
+            if key in installed
+            else "[dim]not installed[/dim]"
+        )
         marker = "[bold]*[/bold]" if key in CORE_SKILLS else " "
         table.add_row(f"{marker} {key}", desc, status)
 
     console.print(table)
-    console.print("\n[dim]* = core skill | Install with: [bold]kimi-mcp-hub install-skill <name>[/bold][/dim]\n")
+    console.print(
+        "\n[dim]* = core skill | Install with: [bold]kimi-mcp-hub install-skill <name>[/bold][/dim]\n"
+    )
 
 
 CLAUDE_COMPAT_MARKER_START = "<!-- claude-compat -->"
@@ -688,21 +918,31 @@ def apply_claude_compat_patch(yes: bool = False) -> bool:
         existing = agents_md.read_text(encoding="utf-8")
 
     if CLAUDE_COMPAT_MARKER_START in existing:
-        console.print("[yellow]⚠️  claude-compat patch already present in ~/.kimi-code/AGENTS.md[/yellow]")
-        console.print("[dim]Nothing to do. To re-apply, remove the <!-- claude-compat --> block first.[/dim]")
+        console.print(
+            "[yellow]⚠️  claude-compat patch already present in ~/.kimi-code/AGENTS.md[/yellow]"
+        )
+        console.print(
+            "[dim]Nothing to do. To re-apply, remove the <!-- claude-compat --> block first.[/dim]"
+        )
         return True
 
     if yes:
-        console.print("[dim]Applying claude-compat patch in non-interactive mode...[/dim]")
+        console.print(
+            "[dim]Applying claude-compat patch in non-interactive mode...[/dim]"
+        )
     else:
         console.print("\n[bold cyan]Claude Code Compatibility Patch[/bold cyan]\n")
-        console.print("This will append the following block to [bold]~/.kimi-code/AGENTS.md[/bold]:\n")
-        console.print(Panel(
-            CLAUDE_COMPAT_PATCH.strip(),
-            title="Patch preview",
-            border_style="dim",
-            padding=(1, 2),
-        ))
+        console.print(
+            "This will append the following block to [bold]~/.kimi-code/AGENTS.md[/bold]:\n"
+        )
+        console.print(
+            Panel(
+                CLAUDE_COMPAT_PATCH.strip(),
+                title="Patch preview",
+                border_style="dim",
+                padding=(1, 2),
+            )
+        )
 
         if not Confirm.ask("\nDodaj go ova vo ~/.kimi-code/AGENTS.md?", default=True):
             console.print("[dim]Cancelled.[/dim]")
@@ -713,13 +953,17 @@ def apply_claude_compat_patch(yes: bool = False) -> bool:
         f.write(CLAUDE_COMPAT_PATCH)
 
     console.print("\n[green]✅ Patch applied to ~/.kimi-code/AGENTS.md[/green]")
-    console.print("[dim]Kimi will now auto-read CLAUDE.local.md and CLAUDE.md at session start.[/dim]")
+    console.print(
+        "[dim]Kimi will now auto-read CLAUDE.local.md and CLAUDE.md at session start.[/dim]"
+    )
     console.print("[dim]Restart Kimi CLI for the change to take effect.[/dim]\n")
     return True
 
 
 @main.command(name="claude-compat")
-@click.option("--yes", is_flag=True, help="Apply the patch without asking for confirmation.")
+@click.option(
+    "--yes", is_flag=True, help="Apply the patch without asking for confirmation."
+)
 def claude_compat_cmd(yes: bool):
     """Patch ~/.kimi-code/AGENTS.md to auto-load CLAUDE.md and CLAUDE.local.md."""
     print_header()
@@ -728,7 +972,11 @@ def claude_compat_cmd(yes: bool):
 
 @main.command()
 @click.argument("server_name")
-@click.option("--project", is_flag=True, help="Save to the current project config (.kimi/mcp.json) instead of global.")
+@click.option(
+    "--project",
+    is_flag=True,
+    help="Save to the current project config (.kimi/mcp.json) instead of global.",
+)
 def auth(server_name: str, project: bool):
     """Authorize an MCP server with auto browser open (OAuth/Device Flow)."""
     print_header()
@@ -746,10 +994,10 @@ def auth(server_name: str, project: bool):
     oauth_servers = {"github", "jira", "confluence", "gmail", "slack", "figma"}
 
     if server_name in oauth_servers:
-        from .auth.providers import authenticate, AUTH_HANDLERS
+        from .auth.providers import authenticate
 
         console.print(f"\n[bold cyan]>{server_name.title()} Authorization[/bold cyan]")
-        console.print(f"[dim]Auto-browser mode (like Claude Code CLI)[/dim]\n")
+        console.print("[dim]Auto-browser mode (like Claude Code CLI)[/dim]\n")
 
         # Show available methods
         if server_name == "github":
@@ -769,12 +1017,21 @@ def auth(server_name: str, project: bool):
         if token_data:
             # Write to mcp.json if we got server config back
             if "server_config" in token_data:
-                add_server_with_preflight(server_name, token_data["server_config"], config, project_root=project_root)
-            console.print(f"\n[bold green]>{server_name.title()} is ready![/bold green]")
-            console.print(f"[dim]Run 'kimi-mcp-hub list' to verify.[/dim]\n")
+                add_server_with_preflight(
+                    server_name,
+                    token_data["server_config"],
+                    config,
+                    project_root=project_root,
+                )
+            console.print(
+                f"\n[bold green]>{server_name.title()} is ready![/bold green]"
+            )
+            console.print("[dim]Run 'kimi-mcp-hub list' to verify.[/dim]\n")
         else:
-            console.print(f"\n[yellow]Authorization cancelled or failed.[/yellow]")
-            console.print(f"[dim]Try: kimi-mcp-hub add {server_name} (manual mode)[/dim]\n")
+            console.print("\n[yellow]Authorization cancelled or failed.[/yellow]")
+            console.print(
+                f"[dim]Try: kimi-mcp-hub add {server_name} (manual mode)[/dim]\n"
+            )
         return
 
     # --- Legacy manual auth for API-key based servers ---
@@ -782,17 +1039,25 @@ def auth(server_name: str, project: bool):
     if server_name == "linear":
         console.print("[bold]Linear[/bold] has two auth options:\n")
         console.print("[bold]1. Official remote MCP (OAuth 2.1):[/bold]")
-        console.print("   Run [bold]kimi-mcp-hub add linear[/bold] and choose 'official-oauth' or 'official-stdio'.")
-        console.print("   Then trigger the browser login from Kimi CLI with [bold]kimi mcp auth linear[/bold].\n")
+        console.print(
+            "   Run [bold]kimi-mcp-hub add linear[/bold] and choose 'official-oauth' or 'official-stdio'."
+        )
+        console.print(
+            "   Then trigger the browser login from Kimi CLI with [bold]kimi mcp auth linear[/bold].\n"
+        )
         console.print("[bold]2. API key (local stdio server):[/bold]")
         console.print("   Get key from: https://linear.app/settings/api\n")
 
-        choice = Prompt.ask("Option", choices=["api-key", "official"], default="api-key")
+        choice = Prompt.ask(
+            "Option", choices=["api-key", "official"], default="api-key"
+        )
         if choice == "api-key":
             token = Prompt.ask("Linear API key", password=True)
             if token:
                 cfg = LinearServer.get_stdio_config(token)
-                add_server_with_preflight("linear", cfg, config, project_root=project_root)
+                add_server_with_preflight(
+                    "linear", cfg, config, project_root=project_root
+                )
                 console.print("[green]Linear configured (API key)![/green]\n")
         else:
             cfg = LinearServer.get_official_config()
@@ -836,17 +1101,28 @@ def auth(server_name: str, project: bool):
         token = Prompt.ask("Perplexity API key (ppx-...)", password=True)
         if token:
             cfg = PerplexityServer.get_stdio_config(token)
-            add_server_with_preflight("perplexity", cfg, config, project_root=project_root)
+            add_server_with_preflight(
+                "perplexity", cfg, config, project_root=project_root
+            )
             console.print("[green]Perplexity configured![/green]\n")
 
-    elif server_name in ("postgres", "playwright", "sentry", "context7", "supabase", "chrome-devtools"):
+    elif server_name in (
+        "postgres",
+        "playwright",
+        "sentry",
+        "context7",
+        "supabase",
+        "chrome-devtools",
+    ):
         console.print(f"[bold]{server_name.title()}[/bold] does not require OAuth.\n")
         console.print(f"Use: [bold]kimi-mcp-hub add {server_name}[/bold] instead.\n")
 
     else:
         console.print(f"[red]Unknown server: {server_name}[/red]")
         console.print(f"[dim]Supported auth: {', '.join(sorted(oauth_servers))}[/dim]")
-        console.print(f"[dim]API-key servers: linear, datadog, hubspot, grain, perplexity[/dim]")
+        console.print(
+            "[dim]API-key servers: linear, datadog, hubspot, grain, perplexity[/dim]"
+        )
 
 
 @main.command()
@@ -865,20 +1141,21 @@ def test(server_name: str):
         try:
             cmd = [cfg["command"]] + cfg.get("args", [])
             result = subprocess.run(
-                ["which", cmd[0]],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["which", cmd[0]], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
-                console.print(f"[green]{cmd[0]} found at {result.stdout.strip()}[/green]")
+                console.print(
+                    f"[green]{cmd[0]} found at {result.stdout.strip()}[/green]"
+                )
             else:
                 console.print(f"[red]{cmd[0]} not found. Install with npm/npx.[/red]")
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
     elif "url" in cfg:
         console.print(f"[green]HTTP endpoint configured: {cfg['url'][:60]}[/green]")
-        console.print("[dim]   Use 'kimi mcp auth {server_name}' to complete OAuth.[/dim]")
+        console.print(
+            "[dim]   Use 'kimi mcp auth {server_name}' to complete OAuth.[/dim]"
+        )
 
 
 @main.command(name="import-claude")
@@ -891,7 +1168,11 @@ def import_claude_cmd():
 
 @main.command(name="install-plugin")
 @click.argument("repo")
-@click.option("--yes", is_flag=True, help="Skip confirmation prompts and overwrite existing plugin install.")
+@click.option(
+    "--yes",
+    is_flag=True,
+    help="Skip confirmation prompts and overwrite existing plugin install.",
+)
 @click.option("--name", help="Override the auto-detected plugin name.")
 def install_plugin_cmd(repo: str, yes: bool, name: str | None):
     """Install a Claude Code / Codex plugin (e.g. Ponytail) into Kimi CLI.
@@ -905,6 +1186,7 @@ def install_plugin_cmd(repo: str, yes: bool, name: str | None):
     config = KimiConfig()
 
     from .plugin_installer import resolve_repo
+
     _, plugin_name = resolve_repo(repo)
     plugin_name = (name or plugin_name).strip()
     plugin_dir = config.plugin_dir(plugin_name)
@@ -942,7 +1224,9 @@ def doctor():
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
-                ver = result.stdout.strip().split()[0] if result.stdout.strip() else "OK"
+                ver = (
+                    result.stdout.strip().split()[0] if result.stdout.strip() else "OK"
+                )
                 table.add_row(name, f"[green]{ver}[/green]", "Found")
             else:
                 table.add_row(name, "[red]Error[/red]", result.stderr[:50])
@@ -974,13 +1258,17 @@ def doctor():
     config = KimiConfig()
     servers = config.list_servers()
     if servers:
-        console.print(f"\n[green]{len(servers)} MCP server(s) in ~/.kimi-code/mcp.json[/green]")
+        console.print(
+            f"\n[green]{len(servers)} MCP server(s) in ~/.kimi-code/mcp.json[/green]"
+        )
     else:
         console.print("\n[yellow]No MCP servers configured yet[/yellow]")
 
     skills_installed = list_installed_skills(config)
     if skills_installed:
-        console.print(f"[green]{len(skills_installed)} skills in ~/.kimi-code/skills/[/green]")
+        console.print(
+            f"[green]{len(skills_installed)} skills in ~/.kimi-code/skills/[/green]"
+        )
     else:
         console.print("[yellow]No skills installed yet[/yellow]")
 
@@ -989,7 +1277,9 @@ def doctor():
     else:
         console.print("[dim]Memory not enabled[/dim]")
 
-    console.print("\n[dim]Run [bold]kimi-mcp-hub init[/bold] to set up everything.[/dim]\n")
+    console.print(
+        "\n[dim]Run [bold]kimi-mcp-hub init[/bold] to set up everything.[/dim]\n"
+    )
 
 
 @main.command()
@@ -1010,17 +1300,27 @@ def repair():
         env = cfg.get("env", {})
 
         # Fix Slack: old @korotovsky/slack-mcp-server package
-        if name == "slack" and any("@korotovsky/slack-mcp-server" in str(a) for a in args):
-            console.print(f"[yellow]Fixing Slack config...[/yellow]")
-            token = env.get("SLACK_TOKEN") or env.get("SLACK_BOT_TOKEN") or Prompt.ask("Slack Bot token (xoxb-...)", password=True)
+        if name == "slack" and any(
+            "@korotovsky/slack-mcp-server" in str(a) for a in args
+        ):
+            console.print("[yellow]Fixing Slack config...[/yellow]")
+            token = (
+                env.get("SLACK_TOKEN")
+                or env.get("SLACK_BOT_TOKEN")
+                or Prompt.ask("Slack Bot token (xoxb-...)", password=True)
+            )
             team_id = Prompt.ask("Slack Team ID (T0...)")
             new_cfg = SlackServer.get_stdio_config(token, team_id)
             add_server_with_preflight(name, new_cfg, config)
             fixed.append("slack")
 
         # Fix Datadog: old Docker/uvx configs -> official remote
-        elif name == "datadog" and (cfg.get("command") in ("docker", "uvx") or "magistersart" in str(args)):
-            console.print("[yellow]Fixing Datadog config to official remote MCP...[/yellow]")
+        elif name == "datadog" and (
+            cfg.get("command") in ("docker", "uvx") or "magistersart" in str(args)
+        ):
+            console.print(
+                "[yellow]Fixing Datadog config to official remote MCP...[/yellow]"
+            )
             api_key = Prompt.ask("Datadog API key", password=True)
             app_key = Prompt.ask("Datadog App key", password=True)
             if api_key and app_key:
@@ -1029,9 +1329,13 @@ def repair():
                 fixed.append("datadog")
 
         # Fix Perplexity: old @perplexityai/mcp-server-perplexity package
-        elif name == "perplexity" and any("@perplexityai/mcp-server-perplexity" in str(a) for a in args):
+        elif name == "perplexity" and any(
+            "@perplexityai/mcp-server-perplexity" in str(a) for a in args
+        ):
             console.print("[yellow]Fixing Perplexity config...[/yellow]")
-            token = env.get("PERPLEXITY_API_KEY") or Prompt.ask("Perplexity API key (ppx-...)", password=True)
+            token = env.get("PERPLEXITY_API_KEY") or Prompt.ask(
+                "Perplexity API key (ppx-...)", password=True
+            )
             if token:
                 new_cfg = PerplexityServer.get_stdio_config(token)
                 add_server_with_preflight(name, new_cfg, config)
@@ -1041,19 +1345,29 @@ def repair():
         elif name == "supabase" and any("@supabase/mcp-server" in str(a) for a in args):
             # Avoid matching the correct @supabase/mcp-server-supabase package
             if not any("@supabase/mcp-server-supabase" in str(a) for a in args):
-                console.print(f"[yellow]Fixing Supabase config...[/yellow]")
-                choice = Prompt.ask("Supabase mode", choices=["official-oauth", "stdio-token"], default="official-oauth")
+                console.print("[yellow]Fixing Supabase config...[/yellow]")
+                choice = Prompt.ask(
+                    "Supabase mode",
+                    choices=["official-oauth", "stdio-token"],
+                    default="official-oauth",
+                )
                 if choice == "official-oauth":
-                    project_ref = Prompt.ask("Supabase project ref (optional)", default="")
+                    project_ref = Prompt.ask(
+                        "Supabase project ref (optional)", default=""
+                    )
                     read_only = Confirm.ask("Read-only mode?", default=True)
                     new_cfg = SupabaseServer.get_official_config(
                         project_ref=project_ref or None,
                         read_only=read_only,
                     )
                 else:
-                    console.print("Get token at: https://supabase.com/dashboard/account/tokens")
+                    console.print(
+                        "Get token at: https://supabase.com/dashboard/account/tokens"
+                    )
                     token = Prompt.ask("Supabase access token (sbp_...)", password=True)
-                    project_ref = Prompt.ask("Supabase project ref (optional)", default="")
+                    project_ref = Prompt.ask(
+                        "Supabase project ref (optional)", default=""
+                    )
                     read_only = Confirm.ask("Read-only mode?", default=True)
                     new_cfg = SupabaseServer.get_stdio_config(
                         access_token=token,
@@ -1071,7 +1385,11 @@ def repair():
 
 
 @main.command()
-@click.argument("project_path", required=False, type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+)
 def sync(project_path: Path | None):
     """Merge project-level .kimi/mcp.json into ~/.kimi/mcp.json.
 
@@ -1086,13 +1404,17 @@ def sync(project_path: Path | None):
     project_root = find_project_root(start_dir)
     if not project_root:
         console.print("[yellow]No project root found.[/yellow]")
-        console.print("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
+        console.print(
+            "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+        )
         sys.exit(1)
 
     pc = ProjectConfig(project_root)
     if not pc.exists():
         console.print(f"[yellow]No {pc.mcp_json} found.[/yellow]")
-        console.print("[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]")
+        console.print(
+            "[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]"
+        )
         sys.exit(1)
 
     global_cfg = config.load_mcp()
@@ -1104,17 +1426,207 @@ def sync(project_path: Path | None):
 
     project_servers = resolved_cfg.get("mcpServers", {})
     if project_servers:
-        console.print(f"\n[green]Synced {len(project_servers)} project MCP server(s)[/green]")
+        console.print(
+            f"\n[green]Synced {len(project_servers)} project MCP server(s)[/green]"
+        )
         for name in project_servers:
             console.print(f"  [cyan]{name}[/cyan]")
     else:
-        console.print("\n[yellow]Project config exists but contains no servers.[/yellow]")
+        console.print(
+            "\n[yellow]Project config exists but contains no servers.[/yellow]"
+        )
 
     console.print(f"\n[dim]Project:[/dim] {project_root}")
     console.print(f"[dim]Global config updated:[/dim] {config.mcp_json}\n")
 
 
+@main.group()
+def obsidian():
+    """Manage Obsidian vaults for local memory."""
+
+
+def _obsidian_slug_map(vaults: list[str]) -> dict[str, str]:
+    """Return {slug: normalized_path} for the given vault paths."""
+    return {
+        ObsidianServer.slug_from_vault_path(p): str(Path(p).expanduser().resolve())
+        for p in vaults
+    }
+
+
+def _obsidian_vault_rows(config: KimiConfig):
+    """Return (slug, path, exists, valid) rows for configured vaults."""
+    rows = []
+    for path_str in config.get_obsidian_vaults():
+        path = Path(path_str).expanduser().resolve()
+        slug = ObsidianServer.slug_from_vault_path(path)
+        exists = path.exists()
+        valid = ObsidianServer.validate_vault(path) if exists else False
+        rows.append((slug, path, exists, valid))
+    return rows
+
+
+@obsidian.command(name="status")
+def obsidian_status():
+    """Show configured Obsidian vaults and their status."""
+    config = KimiConfig()
+    rows = _obsidian_vault_rows(config)
+    if not rows:
+        console.print("[yellow]No Obsidian vaults configured.[/yellow]")
+        console.print("Run [bold]kimi-mcp-hub obsidian add <path>[/bold] to add one.\n")
+        return
+
+    table = Table(title="Obsidian Vaults", box=box.ROUNDED)
+    table.add_column("Slug", style="cyan")
+    table.add_column("Path", style="white")
+    table.add_column("Status", style="green")
+    for slug, path, exists, valid in rows:
+        if valid:
+            status_text = "[green]valid[/green]"
+        elif exists:
+            status_text = "[yellow]invalid[/yellow]"
+        else:
+            status_text = "[red]missing[/red]"
+        table.add_row(slug, str(path), status_text)
+    console.print(table)
+
+    default_vault = config.get_default_memory_vault()
+    if default_vault:
+        console.print(f"\n[dim]Default memory vault:[/dim] {default_vault}")
+
+
+@obsidian.command(name="list")
+def obsidian_list():
+    """List configured Obsidian vaults."""
+    config = KimiConfig()
+    rows = _obsidian_vault_rows(config)
+    if not rows:
+        console.print("[yellow]No Obsidian vaults configured.[/yellow]")
+        console.print("Run [bold]kimi-mcp-hub obsidian add <path>[/bold] to add one.\n")
+        return
+
+    for slug, path, exists, valid in rows:
+        status_text = "valid" if valid else ("exists" if exists else "missing")
+        console.print(f"  [cyan]{slug}[/cyan]  {path}  [dim]({status_text})[/dim]")
+
+    default_vault = config.get_default_memory_vault()
+    if default_vault:
+        console.print(f"\n[dim]Default memory vault:[/dim] {default_vault}")
+
+
+@obsidian.command(name="add")
+@click.argument(
+    "path",
+    type=click.Path(path_type=Path, exists=False, file_okay=False, dir_okay=True),
+)
+def obsidian_add(path: Path):
+    """Add an Obsidian vault path."""
+    config = KimiConfig()
+    vault_path = path.expanduser().resolve()
+
+    vaults = config.get_obsidian_vaults()
+    existing_resolved = {Path(p).expanduser().resolve() for p in vaults}
+    if vault_path in existing_resolved:
+        console.print(f"[yellow]Vault {vault_path} is already configured.[/yellow]")
+        return
+
+    slug_map = _obsidian_slug_map(vaults)
+    new_slug = ObsidianServer.slug_from_vault_path(vault_path)
+    if new_slug in slug_map and slug_map[new_slug] != str(vault_path):
+        console.print(
+            f"[red]Vault slug '{new_slug}' already used by {slug_map[new_slug]}.[/red]"
+        )
+        console.print("[dim]Choose a vault path with a different directory name.[/dim]")
+        sys.exit(1)
+
+    ObsidianServer.scaffold_vault(vault_path)
+
+    path_str = str(vault_path)
+    vaults.append(path_str)
+    config.set_obsidian_vaults(vaults)
+    console.print(
+        f"[green]Added vault:[/green] {vault_path}  "
+        f"[dim]({ObsidianServer.slug_from_vault_path(vault_path)})[/dim]"
+    )
+
+    if config.get_default_memory_vault() is None:
+        config.set_default_memory_vault(path_str)
+        console.print("[dim]Set as default memory vault.[/dim]")
+
+
+@obsidian.command(name="remove")
+@click.argument("slug")
+def obsidian_remove(slug: str):
+    """Remove an Obsidian vault from the config by slug (files are kept)."""
+    config = KimiConfig()
+    vaults = config.get_obsidian_vaults()
+    slug_map = _obsidian_slug_map(vaults)
+
+    if slug not in slug_map:
+        console.print(f"[red]No vault with slug '{slug}' configured.[/red]")
+        available = ", ".join(sorted(slug_map)) or "none"
+        console.print(f"[dim]Configured slugs: {available}[/dim]")
+        sys.exit(1)
+
+    removed = slug_map[slug]
+    vaults = [p for p in vaults if str(Path(p).expanduser().resolve()) != removed]
+    config.set_obsidian_vaults(vaults)
+
+    default_vault = config.get_default_memory_vault()
+    if default_vault and str(Path(default_vault).expanduser().resolve()) == removed:
+        if vaults:
+            config.set_default_memory_vault(vaults[0])
+            console.print(f"[dim]Default memory vault moved to {vaults[0]}.[/dim]")
+        else:
+            config.clear_default_memory_vault()
+
+    console.print(f"[green]Removed vault '{slug}'.[/green]")
+    console.print("[dim]Vault files were not deleted.[/dim]")
+
+
+def _default_obsidian_templates_dir() -> Path:
+    """Default package location for Obsidian templates."""
+    return Path(__file__).parent / "templates" / "obsidian"
+
+
+@obsidian.command(name="sync-templates")
+@click.argument("vault_slug")
+@click.option(
+    "--templates-dir",
+    type=click.Path(path_type=Path),
+    help="Directory of template markdown files.",
+)
+def obsidian_sync_templates(vault_slug: str, templates_dir: Path | None):
+    """Copy template notes into the specified vault."""
+    config = KimiConfig()
+    vaults = config.get_obsidian_vaults()
+    slug_map = _obsidian_slug_map(vaults)
+
+    if vault_slug not in slug_map:
+        console.print(f"[red]No vault with slug '{vault_slug}' configured.[/red]")
+        sys.exit(1)
+
+    vault_path = Path(slug_map[vault_slug])
+    templates_dir = templates_dir or _default_obsidian_templates_dir()
+
+    if not templates_dir.exists():
+        console.print(
+            f"[yellow]Templates directory not found: {templates_dir}[/yellow]"
+        )
+        return
+
+    copied = ObsidianServer.sync_templates(templates_dir, vault_path)
+    if copied:
+        console.print(
+            f"[green]Synced {len(copied)} template(s) to {vault_slug}.[/green]"
+        )
+        for note in copied:
+            console.print(f"  [dim]{note}[/dim]")
+    else:
+        console.print(f"[dim]No new templates to sync to {vault_slug}.[/dim]")
+
+
 # -- Helper functions --
+
 
 def add_server_with_preflight(
     name: str,
@@ -1139,7 +1651,6 @@ def add_server_interactive(
 ):
     """Interactive prompt to add a server."""
     cls = SERVERS[name]
-    icon = getattr(cls, "icon", "")
     display = getattr(cls, "display_name", name.title())
 
     console.print(f"\n{display}")
@@ -1152,7 +1663,11 @@ def add_server_interactive(
             default="official",
         )
         if choice == "official":
-            cfg = JiraServer.get_oauth_config() if name == "jira" else ConfluenceServer.get_oauth_config()
+            cfg = (
+                JiraServer.get_oauth_config()
+                if name == "jira"
+                else ConfluenceServer.get_oauth_config()
+            )
             add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (Official OAuth)[/green]")
             _authenticate_server(name, "official")
@@ -1160,7 +1675,11 @@ def add_server_interactive(
             base = Prompt.ask("Base URL", default="https://yourcompany.atlassian.net")
             email = Prompt.ask("Email")
             token = Prompt.ask("API token", password=True)
-            cfg = JiraServer.get_stdio_config(base, token, email) if name == "jira" else ConfluenceServer.get_stdio_config(base, token, email)
+            cfg = (
+                JiraServer.get_stdio_config(base, token, email)
+                if name == "jira"
+                else ConfluenceServer.get_stdio_config(base, token, email)
+            )
             add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (API token)[/green]")
 
@@ -1181,7 +1700,9 @@ def add_server_interactive(
             console.print(f"[green]Added {display} (Official via mcp-remote)[/green]")
             console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
         else:
-            token = Prompt.ask("Linear API key (https://linear.app/settings/api)", password=True)
+            token = Prompt.ask(
+                "Linear API key (https://linear.app/settings/api)", password=True
+            )
             cfg = LinearServer.get_stdio_config(token)
             add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (API key)[/green]")
@@ -1201,7 +1722,9 @@ def add_server_interactive(
             else:
                 console.print(f"[yellow]{display} OAuth not completed.[/yellow]")
         else:
-            token = Prompt.ask("GitHub PAT (https://github.com/settings/tokens)", password=True)
+            token = Prompt.ask(
+                "GitHub PAT (https://github.com/settings/tokens)", password=True
+            )
             cfg = GitHubServer.get_stdio_config(token)
             add_server_with_preflight(name, cfg, config, project_root=project_root)
             console.print(f"[green]Added {display} (PAT)[/green]")
@@ -1282,20 +1805,28 @@ def add_server_interactive(
             console.print(f"[green]Added {display} (PAT stdio)[/green]")
 
     elif name == "gmail":
-        choice = Prompt.ask("Mode", choices=["npx-auto", "chrome-bridge", "python-sdk"], default="npx-auto")
+        choice = Prompt.ask(
+            "Mode",
+            choices=["npx-auto", "chrome-bridge", "python-sdk"],
+            default="npx-auto",
+        )
         if choice == "npx-auto":
             cfg = GmailServer.get_npx_config()
         elif choice == "chrome-bridge":
             cfg = GmailServer.get_chrome_config()
         else:
             creds = Prompt.ask("Path to credentials.json")
-            tokens = Prompt.ask("Path to tokens.json", default="~/.gmail-mcp/tokens.json")
+            tokens = Prompt.ask(
+                "Path to tokens.json", default="~/.gmail-mcp/tokens.json"
+            )
             cfg = GmailServer.get_python_config(creds, tokens)
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice})[/green]")
 
     elif name == "hubspot":
-        choice = Prompt.ask("Source", choices=["npx", "official", "docker"], default="npx")
+        choice = Prompt.ask(
+            "Source", choices=["npx", "official", "docker"], default="npx"
+        )
         token = Prompt.ask("HubSpot Private App token", password=True)
         if choice == "npx":
             cfg = HubSpotServer.get_npx_config(token)
@@ -1340,7 +1871,7 @@ def add_server_interactive(
         cfg = GrainServer.get_uv_config(data_dir)
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
-        console.print(f"[dim]   Login via browser on first use.[/dim]")
+        console.print("[dim]   Login via browser on first use.[/dim]")
 
     elif name == "chrome-devtools":
         console.print("[bold]Chrome DevTools[/bold] -- requires Node 22+ and Chrome.\n")
@@ -1358,16 +1889,22 @@ def add_server_interactive(
             cfg = DesktopCommanderServer.get_docker_config()
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display} ({choice})[/green]")
-        console.print("[dim]   Warning: this server can execute arbitrary commands.[/dim]")
+        console.print(
+            "[dim]   Warning: this server can execute arbitrary commands.[/dim]"
+        )
 
     elif name == "mobile":
         cfg = MobileMCPServer.get_stdio_config()
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
-        console.print("[dim]   Requires iOS Simulator/Android Emulator or a connected device.[/dim]")
+        console.print(
+            "[dim]   Requires iOS Simulator/Android Emulator or a connected device.[/dim]"
+        )
 
     elif name == "postgres":
-        dsn = Prompt.ask("PostgreSQL DSN", default="postgresql://user:pass@localhost/db")
+        dsn = Prompt.ask(
+            "PostgreSQL DSN", default="postgresql://user:pass@localhost/db"
+        )
         cfg = PostgreSQLServer.get_stdio_config(dsn)
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
@@ -1375,11 +1912,15 @@ def add_server_interactive(
     elif name == "dbhub":
         choice = Prompt.ask("Mode", choices=["dsn", "demo", "docker"], default="dsn")
         if choice == "dsn":
-            dsn = Prompt.ask("Database DSN", default="postgresql://user:pass@localhost/db")
+            dsn = Prompt.ask(
+                "Database DSN", default="postgresql://user:pass@localhost/db"
+            )
             readonly = Confirm.ask("Read-only mode?", default=True)
             cfg = DBHubServer.get_stdio_config(dsn, readonly)
         elif choice == "docker":
-            dsn = Prompt.ask("Database DSN", default="postgresql://user:pass@host.docker.internal/db")
+            dsn = Prompt.ask(
+                "Database DSN", default="postgresql://user:pass@host.docker.internal/db"
+            )
             readonly = Confirm.ask("Read-only mode?", default=True)
             cfg = DBHubServer.get_docker_config(dsn, readonly)
         else:
@@ -1413,7 +1954,9 @@ def add_server_interactive(
             default="official-oauth",
         )
         if choice == "official-oauth":
-            project_ref = Prompt.ask("Supabase project ref (optional, e.g. abcdefghijklmn)", default="")
+            project_ref = Prompt.ask(
+                "Supabase project ref (optional, e.g. abcdefghijklmn)", default=""
+            )
             read_only = Confirm.ask("Read-only mode?", default=True)
             cfg = SupabaseServer.get_official_config(
                 project_ref=project_ref or None,
@@ -1436,7 +1979,9 @@ def add_server_interactive(
             console.print(f"[green]Added {display} (stdio token)[/green]")
 
     elif name == "perplexity":
-        console.print("[bold]Perplexity[/bold] -- real-time web search with AI summaries.\n")
+        console.print(
+            "[bold]Perplexity[/bold] -- real-time web search with AI summaries.\n"
+        )
         console.print("Get free API key at: https://www.perplexity.ai/settings/api")
         token = Prompt.ask("Perplexity API key (ppx-...)", password=True)
         cfg = PerplexityServer.get_stdio_config(token)
@@ -1452,7 +1997,9 @@ def add_server_interactive(
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
         console.print(f"[dim]   Vault: {vault_path}[/dim]")
-        console.print("[yellow]Install Obsidian from https://obsidian.md and open this vault to browse notes.[/yellow]")
+        console.print(
+            "[yellow]Install Obsidian from https://obsidian.md and open this vault to browse notes.[/yellow]"
+        )
 
 
 def _authenticate_server(name: str, method: str = "auto"):
@@ -1496,10 +2043,14 @@ def install_skill(skill_name: str, config: KimiConfig, overwrite: bool | None = 
 
     if user_skills_dir.exists():
         if overwrite is False:
-            console.print(f"[dim]Skill '{skill_name}' already installed, skipping.[/dim]")
+            console.print(
+                f"[dim]Skill '{skill_name}' already installed, skipping.[/dim]"
+            )
             return
         if overwrite is None:
-            if not Confirm.ask(f"Skill '{skill_name}' already installed. Overwrite?", default=False):
+            if not Confirm.ask(
+                f"Skill '{skill_name}' already installed. Overwrite?", default=False
+            ):
                 return
 
     shutil.copytree(pkg_skills_dir, user_skills_dir, dirs_exist_ok=True)
@@ -1511,7 +2062,11 @@ def list_installed_skills(config: KimiConfig) -> list:
     """Return list of installed skill names."""
     if not config.skills_dir.exists():
         return []
-    return [d.name for d in config.skills_dir.iterdir() if d.is_dir() and (d / "SKILL.md").exists()]
+    return [
+        d.name
+        for d in config.skills_dir.iterdir()
+        if d.is_dir() and (d / "SKILL.md").exists()
+    ]
 
 
 def enable_memory(config: KimiConfig):

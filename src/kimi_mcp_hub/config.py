@@ -1,7 +1,6 @@
 """Configuration management for Kimi MCP Hub."""
 
 import json
-import os
 import stat
 import sys
 from pathlib import Path
@@ -108,6 +107,48 @@ class KimiConfig:
         """Return dict of {name: config}."""
         return self.load_mcp().get("mcpServers", {})
 
+    # --- Obsidian helpers ---
+
+    def get_obsidian_vaults(self) -> list[str]:
+        """Return configured Obsidian vault paths from mcp.json."""
+        obsidian = self.load_mcp().get("mcpServers", {}).get("obsidian", {})
+        args = obsidian.get("args", [])
+        if len(args) >= 2 and args[0] == "-y" and args[1] == "obsidian-mcp":
+            return list(args[2:])
+        return []
+
+    def set_obsidian_vaults(self, vaults: list[str]) -> None:
+        """Update or remove the obsidian server entry in mcp.json."""
+        data = self.load_mcp()
+        data.setdefault("mcpServers", {})
+        if vaults:
+            data["mcpServers"]["obsidian"] = {
+                "command": "npx",
+                "args": ["-y", "obsidian-mcp", *vaults],
+                "env": {},
+            }
+        else:
+            data["mcpServers"].pop("obsidian", None)
+        self.save_mcp(data)
+
+    def get_default_memory_vault(self) -> str | None:
+        """Return the default memory vault path from config.toml, if set."""
+        return self.load_toml_config().get("memory", {}).get("default_vault")
+
+    def set_default_memory_vault(self, vault_path: str) -> None:
+        """Store the default memory vault path in config.toml."""
+        data = self.load_toml_config()
+        data.setdefault("memory", {})["default_vault"] = vault_path
+        self.save_toml_config(data)
+
+    def clear_default_memory_vault(self) -> None:
+        """Remove the default memory vault path from config.toml."""
+        data = self.load_toml_config()
+        data.get("memory", {}).pop("default_vault", None)
+        if not data.get("memory"):
+            data.pop("memory", None)
+        self.save_toml_config(data)
+
     def save_token(self, server: str, token_data: dict) -> None:
         """Save OAuth/token data securely."""
         tokens = {}
@@ -182,6 +223,7 @@ class KimiConfig:
         if start_marker in existing:
             # Replace existing block
             import re
+
             pattern = re.escape(start_marker) + ".*?" + re.escape(end_marker)
             new_text = re.sub(pattern, block.strip(), existing, flags=re.DOTALL)
             if new_text == existing:

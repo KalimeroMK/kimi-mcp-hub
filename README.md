@@ -1,6 +1,6 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 24 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (6 core + 51 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 24 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (7 core + 50 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -13,7 +13,9 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
   - [Verify](#verify)
 - [Uninstall](#uninstall)
 - [Quick Start](#quick-start)
+- [Update](#update)
 - [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
+- [Obsidian Local Memory](#obsidian-local-memory)
 - [Install Claude/Codex Plugins](#install-claudecodex-plugins)
 - [Project-Level MCP Configuration](#project-level-mcp-configuration)
 - [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
@@ -191,16 +193,18 @@ kimi-mcp-hub add desktop-commander
 kimi-mcp-hub add dbhub
 kimi-mcp-hub add mobile
 
-# Or use npx without installing Node package globally:
-# npx kimi-mcp-hub status
+# Update to the latest version
+kimi-mcp-hub update
 
 # Auth with auto-browser (OAuth) -- like Claude Code CLI
 kimi-mcp-hub auth github
 kimi-mcp-hub auth figma
-kimi-mcp-hub auth gitlab
-kimi-mcp-hub auth stripe
 
-# For official remote MCP servers, Kimi CLI handles the popup:
+# GitLab and Stripe are official remote MCP servers; authorize via Kimi CLI:
+# kimi mcp auth gitlab
+# kimi mcp auth stripe
+
+# For other official remote MCP servers, Kimi CLI handles the popup:
 # /mcp-config login jira
 # /mcp-config login linear
 # /mcp-config login confluence
@@ -228,7 +232,27 @@ kimi-mcp-hub install-skill docker-pro
 
 # Test a server
 kimi-mcp-hub test github
+
+# Manage Obsidian vaults for local memory
+kimi-mcp-hub obsidian status
+kimi-mcp-hub obsidian add ~/Documents/MyVault
+kimi-mcp-hub obsidian list
+kimi-mcp-hub obsidian remove myvault
+kimi-mcp-hub obsidian sync-templates myvault
+kimi-mcp-hub obsidian sync-templates --templates-dir ./templates myvault
 ```
+
+---
+
+## Update
+
+Update `kimi-mcp-hub` to the latest version in the isolated venv:
+
+```bash
+kimi-mcp-hub update
+```
+
+This upgrades the package from GitHub (preferred) or PyPI and refreshes the `~/.local/bin` symlinks. Development installs (git checkouts) are detected and skipped.
 
 ---
 
@@ -244,7 +268,7 @@ Skills are toggled **inside Kimi CLI**:
 /skill:code-review
 ```
 
-- Core skills (`karpathy`, `superpowers`, `caveman`, `headroom`, `context-mode`, `cybersecurity`) activate automatically on every Kimi start.
+- Core skills (`karpathy`, `superpowers`, `caveman`, `headroom`, `context-mode`, `cybersecurity`, `kimi-mcp-hub-status`) activate automatically on every Kimi start.
 - Install more skills from the terminal:
   ```bash
   kimi-mcp-hub install-skill docker-pro
@@ -271,6 +295,34 @@ When you add an `npx`-based server for the first time, `kimi-mcp-hub` checks if 
 After adding a server, **restart Kimi CLI** (`exit` → `kimi`) so it picks up the new config.
 
 For a detailed walkthrough of official remote OAuth servers (Linear, Jira, Confluence, Supabase, Figma, Stripe, GitLab), see [Remote MCP Server Setup](docs/remote-mcp-server-setup.md).
+
+---
+
+## Obsidian Local Memory
+
+Obsidian vaults can be used as local memory and knowledge bases. The `obsidian` command group manages vault paths without needing the full `init` wizard.
+
+```bash
+# Show configured vaults and their status
+kimi-mcp-hub obsidian status
+
+# Add a vault path (scaffolds the vault if needed)
+kimi-mcp-hub obsidian add ~/Documents/MyVault
+
+# List configured vaults
+kimi-mcp-hub obsidian list
+
+# Remove a vault from the config by slug (files are kept)
+kimi-mcp-hub obsidian remove myvault
+
+# Copy built-in templates into a vault
+kimi-mcp-hub obsidian sync-templates myvault
+
+# Copy custom templates into a vault
+kimi-mcp-hub obsidian sync-templates --templates-dir ./templates myvault
+```
+
+The first vault added is set as the default memory vault. After adding a vault, restart Kimi CLI so the Obsidian MCP server picks it up.
 
 ---
 
@@ -419,7 +471,7 @@ GitHub authorized successfully!
 | **GitHub** | Device Flow (or PAT fallback) | Yes |
 | **Jira** | Official MCP OAuth or API token | Yes* |
 | **Confluence** | Official MCP OAuth or API token | Yes* |
-| **Slack** | Bot/User token (`slack-mcp-server`) | No (manual token) |
+| **Slack** | Bot/User token (`slack-mcp-server`) | Yes |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth 2.0 | Yes* |
 | **Gmail** | Google OAuth 2.0 or npx | Yes |
 | **Linear** | Official OAuth 2.1 or API key | Yes* |
@@ -428,7 +480,7 @@ GitHub authorized successfully!
 | **Supabase** | Official remote OAuth or access-token stdio | Yes* |
 | **Datadog** | API + App keys | No (manual) |
 
-\* Official remote OAuth 2.1 is initiated by Kimi CLI (`kimi mcp auth <server>` or `/mcp-config login <server>`) after you add the official remote MCP server.
+\* Official remote OAuth 2.1 is initiated by Kimi CLI (`kimi mcp auth <server>` or `/mcp-config login <server>`) after you add the official remote MCP server. For Slack, run `kimi-mcp-hub auth slack` to start the browser-based OAuth flow.
 
 ---
 
@@ -461,7 +513,8 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 |---------|-------------|
 | `kimi-mcp-hub` | Show welcome banner and status |
 | `kimi-mcp-hub --version` | Show version |
-| `kimi-mcp-hub install` | Install/update from PyPI/GitHub |
+| `kimi-mcp-hub install` | Install or update Kimi MCP Hub |
+| `kimi-mcp-hub update` | Update to the latest version |
 | `kimi-mcp-hub init` | Full interactive wizard |
 | `kimi-mcp-hub init --yes` | Non-interactive setup with defaults |
 | `kimi-mcp-hub claude-compat` | Patch AGENTS.md for CLAUDE.md auto-load |
@@ -485,6 +538,11 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
 | `kimi-mcp-hub test <server>` | Test if server responds |
 | `kimi-mcp-hub doctor` | System health check |
+| `kimi-mcp-hub obsidian status` | Show configured Obsidian vaults |
+| `kimi-mcp-hub obsidian add <path>` | Add an Obsidian vault path |
+| `kimi-mcp-hub obsidian list` | List configured Obsidian vaults |
+| `kimi-mcp-hub obsidian remove <slug>` | Remove an Obsidian vault from config |
+| `kimi-mcp-hub obsidian sync-templates [--templates-dir PATH] <vault-slug>` | Copy templates into a vault |
 
 ---
 
@@ -496,7 +554,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **Linear** | Official OAuth 2.1 or API key | 6 | Issues, projects, teams |
 | **Confluence** | OAuth or API token | 5 | Docs, wiki, pages |
 | **GitHub** | Device Flow / PAT | 6 | Repos, PRs, issues, code |
-| **Slack** | Bot/User token (`slack-mcp-server`) | 7 | Channels, DMs, search |
+| **Slack** | Bot/User token (`slack-mcp-server`) | 5 | Channels, DMs, search |
 | **Obsidian** | STDIO (npx) — vault path | 4 | Local memory, notes, knowledge base |
 | **Datadog** | Official remote MCP (API + App keys) | 12 | Metrics, logs, monitors, APM |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth | 9 | Designs, tokens, components |
@@ -531,6 +589,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **context-mode** | Context window optimization and token budget |
 | **cybersecurity** | Cybersecurity expert (OWASP, cloud, IR, pentest) |
 | **caveman** | Ultra-compressed caveman communication mode |
+| **kimi-mcp-hub-status** | Show MCP Hub version and status |
 
 ### Frontend Skills (installed as a stack by default)
 
@@ -543,7 +602,6 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **vercel-react-best-practices** | React/Next.js performance optimization |
 | **web-design-guidelines** | Audit UI code against Vercel guidelines |
 | **agent-browser** | Browser automation for web tasks and testing |
-| **design-system** | Design tokens, component specs, and systematic design systems |
 
 ### Code Quality & Review Skills
 
@@ -567,6 +625,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **codebase-design** | Design deep modules and testable interfaces |
 | **domain-modeling** | Build domain models and ubiquitous language |
 | **database-expert** | Database design and optimization |
+| **design-system** | Design tokens, component specs, and systematic design systems |
 | **api-design** | REST API design patterns |
 
 ### DevOps & Deployment Skills
