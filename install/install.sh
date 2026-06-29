@@ -7,6 +7,7 @@ set -e
 
 REPO="KalimeroMK/kimi-mcp-hub"
 INSTALL_DIR="${KIMI_MCP_HUB_DIR:-$HOME/.kimi-mcp-hub}"
+VENV_DIR="$INSTALL_DIR/.venv"
 BIN_DIR="${KIMI_MCP_HUB_BIN:-$HOME/.local/bin}"
 DEFAULT_VAULT="$HOME/Documents/Kimi-Memory"
 
@@ -130,9 +131,31 @@ add_to_path() {
     fi
 }
 
+create_venv() {
+    print_info "Ensuring isolated Python environment..."
+    mkdir -p "$INSTALL_DIR"
+    if [ ! -d "$VENV_DIR/bin" ]; then
+        $PYTHON -m venv "$VENV_DIR"
+    fi
+    "$VENV_DIR/bin/pip" install --upgrade pip setuptools wheel
+    print_success "Virtual environment ready"
+}
+
+link_binaries() {
+    mkdir -p "$BIN_DIR"
+    if [ -f "$VENV_DIR/bin/kimi-mcp-hub" ]; then
+        ln -sf "$VENV_DIR/bin/kimi-mcp-hub" "$BIN_DIR/kimi-mcp-hub"
+    fi
+    if [ -f "$VENV_DIR/bin/kmcp" ]; then
+        ln -sf "$VENV_DIR/bin/kmcp" "$BIN_DIR/kmcp"
+    fi
+}
+
 install_from_pypi() {
     print_info "Installing kimi-mcp-hub from PyPI..."
-    $PYTHON -m pip install --upgrade --user kimi-mcp-hub
+    create_venv
+    "$VENV_DIR/bin/pip" install --upgrade kimi-mcp-hub
+    link_binaries
     print_success "Installed from PyPI"
 }
 
@@ -148,31 +171,30 @@ install_from_github() {
     print_success "Cloned to $INSTALL_DIR"
     
     print_info "Installing package..."
-    cd "$INSTALL_DIR"
-    $PYTHON -m pip install --upgrade --user -e .
+    create_venv
+    "$VENV_DIR/bin/pip" install --upgrade -e "$INSTALL_DIR"
+    link_binaries
     print_success "Package installed"
 }
 
 install_pip_git() {
     print_info "Installing directly from GitHub (pip)..."
-    $PYTHON -m pip install --upgrade --user "git+https://github.com/$REPO.git"
+    create_venv
+    "$VENV_DIR/bin/pip" install --upgrade "git+https://github.com/$REPO.git"
+    link_binaries
     print_success "Installed from GitHub"
 }
 
 post_install() {
     print_info "Running post-install setup..."
     
-    # Ensure bin directory exists
-    mkdir -p "$BIN_DIR"
+    # Ensure binaries are linked
+    link_binaries
     
     # Check if kimi-mcp-hub is in PATH
     if ! command -v kimi-mcp-hub &>/dev/null; then
-        # Try to find the installed script
-        USER_BASE=$($PYTHON -m site --user-base 2>/dev/null || echo "$HOME/.local")
-        SCRIPT_DIR="$USER_BASE/bin"
-        
-        if [ -f "$SCRIPT_DIR/kimi-mcp-hub" ]; then
-            print_info "Found kimi-mcp-hub at $SCRIPT_DIR"
+        if [ -f "$BIN_DIR/kimi-mcp-hub" ]; then
+            print_info "Found kimi-mcp-hub at $BIN_DIR"
             add_to_path
         fi
     fi
@@ -195,7 +217,12 @@ setup_obsidian_mcp() {
     
     vault_path="$(eval echo "$vault_path")"
     mkdir -p "$vault_path/.obsidian"
-    
+
+    # obsidian-mcp requires at least app.json to consider this a valid vault
+    if [ ! -f "$vault_path/.obsidian/app.json" ]; then
+        echo '{}' > "$vault_path/.obsidian/app.json"
+    fi
+
     if [ ! -f "$vault_path/README.md" ]; then
         cat > "$vault_path/README.md" << 'EOF'
 # Kimi Memory Vault
@@ -209,7 +236,7 @@ EOF
     fi
     
     # Add Obsidian MCP server to mcp.json via Python
-    $PYTHON - << PY
+    "$VENV_DIR/bin/python" - << PY
 import json
 from pathlib import Path
 
@@ -312,7 +339,8 @@ main() {
             ;;
         *)
             # Try PyPI first, fallback to pip+git
-            if $PYTHON -m pip install --dry-run kimi-mcp-hub &>/dev/null 2>&1; then
+            create_venv
+            if "$VENV_DIR/bin/pip" install --dry-run kimi-mcp-hub &>/dev/null 2>&1; then
                 install_from_pypi
             else
                 print_info "PyPI package not found, installing from GitHub..."

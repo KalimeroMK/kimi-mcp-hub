@@ -13,6 +13,7 @@ param(
 
 $REPO = "KalimeroMK/kimi-mcp-hub"
 $INSTALL_DIR = if ($env:KIMI_MCP_HUB_DIR) { $env:KIMI_MCP_HUB_DIR } else { "$env:USERPROFILE\.kimi-mcp-hub" }
+$VENV_DIR = "$INSTALL_DIR\.venv"
 
 function Write-Header {
     Write-Host ""
@@ -66,6 +67,29 @@ function Check-Requirements {
     }
 }
 
+function New-VirtualEnvironment {
+    Write-Host "Ensuring isolated Python environment..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Force -Path $INSTALL_DIR | Out-Null
+    if (Test-Path $VENV_DIR) {
+        Remove-Item -Recurse -Force $VENV_DIR
+    }
+    & $script:PYTHON -m venv $VENV_DIR
+    & "$VENV_DIR\Scripts\python.exe" -m pip install --upgrade pip setuptools wheel
+    Write-Host "  Virtual environment ready" -ForegroundColor Green
+}
+
+function Add-ToPath {
+    $venvScripts = "$VENV_DIR\Scripts"
+    $currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($currentPath -notlike "*$venvScripts*") {
+        [Environment]::SetEnvironmentVariable("Path", "$venvScripts;$currentPath", "User")
+        Write-Host "  Added $venvScripts to user PATH" -ForegroundColor Green
+        Write-Host "  Restart your terminal for PATH changes to take effect." -ForegroundColor Yellow
+    }
+    # Also add to current process PATH so the rest of the script can use it
+    $env:Path = "$venvScripts;$env:Path"
+}
+
 function Install-FromGitHub {
     Write-Host "Installing from GitHub..." -ForegroundColor Cyan
     
@@ -77,14 +101,17 @@ function Install-FromGitHub {
     git clone --depth 1 "https://github.com/$REPO.git" $INSTALL_DIR
     Write-Host "  Cloned to $INSTALL_DIR" -ForegroundColor Green
     
-    Set-Location $INSTALL_DIR
-    & $script:PYTHON -m pip install --upgrade --user -e .
+    New-VirtualEnvironment
+    & "$VENV_DIR\Scripts\pip.exe" install --upgrade -e $INSTALL_DIR
+    Add-ToPath
     Write-Host "  Package installed" -ForegroundColor Green
 }
 
 function Install-PipGit {
     Write-Host "Installing directly from GitHub (pip)..." -ForegroundColor Cyan
-    & $script:PYTHON -m pip install --upgrade --user "git+https://github.com/$REPO.git"
+    New-VirtualEnvironment
+    & "$VENV_DIR\Scripts\pip.exe" install --upgrade "git+https://github.com/$REPO.git"
+    Add-ToPath
     Write-Host "  Installed from GitHub" -ForegroundColor Green
 }
 
@@ -137,7 +164,12 @@ function Setup-ObsidianMcp {
     }
     
     New-Item -ItemType Directory -Force -Path "$ObsidianVault\.obsidian" | Out-Null
-    
+
+    # obsidian-mcp requires at least app.json to consider this a valid vault
+    if (-not (Test-Path "$ObsidianVault\.obsidian\app.json")) {
+        '{}' | Set-Content -Path "$ObsidianVault\.obsidian\app.json" -Encoding UTF8
+    }
+
     if (-not (Test-Path "$ObsidianVault\README.md")) {
         @"
 # Kimi Memory Vault
