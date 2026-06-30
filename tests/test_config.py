@@ -1,11 +1,10 @@
-"""Tests for KimiConfig and MemoryDB."""
+"""Tests for KimiConfig."""
 
 import json
 
 import pytest
 
 from kimi_mcp_hub.config import KimiConfig
-from kimi_mcp_hub.memory.db import MemoryDB
 
 
 @pytest.fixture
@@ -94,34 +93,3 @@ class TestKimiConfig:
         assert temp_config.get_memory_summary_model() == "gpt-4o"
         assert temp_config.get_memory_summary_base_url() == "https://api.openai.com/v1"
         assert temp_config.is_memory_summary_enabled() is True
-
-
-class TestMemoryDB:
-    def test_init_creates_tables(self, tmp_path):
-        db_path = tmp_path / "memory.db"
-        db = MemoryDB(db_path=db_path)
-        assert db_path.exists()
-        stats = db.get_stats()
-        assert stats["total_observations"] == 0
-        assert stats["total_sessions"] == 0
-
-    def test_add_and_search_observation(self, tmp_path):
-        db = MemoryDB(db_path=tmp_path / "memory.db")
-        db.add_observation(
-            session_id="sess-1",
-            obs_type="tool",
-            content="Ran pytest on the CLI module",
-            summary="pytest run",
-            tags=["test", "cli"],
-        )
-        results = db.search("pytest")
-        assert len(results) == 1
-        assert results[0]["content"] == "Ran pytest on the CLI module"
-
-    def test_recent_observations(self, tmp_path):
-        db = MemoryDB(db_path=tmp_path / "memory.db")
-        db.add_observation("sess-1", "note", "first")
-        db.add_observation("sess-1", "note", "second")
-        recent = db.get_recent(limit=2)
-        assert len(recent) == 2
-        assert recent[0]["content"] == "second"

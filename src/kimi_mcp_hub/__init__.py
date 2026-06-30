@@ -1,6 +1,6 @@
 """Kimi MCP Hub -- One-click MCP server and skills manager for Kimi CLI."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __title__ = "Kimi MCP Hub"
 __description__ = "One-click MCP server and skills manager for Kimi CLI"
 __author__ = "KalimeroMK"

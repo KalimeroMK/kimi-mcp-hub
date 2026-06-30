@@ -833,6 +833,83 @@ class TestObsidianAuto:
         assert "to .gitignore" not in result.output
 
 
+class TestMemoryCommands:
+    @staticmethod
+    def _memory_db(tmp_path, monkeypatch):
+        from kimi_mcp_hub.memory.db import MemoryDB
+
+        db_path = tmp_path / "memory.db"
+        monkeypatch.setattr(MemoryDB, "_default_memory_db", lambda: db_path)
+        return MemoryDB()
+
+    @staticmethod
+    def _extract_saved_id(output: str) -> int:
+        """Parse the ID printed by `memory add`."""
+        for line in output.splitlines():
+            if "Saved memory" in line:
+                cleaned = (
+                    line.replace("[green]", "")
+                    .replace("[/green]", "")
+                    .replace("[cyan]", "")
+                    .replace("[/cyan]", "")
+                )
+                prefix = "Saved memory"
+                return int(cleaned.split(prefix, 1)[1].strip())
+        raise AssertionError(f"Could not find saved memory ID in output: {output!r}")
+
+    def test_memory_add_and_search(self, tmp_path, monkeypatch):
+        self._memory_db(tmp_path, monkeypatch)
+        runner = CliRunner()
+        runner.invoke(main, ["memory", "add", "use ruff", "--category", "user"])
+        result = runner.invoke(main, ["memory", "search", "ruff"])
+        assert result.exit_code == 0, result.output
+        assert "use ruff" in result.output
+
+    def test_memory_list(self, tmp_path, monkeypatch):
+        self._memory_db(tmp_path, monkeypatch)
+        runner = CliRunner()
+        runner.invoke(main, ["memory", "add", "list me", "--category", "general"])
+        result = runner.invoke(main, ["memory", "list"])
+        assert result.exit_code == 0, result.output
+        assert "list me" in result.output
+
+    def test_memory_list_empty(self, tmp_path, monkeypatch):
+        self._memory_db(tmp_path, monkeypatch)
+        runner = CliRunner()
+        result = runner.invoke(main, ["memory", "list"])
+        assert result.exit_code == 0, result.output
+        assert "No memories found" in result.output
+
+    def test_memory_search_with_category(self, tmp_path, monkeypatch):
+        self._memory_db(tmp_path, monkeypatch)
+        runner = CliRunner()
+        runner.invoke(main, ["memory", "add", "project note", "--category", "project"])
+        runner.invoke(main, ["memory", "add", "user note", "--category", "user"])
+        result = runner.invoke(
+            main, ["memory", "search", "note", "--category", "project"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "project note" in result.output
+        assert "user note" not in result.output
+
+    def test_memory_forget(self, tmp_path, monkeypatch):
+        self._memory_db(tmp_path, monkeypatch)
+        runner = CliRunner()
+        add_result = runner.invoke(main, ["memory", "add", "delete me"])
+        assert add_result.exit_code == 0, add_result.output
+        mem_id = self._extract_saved_id(add_result.output)
+        result = runner.invoke(main, ["memory", "forget", str(mem_id)])
+        assert result.exit_code == 0, result.output
+        assert "Forgot" in result.output
+
+    def test_memory_forget_missing(self, tmp_path, monkeypatch):
+        self._memory_db(tmp_path, monkeypatch)
+        runner = CliRunner()
+        result = runner.invoke(main, ["memory", "forget", "9999"])
+        assert result.exit_code == 1, result.output
+        assert "Memory 9999 not found" in result.output
+
+
 class TestEnableMemory:
     @pytest.fixture
     def home(self, tmp_path, monkeypatch):

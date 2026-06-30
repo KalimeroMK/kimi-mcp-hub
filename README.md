@@ -18,7 +18,9 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Quick Start](#quick-start)
 - [Update](#update)
 - [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
+- [Repository Packing](#repository-packing)
 - [Obsidian Local Memory](#obsidian-local-memory)
+- [Advanced Memory Layer](#advanced-memory-layer)
 - [Install Claude/Codex Plugins](#install-claudecodex-plugins)
 - [Project-Level MCP Configuration](#project-level-mcp-configuration)
 - [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
@@ -94,13 +96,13 @@ pip install -e .
 
 ```bash
 kimi-mcp-hub --version
-# -> kimi-mcp-hub, version 0.1.0
+# -> kimi-mcp-hub, version 0.2.0
 ```
 
 On first run you'll see:
 
 ```
-Kimi MCP Hub v0.1.0 installed successfully!
+Kimi MCP Hub v0.2.0 installed successfully!
 
 24 MCP servers available
 57 AI skills for better coding
@@ -292,6 +294,30 @@ For a detailed walkthrough of official remote OAuth servers (Linear, Jira, Confl
 
 ---
 
+## Repository Packing
+
+Pack a repository into a single AI-friendly markdown file for context windows.
+
+```bash
+# Pack the current directory
+kimi-mcp-hub pack
+
+# Pack a specific repository
+kimi-mcp-hub pack /path/to/repo
+
+# Exclude patterns
+kimi-mcp-hub pack -e '*.test.js' -e 'dist/'
+
+# Increase size budget and write to a file
+kimi-mcp-hub pack --max-size 1048576 -o repo.md
+```
+
+- `.gitignore` is respected by default; use `--no-gitignore` to disable.
+- Binary files appear in the generated file tree but are omitted from code blocks.
+- Files that would push the output over the size budget are listed in a warning and skipped.
+
+---
+
 ## Obsidian Local Memory
 
 Obsidian vaults can be used as local memory and knowledge bases. The `obsidian` command group manages vault paths without needing the full `init` wizard.
@@ -359,6 +385,31 @@ After a session you will find two notes in `<vault>/Sessions/`:
 
 - `YYYY-MM-DD-HHMMSS-<session>.md` — raw observations
 - `YYYY-MM-DD-HHMMSS-<session>-summary.md` — LLM-generated summary
+
+---
+
+## Advanced Memory Layer
+
+In addition to Obsidian notes, `kimi-mcp-hub` keeps a local, long-term memory store for facts, preferences, and project context. Memories are saved to a SQLite database and are searchable from the CLI. Project-scoped memories are automatically injected at session start when the working directory matches.
+
+```bash
+# Save a user preference
+kimi-mcp-hub memory add "Use ruff for linting" --category user --tags linting
+
+# Save project context for the current directory
+kimi-mcp-hub memory add "API base URL is https://api.example.com" --category project
+
+# Search all memories
+kimi-mcp-hub memory search "ruff"
+
+# List recent memories
+kimi-mcp-hub memory list
+
+# Delete a memory by ID
+kimi-mcp-hub memory forget 3
+```
+
+Project memories (`--category project`) are injected into the session context whenever you start Kimi in the matching project directory. This is useful for base URLs, coding conventions, or reminders that should apply to a specific codebase.
 
 ---
 
@@ -603,7 +654,14 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub obsidian list` | List configured Obsidian vaults |
 | `kimi-mcp-hub obsidian remove <slug>` | Remove an Obsidian vault from config |
 | `kimi-mcp-hub obsidian sync-templates [--templates-dir PATH] <vault-slug>` | Copy templates into a vault |
+| `kimi-mcp-hub pack [ROOT]` | Pack a repository into an AI-friendly markdown file |
+| `kimi-mcp-hub pack -e '<pattern>'` | Exclude glob patterns (can be repeated) |
+| `kimi-mcp-hub pack --max-size <bytes> -o <path>` | Set output size budget and write to file |
 | `kimi-mcp-hub memory config-summary [--api-key ...] [--model ...] [--base-url ...]` | Configure LLM for session summaries |
+| `kimi-mcp-hub memory add "<content>" [--category user\|project\|general] [--tags tag1,tag2]` | Save a long-term memory |
+| `kimi-mcp-hub memory search "<query>" [--limit N] [--category ...]` | Search saved memories |
+| `kimi-mcp-hub memory list [--limit N] [--category ...]` | List recent memories |
+| `kimi-mcp-hub memory forget <id>` | Delete a memory by ID |
 
 ---
 
@@ -706,10 +764,6 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **laravel-engineer** | Laravel specialist (Eloquent, Blade, Livewire) |
 | **php-pro** | Senior PHP development (strict typing, Laravel/Symfony, PSR) |
 | **wp-plugin-development** | WordPress plugin development with hooks and Settings API |
-| **react-coder** | React 19 specialist (RSC, hooks) |
-| **ts-coder** | TypeScript specialist (strict, generics) |
-| **ui-engineer** | UI component implementation (Tailwind, a11y) |
-| **ui-ux-pro-max** | UI/UX design intelligence and design systems |
 
 ### Data & Migrations Skills
 
@@ -778,7 +832,7 @@ pytest -q
 |         kimi-mcp-hub CLI                |
 |  +---------------------------------+    |
 |  |  (no args) -> welcome banner    |    |
-|  |  install -> GitHub update  |    |
+|  |  install -> GitHub update       |    |
 |  |  init -> interactive wizard     |    |
 |  |  add  -> writes ~/.kimi-code/...|    |
 |  |  add --project -> writes ./.kimi|    |

@@ -63,6 +63,7 @@ from .project import (
     merge_mcp_configs,
     resolve_placeholders,
 )
+from .pack import RepoPacker
 
 console = Console()
 
@@ -276,6 +277,14 @@ def _get_installed_count(config: KimiConfig) -> dict:
         "total_servers": len(SERVERS),
         "total_skills": len(SKILLS),
     }
+
+
+def _resolve_memory_project_path(path: str | None) -> str | None:
+    """Return the resolved project path, or find the project root if none given."""
+    if path:
+        return str(Path(path).resolve())
+    project_root = find_project_root()
+    return str(project_root.resolve()) if project_root else None
 
 
 def print_welcome():
@@ -1860,6 +1869,193 @@ def config_summary(api_key: str | None, model: str, base_url: str, enabled: bool
     console.print(f"[dim]API key:[/dim] {masked}")
     console.print(f"[dim]Model:[/dim] {model}")
     console.print(f"[dim]Base URL:[/dim] {base_url}")
+
+
+@memory.command(name="add")
+@click.argument("content")
+@click.option(
+    "--category",
+    default="general",
+    show_default=True,
+    help="Memory category (user, project, general).",
+)
+@click.option("--tags", help="Comma-separated tags.")
+@click.option(
+    "--project-path",
+    type=click.Path(path_type=Path),
+    help="Project path for project-scoped memories.",
+)
+def add_memory_cmd(
+    content: str,
+    category: str,
+    tags: str | None,
+    project_path: Path | None,
+):
+    """Save a long-term memory."""
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    project = _resolve_memory_project_path(str(project_path) if project_path else None)
+    db = MemoryDB()
+    mem_id = db.add_memory(
+        content=content,
+        category=category,
+        tags=tag_list,
+        project_path=project,
+    )
+    console.print(f"[green]Saved memory {mem_id}[/green]")
+
+
+@memory.command(name="search")
+@click.argument("query")
+@click.option(
+    "--limit", default=10, show_default=True, type=click.IntRange(min=1), help="Max results."
+)
+@click.option("--category", help="Filter by category.")
+@click.option(
+    "--project-path",
+    type=click.Path(path_type=Path),
+    help="Filter by project path.",
+)
+def search_memory_cmd(
+    query: str,
+    limit: int,
+    category: str | None,
+    project_path: Path | None,
+):
+    """Search saved memories."""
+    project = _resolve_memory_project_path(str(project_path) if project_path else None)
+    db = MemoryDB()
+    results = db.search_memories(
+        query=query,
+        limit=limit,
+        category=category,
+        project_path=project,
+    )
+    if not results:
+        console.print("[dim]No memories found.[/dim]")
+        return
+    for mem in results:
+        console.print(
+            f"[cyan]{mem['id']}[/cyan] [{mem['category']}] {mem['content']}"
+        )
+
+
+@memory.command(name="list")
+@click.option(
+    "--limit", default=20, show_default=True, type=click.IntRange(min=1), help="Max results."
+)
+@click.option("--category", help="Filter by category.")
+@click.option(
+    "--project-path",
+    type=click.Path(path_type=Path),
+    help="Filter by project path.",
+)
+def list_memory_cmd(
+    limit: int,
+    category: str | None,
+    project_path: Path | None,
+):
+    """List recent memories."""
+    project = _resolve_memory_project_path(str(project_path) if project_path else None)
+    db = MemoryDB()
+    results = db.get_memories(
+        limit=limit,
+        category=category,
+        project_path=project,
+    )
+    if not results:
+        console.print("[dim]No memories found.[/dim]")
+        return
+    for mem in results:
+        console.print(
+            f"[cyan]{mem['id']}[/cyan] [{mem['category']}] {mem['content']}"
+        )
+
+
+@memory.command(name="forget")
+@click.argument("memory_id", type=int)
+def forget_memory_cmd(memory_id: int):
+    """Delete a memory by ID."""
+    db = MemoryDB()
+    if db.delete_memory(memory_id):
+        console.print(f"[green]Forgot memory {memory_id}[/green]")
+    else:
+        console.print(f"[red]Memory {memory_id} not found.[/red]")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument(
+    "root",
+    required=False,
+    default=".",
+    type=click.Path(path_type=Path),
+)
+@click.option(
+    "-i",
+    "--include",
+    multiple=True,
+    default=["*"],
+    help="Include glob patterns (default: '*').",
+)
+@click.option(
+    "-e",
+    "--exclude",
+    multiple=True,
+    help="Exclude glob patterns.",
+)
+@click.option(
+    "--no-gitignore",
+    is_flag=True,
+    help="Disable .gitignore respect.",
+)
+@click.option(
+    "--max-size",
+    default=512000,
+    show_default=True,
+    help="Max output size in bytes.",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path, allow_dash=True),
+    help="Write output to file instead of stdout. Use '-' for stdout.",
+)
+def pack(
+    root: Path,
+    include: tuple[str, ...],
+    exclude: tuple[str, ...],
+    no_gitignore: bool,
+    max_size: int,
+    output: Path | None,
+):
+    """Pack a repository into a single AI-friendly markdown file."""
+    print_header("Pack Repository")
+    root = root.resolve()
+    console.print(f"[dim]Packing:[/dim] {root}")
+
+    try:
+        include_patterns = [*include]
+        exclude_patterns = [*exclude]
+        markdown = RepoPacker(
+            include=include_patterns,
+            exclude=exclude_patterns,
+            respect_gitignore=not no_gitignore,
+            max_size=max_size,
+        ).pack(root)
+    except ValueError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        sys.exit(1)
+
+    if output and str(output) != "-":
+        try:
+            output.write_text(markdown, encoding="utf-8")
+        except OSError as exc:
+            console.print(f"[red]Error: could not write {output}: {exc}[/red]")
+            sys.exit(1)
+        size = output.stat().st_size
+        console.print(f"[green]Wrote pack to[/green] {output} [dim]({size} bytes)[/dim]")
+    else:
+        click.echo(markdown)
 
 
 # -- Helper functions --

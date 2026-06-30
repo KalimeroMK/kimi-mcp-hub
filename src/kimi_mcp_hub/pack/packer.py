@@ -2,8 +2,63 @@
 
 from __future__ import annotations
 
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
+
+
+def _match_pattern(rel: str, parts: list[str], pat: str) -> bool:
+    """Match a gitignore-style or glob pattern against a relative path.
+
+    Supports:
+    - ``**`` recursive globs (e.g. ``**/*.py``)
+    - Patterns without ``/`` match any path component (e.g. ``*.py`` matches
+      ``a.py``, ``src/a.py`` and ``src/deep/a.py``)
+    - A leading ``/`` anchors the pattern to the repository root
+    - A trailing ``/`` restricts matches to directories
+    """
+    if pat.endswith("/"):
+        name = pat.rstrip("/")
+        is_anchored = name.startswith("/")
+        name = name.lstrip("/")
+        if is_anchored:
+            return rel == name or rel.startswith(name + "/")
+        return name in parts or rel.startswith(name + "/")
+
+    pat = pat.lstrip("/")
+    if "/" in pat or "**" in pat:
+        return _match_glob_parts(pat.split("/"), parts)
+
+    for part in parts:
+        if fnmatch(part, pat):
+            return True
+    return False
+
+
+def _match_glob_parts(pat_parts: list[str], path_parts: list[str]) -> bool:
+    """Match ``pat_parts`` against ``path_parts`` from the start.
+
+    ``**`` in the pattern matches zero or more path components. Other parts
+    are matched with :func:`fnmatch.fnmatch`.
+    """
+    pat_n = len(pat_parts)
+    path_n = len(path_parts)
+    dp = [False] * (path_n + 1)
+    dp[path_n] = True
+
+    for i in range(pat_n - 1, -1, -1):
+        new_dp = [False] * (path_n + 1)
+        for j in range(path_n, -1, -1):
+            if pat_parts[i] == "**":
+                if j < path_n:
+                    new_dp[j] = new_dp[j + 1] or dp[j]
+                else:
+                    new_dp[j] = dp[j]
+            elif j < path_n and fnmatch(path_parts[j], pat_parts[i]):
+                new_dp[j] = dp[j + 1]
+        dp = new_dp
+
+    return dp[0]
 
 
 class RepoPacker:
@@ -15,14 +70,38 @@ class RepoPacker:
         exclude: list[str] | None = None,
         respect_gitignore: bool = True,
         max_size: int = 500 * 1024,
-    ):
+    ) -> None:
+        """Initialize a RepoPacker.
+
+        Args:
+            include: Glob patterns for files to include. Defaults to ``["*"]``.
+            exclude: Glob patterns for files or directories to exclude.
+            respect_gitignore: Whether to respect ``.gitignore`` files.
+            max_size: Maximum output size in bytes.
+        """
         self.include = include or ["*"]
         self.exclude = exclude or []
         self.respect_gitignore = respect_gitignore
         self.max_size = max_size
 
     def pack(self, root: Path) -> str:
+        """Pack a repository into a markdown document.
+
+        Args:
+            root: Path to the repository root directory.
+
+        Returns:
+            Markdown string containing the file tree and file contents.
+
+        Raises:
+            ValueError: If ``root`` does not exist or is not a directory.
+        """
         root = root.resolve()
+        if not root.exists():
+            raise ValueError(f"root does not exist: {root}")
+        if not root.is_dir():
+            raise ValueError(f"root is not a directory: {root}")
+
         lines: list[str] = [
             f"# Repository Pack: {root.name}",
             "",
@@ -47,11 +126,18 @@ class RepoPacker:
             if not self._is_text(file_path):
                 continue
 
+            try:
+                content = file_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            if "\0" in content:
+                continue
+
             file_header = f"### `{self._relative(root, file_path)}`"
             file_lines = ["", file_header, ""]
             lang = self._detect_language(file_path)
             file_lines.append(f"```{lang}")
-            file_lines.append(file_path.read_text(encoding="utf-8"))
+            file_lines.append(content)
             file_lines.append("```")
 
             added = sum(len(line) + 1 for line in file_lines)
@@ -70,21 +156,24 @@ class RepoPacker:
 
     def _collect_files(self, root: Path, gitignore: Any | None) -> list[Path]:
         files: list[Path] = []
-        for path in sorted(root.rglob("*")):
-            if not path.is_file():
-                continue
-            if not self._is_text(path):
-                continue
+
+        def walk(path: Path) -> None:
             rel = self._relative(root, path)
-            if self.respect_gitignore and rel == ".gitignore":
-                continue
             if gitignore is not None and gitignore.match_file(rel):
-                continue
-            if not self._matches_include(rel):
-                continue
+                return
             if self._matches_exclude(rel):
-                continue
-            files.append(path)
+                return
+
+            if path.is_file():
+                if self._matches_include(rel):
+                    files.append(path)
+                return
+
+            for child in sorted(path.iterdir()):
+                walk(child)
+
+        for child in sorted(root.iterdir()):
+            walk(child)
         return files
 
     def _load_gitignore(self, root: Path) -> Any:
@@ -98,14 +187,12 @@ class RepoPacker:
             return _FallbackGitignore(lines)
 
     def _matches_include(self, rel: str) -> bool:
-        from fnmatch import fnmatch
-
-        return any(fnmatch(rel, pat) or fnmatch(rel, f"**/{pat}") for pat in self.include)
+        parts = rel.split("/")
+        return any(_match_pattern(rel, parts, pat) for pat in self.include)
 
     def _matches_exclude(self, rel: str) -> bool:
-        from fnmatch import fnmatch
-
-        return any(fnmatch(rel, pat) or fnmatch(rel, f"**/{pat}") for pat in self.exclude)
+        parts = rel.split("/")
+        return any(_match_pattern(rel, parts, pat) for pat in self.exclude)
 
     def _is_text(self, path: Path) -> bool:
         try:
@@ -115,7 +202,7 @@ class RepoPacker:
                 return False
             chunk.decode("utf-8")
             return True
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return False
 
     def _relative(self, root: Path, path: Path) -> str:
@@ -181,8 +268,6 @@ class _FallbackGitignore:
         ".ruff_cache",
         ".idea",
         ".vscode",
-        "dist",
-        "build",
         ".eggs",
     }
 
@@ -195,43 +280,12 @@ class _FallbackGitignore:
             self.patterns.append(line)
 
     def match_file(self, rel: str) -> bool:
-        from fnmatch import fnmatch
-
         parts = rel.split("/")
         for part in parts:
             if part in self.SKIP_DIRS or part.endswith(".egg-info"):
                 return True
 
         for pat in self.patterns:
-            if self._match_pattern(rel, parts, pat):
+            if _match_pattern(rel, parts, pat):
                 return True
-        return False
-
-    def _match_pattern(self, rel: str, parts: list[str], pat: str) -> bool:
-        from fnmatch import fnmatch
-
-        # Directory-only pattern.
-        if pat.endswith("/"):
-            name = pat.rstrip("/")
-            if name in parts:
-                return True
-            if rel.startswith(name + "/"):
-                return True
-            return False
-
-        # Anchored pattern (contains / or starts with /).
-        raw_pat = pat.lstrip("/")
-        if "/" in pat:
-            if fnmatch(rel, raw_pat):
-                return True
-            if not any(c in raw_pat for c in "*?[") and (rel == raw_pat or rel.startswith(raw_pat + "/")):
-                return True
-            return False
-
-        # Unanchored pattern: match any path component or the whole relative path.
-        for part in parts:
-            if fnmatch(part, pat):
-                return True
-        if fnmatch(rel, pat):
-            return True
         return False

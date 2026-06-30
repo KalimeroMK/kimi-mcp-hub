@@ -1,6 +1,7 @@
 """Kimi CLI hooks for automatic memory capture."""
 
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,6 +13,11 @@ from .summarizer import Summarizer
 _logger = logging.getLogger(__name__)
 
 
+def _sanitize_session_id(session_id: str) -> str:
+    """Replace characters unsafe for filenames with underscores."""
+    return re.sub(r"[^A-Za-z0-9_-]", "_", session_id)
+
+
 class MemoryHooks:
     """Lifecycle hooks that capture session context."""
 
@@ -20,25 +26,39 @@ class MemoryHooks:
 
     def session_start(self, payload: dict) -> str:
         """Called on SessionStart. Injects relevant context."""
-        _session_id = payload.get("session_id", "unknown")
-        _project_path = payload.get("project_path", "")
+        project_path = payload.get("project_path", "")
+        if project_path:
+            project_path = str(Path(project_path).resolve())
+        parts: list[str] = []
 
-        # Get recent observations for this project
         recent = self.db.get_recent(limit=5)
         if recent:
-            context = "\n[Memory] Recent context:\n"
+            parts.append("\n[Memory] Recent context:")
             for obs in recent:
-                context += (
-                    f"- [{obs['type']}] {obs['summary'] or obs['content'][:100]}\n"
+                parts.append(
+                    f"- [{obs['type']}] {obs['summary'] or obs['content'][:100]}"
                 )
-            return context
-        return ""
+
+        if project_path:
+            memories = self.db.get_memories(
+                limit=10, category="project", project_path=project_path
+            )
+            if memories:
+                parts.append("\n[Memory] Project notes:")
+                for mem in memories:
+                    content = mem["content"]
+                    if len(content) > 200:
+                        content = content[:200] + "... [truncated]"
+                    parts.append(f"- {content}")
+
+        return "\n".join(parts)
 
     def post_tool_use(self, payload: dict) -> None:
         """Called on PostToolUse. Saves tool output."""
         session_id = payload.get("session_id", "unknown")
         tool_name = payload.get("tool", "")
-        output = payload.get("output", "")
+        output = payload.get("output") or ""
+        output = str(output)
 
         if len(output) > 1000:
             output = output[:1000] + "... [truncated]"
@@ -64,7 +84,7 @@ class MemoryHooks:
         self._write_session_notes(payload)
 
     def session_end(self, payload: dict) -> None:
-        """Called on SessionEnd. Finalizes."""
+        """Called on SessionEnd. No-op; finalization is handled in stop()."""
         pass
 
     def _default_vault_path(self) -> Path | None:
@@ -84,6 +104,7 @@ class MemoryHooks:
             return
 
         session_id = payload.get("session_id", "unknown")
+        safe_session_id = _sanitize_session_id(session_id)
         project_path = payload.get("project_path", "")
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
 
@@ -93,21 +114,26 @@ class MemoryHooks:
             note_dir = vault_path / "Sessions"
             note_dir.mkdir(parents=True, exist_ok=True)
 
-            raw_path = note_dir / f"{timestamp}-{session_id}.md"
+            raw_path = note_dir / f"{timestamp}-{safe_session_id}.md"
             raw_path.write_text(
                 self._format_raw_note(timestamp, session_id, project_path, recent),
                 encoding="utf-8",
             )
 
-            summarizer = Summarizer.from_config()
-            summary = summarizer.summarize_session(recent)
-            if summary:
-                summary_path = note_dir / f"{timestamp}-{session_id}-summary.md"
-                summary_path.write_text(
-                    self._format_summary_note(
-                        timestamp, session_id, project_path, summary
-                    ),
-                    encoding="utf-8",
+            try:
+                summarizer = Summarizer.from_config()
+                summary = summarizer.summarize_session(recent)
+                if summary:
+                    summary_path = note_dir / f"{timestamp}-{safe_session_id}-summary.md"
+                    summary_path.write_text(
+                        self._format_summary_note(
+                            timestamp, session_id, project_path, summary
+                        ),
+                        encoding="utf-8",
+                    )
+            except Exception:
+                _logger.debug(
+                    "Failed to generate session summary", exc_info=True
                 )
         except OSError:
             _logger.debug("Failed to write Obsidian session notes", exc_info=True)

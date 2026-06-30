@@ -18,9 +18,14 @@ def _default_memory_db() -> Path:
 class MemoryDB:
     """Local SQLite database for cross-session memory."""
 
+    @staticmethod
+    def _default_memory_db() -> Path:
+        """Return the default memory database path."""
+        return _default_memory_db()
+
     def __init__(self, db_path: Path | None = None):
         if db_path is None:
-            db_path = _default_memory_db()
+            db_path = MemoryDB._default_memory_db()
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -56,6 +61,62 @@ class MemoryDB:
                     summary TEXT
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    tags TEXT,
+                    project_path TEXT
+                )
+            """)
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+                    content, tags,
+                    content='memories',
+                    content_rowid='id'
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_memories_project_path ON memories(project_path)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_observations_project_path ON observations(project_path)
+            """)
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS memories_fts_insert
+                AFTER INSERT ON memories
+                BEGIN
+                    INSERT INTO memories_fts (rowid, content, tags)
+                    VALUES (NEW.id, NEW.content, NEW.tags);
+                END
+            """)
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS memories_fts_delete
+                AFTER DELETE ON memories
+                BEGIN
+                    DELETE FROM memories_fts WHERE rowid = OLD.id;
+                END
+            """)
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS observations_fts_insert
+                AFTER INSERT ON observations
+                BEGIN
+                    INSERT INTO observations_fts (rowid, content, summary, tags)
+                    VALUES (NEW.id, NEW.content, NEW.summary, NEW.tags);
+                END
+            """)
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS observations_fts_delete
+                AFTER DELETE ON observations
+                BEGIN
+                    DELETE FROM observations_fts WHERE rowid = OLD.id;
+                END
+            """)
             conn.commit()
 
     def add_observation(
@@ -85,14 +146,8 @@ class MemoryDB:
                     project_path,
                 ),
             )
-            obs_id = cursor.lastrowid
-            conn.execute(
-                """INSERT INTO observations_fts (rowid, content, summary, tags)
-                   VALUES (?, ?, ?, ?)""",
-                (obs_id, content, summary or "", tags_str),
-            )
             conn.commit()
-        return obs_id
+        return cursor.lastrowid
 
     def search(
         self,
@@ -101,24 +156,31 @@ class MemoryDB:
         project_path: str | None = None,
     ) -> list[dict]:
         """Full-text search across observations."""
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+        if limit == 0 or not query.strip():
+            return []
         with sqlite3.connect(str(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            if project_path:
-                rows = conn.execute(
-                    """SELECT o.* FROM observations o
-                       JOIN observations_fts fts ON o.id = fts.rowid
-                       WHERE observations_fts MATCH ? AND o.project_path = ?
-                       ORDER BY rank LIMIT ?""",
-                    (query, project_path, limit),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    """SELECT o.* FROM observations o
-                       JOIN observations_fts fts ON o.id = fts.rowid
-                       WHERE observations_fts MATCH ?
-                       ORDER BY rank LIMIT ?""",
-                    (query, limit),
-                ).fetchall()
+            try:
+                if project_path:
+                    rows = conn.execute(
+                        """SELECT o.* FROM observations o
+                           JOIN observations_fts fts ON o.id = fts.rowid
+                           WHERE observations_fts MATCH ? AND o.project_path = ?
+                           ORDER BY rank LIMIT ?""",
+                        (query, project_path, limit),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """SELECT o.* FROM observations o
+                           JOIN observations_fts fts ON o.id = fts.rowid
+                           WHERE observations_fts MATCH ?
+                           ORDER BY rank LIMIT ?""",
+                        (query, limit),
+                    ).fetchall()
+            except sqlite3.OperationalError:
+                return []
             return [dict(row) for row in rows]
 
     def get_recent(
@@ -127,6 +189,10 @@ class MemoryDB:
         limit: int = 20,
     ) -> list[dict]:
         """Get recent observations."""
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+        if limit == 0:
+            return []
         with sqlite3.connect(str(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             if session_id:
@@ -149,3 +215,105 @@ class MemoryDB:
                 "SELECT COUNT(DISTINCT session_id) FROM observations"
             ).fetchone()[0]
             return {"total_observations": total, "total_sessions": sessions}
+
+    def add_memory(
+        self,
+        content: str,
+        category: str = "general",
+        tags: list[str] | None = None,
+        project_path: str | None = None,
+    ) -> int:
+        """Add a long-term memory and index it."""
+        if project_path:
+            project_path = str(Path(project_path).resolve())
+        tags_str = json.dumps(tags or [])
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        with sqlite3.connect(str(self.db_path)) as conn:
+            cursor = conn.execute(
+                """INSERT INTO memories (timestamp, category, content, tags, project_path)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (timestamp, category, content, tags_str, project_path),
+            )
+            conn.commit()
+        return cursor.lastrowid
+
+    def search_memories(
+        self,
+        query: str,
+        limit: int = 10,
+        category: str | None = None,
+        project_path: str | None = None,
+    ) -> list[dict]:
+        """Full-text search across memories."""
+        if project_path:
+            project_path = str(Path(project_path).resolve())
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+        if limit == 0 or not query.strip():
+            return []
+        sql = """SELECT m.* FROM memories m
+                 JOIN memories_fts fts ON m.id = fts.rowid
+                 WHERE memories_fts MATCH ?"""
+        params: list[str | int | None] = [query]
+        if category:
+            sql += " AND m.category = ?"
+            params.append(category)
+        if project_path:
+            sql += " AND m.project_path = ?"
+            params.append(project_path)
+        sql += " ORDER BY rank LIMIT ?"
+        params.append(limit)
+
+        with sqlite3.connect(str(self.db_path)) as conn:
+            conn.row_factory = sqlite3.Row
+            try:
+                rows = conn.execute(sql, params).fetchall()
+            except sqlite3.OperationalError:
+                return []
+            return [dict(row) for row in rows]
+
+    def get_memories(
+        self,
+        limit: int = 20,
+        category: str | None = None,
+        project_path: str | None = None,
+    ) -> list[dict]:
+        """Get recent memories, optionally filtered."""
+        if project_path:
+            project_path = str(Path(project_path).resolve())
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+        if limit == 0:
+            return []
+        sql = "SELECT * FROM memories WHERE 1=1"
+        params: list[str | int | None] = []
+        if category:
+            sql += " AND category = ?"
+            params.append(category)
+        if project_path:
+            sql += " AND project_path = ?"
+            params.append(project_path)
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        with sqlite3.connect(str(self.db_path)) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(sql, params).fetchall()
+            return [dict(row) for row in rows]
+
+    def delete_memory(self, memory_id: int) -> bool:
+        """Delete a memory; the FTS index is cleaned up by a trigger."""
+        with sqlite3.connect(str(self.db_path)) as conn:
+            cursor = conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_memory_stats(self) -> dict:
+        """Return memory statistics."""
+        with sqlite3.connect(str(self.db_path)) as conn:
+            total = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+            categories = conn.execute(
+                "SELECT category, COUNT(*) FROM memories GROUP BY category"
+            ).fetchall()
+            return {"total_memories": total, "categories": dict(categories)}
