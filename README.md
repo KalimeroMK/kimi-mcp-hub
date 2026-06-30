@@ -334,6 +334,32 @@ k() {
 
 Then use `k` instead of `kimi`. Each project gets its own memory vault automatically.
 
+### LLM-powered session summaries
+
+By default, every session is saved as a raw observation note. You can also enable LLM-generated summaries that extract the goal, key decisions, files/tools touched, and open TODOs.
+
+```bash
+# Configure an OpenAI-compatible provider
+kimi-mcp-hub memory config-summary --api-key sk-... --model gpt-4o-mini
+
+# Or use an environment variable (safer — avoids shell history)
+export KIMI_MEMORY_SUMMARY_API_KEY=sk-...
+kimi-mcp-hub memory config-summary --model gpt-4o-mini
+
+# Interactive prompt (key is hidden)
+kimi-mcp-hub memory config-summary
+
+# Disable summaries but keep raw notes
+kimi-mcp-hub memory config-summary --api-key sk-... --disabled
+```
+
+Supported providers include OpenAI, OpenRouter, and local [Ollama](https://ollama.com) endpoints. If no key is configured or the LLM call fails, `kimi-mcp-hub` falls back to the raw observation note.
+
+After a session you will find two notes in `<vault>/Sessions/`:
+
+- `YYYY-MM-DD-HHMMSS-<session>.md` — raw observations
+- `YYYY-MM-DD-HHMMSS-<session>-summary.md` — LLM-generated summary
+
 ---
 
 ## Install Claude/Codex Plugins
@@ -577,6 +603,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub obsidian list` | List configured Obsidian vaults |
 | `kimi-mcp-hub obsidian remove <slug>` | Remove an Obsidian vault from config |
 | `kimi-mcp-hub obsidian sync-templates [--templates-dir PATH] <vault-slug>` | Copy templates into a vault |
+| `kimi-mcp-hub memory config-summary [--api-key ...] [--model ...] [--base-url ...]` | Configure LLM for session summaries |
 
 ---
 
