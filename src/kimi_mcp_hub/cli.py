@@ -1523,6 +1523,78 @@ def _obsidian_vault_rows(config: KimiConfig):
     return rows
 
 
+def _get_git_root(cwd: Path | None = None) -> Path | None:
+    """Return the git repository root for the given directory, or None."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+        return Path(result.stdout.strip()).resolve()
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        FileNotFoundError,
+    ):
+        return None
+
+
+@obsidian.command(name="auto")
+@click.option(
+    "--path",
+    type=click.Path(path_type=Path, exists=False, file_okay=False, dir_okay=True),
+    help="Custom vault path (default: <repo-root>/<RepoName>-Memory).",
+)
+def obsidian_auto(path: Path | None):
+    """Create or switch to a project-specific Obsidian vault in the current git repo.
+
+    This is useful as a shell wrapper before starting Kimi CLI:
+
+        k() { kimi-mcp-hub obsidian auto && kimi "$@"; }
+
+    The command exits silently when not inside a git repository.
+    """
+    git_root = _get_git_root()
+    if not git_root:
+        console.print(
+            "[dim]Not inside a git repository; no project vault changed.[/dim]"
+        )
+        return
+
+    slug = git_root.name
+    vault_path = path.expanduser().resolve() if path else git_root / f"{slug}-Memory"
+    vault_path_str = str(vault_path)
+
+    config = KimiConfig()
+    vaults = config.get_obsidian_vaults()
+    existing_resolved = {Path(p).expanduser().resolve() for p in vaults}
+
+    if vault_path.resolve() not in existing_resolved:
+        slug_map = _obsidian_slug_map(vaults)
+        if slug in slug_map and slug_map[slug] != vault_path_str:
+            console.print(
+                f"[red]Vault slug '{slug}' already used by {slug_map[slug]}.[/red]"
+            )
+            console.print(
+                "[dim]Use --path to choose a different vault directory.[/dim]"
+            )
+            sys.exit(1)
+
+        ObsidianServer.scaffold_vault(vault_path)
+        vaults.append(vault_path_str)
+        config.set_obsidian_vaults(vaults)
+        console.print(f"[green]Created project vault:[/green] {vault_path}")
+    else:
+        console.print(f"[dim]Using existing project vault:[/dim] {vault_path}")
+
+    config.set_default_memory_vault(vault_path_str)
+    console.print(f"[dim]Default memory vault set to {slug}.[/dim]")
+
+
 @obsidian.command(name="status")
 def obsidian_status():
     """Show configured Obsidian vaults and their status."""

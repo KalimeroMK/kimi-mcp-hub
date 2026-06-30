@@ -694,3 +694,80 @@ class TestPluginCommands:
 
         assert result.exit_code == 1
         assert "Update failed" in result.output
+
+
+class TestObsidianAuto:
+    @pytest.fixture
+    def home(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        return tmp_path
+
+    def _make_git_repo(self, path: Path, name: str) -> Path:
+        """Create a fake git repo and return its root."""
+        repo = path / name
+        repo.mkdir(parents=True)
+        (repo / ".git").mkdir()
+        return repo
+
+    def test_auto_creates_project_vault_and_sets_default(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(
+                main,
+                ["obsidian", "auto"],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 0, result.output
+        assert "Created project vault" in result.output
+
+        vault = repo / "crmtTracker-Memory"
+        assert vault.exists()
+        assert (vault / ".obsidian" / "app.json").exists()
+
+        config = KimiConfig()
+        assert str(vault.resolve()) in config.get_obsidian_vaults()
+        assert config.get_default_memory_vault() == str(vault.resolve())
+
+    def test_auto_uses_existing_vault(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        vault = repo / "crmtTracker-Memory"
+        ObsidianServer.scaffold_vault(vault)
+        config = KimiConfig()
+        config.set_obsidian_vaults([str(vault.resolve())])
+
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(
+                main,
+                ["obsidian", "auto"],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 0, result.output
+        assert "Using existing project vault" in result.output
+        assert config.get_default_memory_vault() == str(vault.resolve())
+
+    def test_auto_exits_silently_outside_git_repo(self, home):
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=None):
+            result = runner.invoke(main, ["obsidian", "auto"])
+        assert result.exit_code == 0, result.output
+        assert "Not inside a git repository" in result.output
+
+    def test_auto_custom_path(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        custom = repo / "Custom-Memory"
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(
+                main,
+                ["obsidian", "auto", "--path", str(custom)],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 0, result.output
+        assert "Created project vault" in result.output
+        assert custom.exists()
+
+        config = KimiConfig()
+        assert str(custom.resolve()) in config.get_obsidian_vaults()
+        assert config.get_default_memory_vault() == str(custom.resolve())

@@ -228,6 +228,7 @@ kimi-mcp-hub test github
 # Manage Obsidian vaults for local memory
 kimi-mcp-hub obsidian status
 kimi-mcp-hub obsidian add ~/Documents/MyVault
+kimi-mcp-hub obsidian auto
 kimi-mcp-hub obsidian list
 kimi-mcp-hub obsidian remove myvault
 kimi-mcp-hub obsidian sync-templates myvault
@@ -302,6 +303,9 @@ kimi-mcp-hub obsidian status
 # Add a vault path (scaffolds the vault if needed)
 kimi-mcp-hub obsidian add ~/Documents/MyVault
 
+# Auto-create a project vault for the current git repo
+kimi-mcp-hub obsidian auto
+
 # List configured vaults
 kimi-mcp-hub obsidian list
 
@@ -316,6 +320,19 @@ kimi-mcp-hub obsidian sync-templates --templates-dir ./templates myvault
 ```
 
 The first vault added is set as the default memory vault. After adding a vault, restart Kimi CLI so the Obsidian MCP server picks it up.
+
+### Project-specific memory
+
+When working across multiple repositories, `kimi-mcp-hub obsidian auto` detects the current git repo and creates/switches to a project-specific vault at `<repo-root>/<RepoName>-Memory`. To make this automatic whenever you start Kimi, add a shell wrapper to your `~/.zshrc`:
+
+```bash
+k() {
+  kimi-mcp-hub obsidian auto >/dev/null 2>&1
+  kimi "$@"
+}
+```
+
+Then use `k` instead of `kimi`. Each project gets its own memory vault automatically.
 
 ---
 
@@ -556,6 +573,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub doctor` | System health check |
 | `kimi-mcp-hub obsidian status` | Show configured Obsidian vaults |
 | `kimi-mcp-hub obsidian add <path>` | Add an Obsidian vault path |
+| `kimi-mcp-hub obsidian auto` | Create/switch to project vault in current git repo |
 | `kimi-mcp-hub obsidian list` | List configured Obsidian vaults |
 | `kimi-mcp-hub obsidian remove <slug>` | Remove an Obsidian vault from config |
 | `kimi-mcp-hub obsidian sync-templates [--templates-dir PATH] <vault-slug>` | Copy templates into a vault |
