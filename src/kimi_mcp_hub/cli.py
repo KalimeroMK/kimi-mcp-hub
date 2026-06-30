@@ -1637,6 +1637,9 @@ def obsidian_auto(path: Path | None):
     config.set_default_memory_vault(vault_path_str)
     console.print(f"[dim]Default memory vault set to {slug}.[/dim]")
 
+    enable_memory(config)
+    console.print(f"[dim]Memory hooks installed for vault {slug}.[/dim]")
+
 
 @obsidian.command(name="status")
 def obsidian_status():
@@ -2242,12 +2245,43 @@ def list_installed_skills(config: KimiConfig) -> list:
     ]
 
 
+def _install_memory_hooks(config: KimiConfig) -> None:
+    """Register Kimi CLI hooks that write memory to SQLite and Obsidian."""
+    toml_data = config.load_toml_config()
+    hooks = toml_data.setdefault("hooks", [])
+    if not hasattr(hooks, "append"):
+        hooks = []
+        toml_data["hooks"] = hooks
+
+    marker = "kimi_mcp_hub.memory_hook"
+    hooks[:] = [h for h in hooks if marker not in h.get("command", "")]
+
+    hook_events = {
+        "session_start": "SessionStart",
+        "post_tool_use": "PostToolUse",
+        "stop": "Stop",
+        "session_end": "SessionEnd",
+    }
+    for event, kimi_event in hook_events.items():
+        hooks.append(
+            {
+                "event": kimi_event,
+                "command": f"{sys.executable} -m kimi_mcp_hub.memory_hook {event}",
+                "timeout": 5,
+            }
+        )
+
+    config.save_toml_config(toml_data)
+
+
 def enable_memory(config: KimiConfig):
     """Enable persistent memory system."""
     config.memory_db.parent.mkdir(parents=True, exist_ok=True)
 
     # Initialize SQLite with FTS5 using the canonical schema from memory/db.py
     MemoryDB(db_path=config.memory_db)
+
+    _install_memory_hooks(config)
 
     console.print(f"[green]Memory database initialized: {config.memory_db}[/green]")
     console.print("[dim]   Memory will persist across sessions.[/dim]")

@@ -18,6 +18,7 @@ from kimi_mcp_hub.cli import (
     _get_venv_info,
     _link_venv_binaries,
     _run_pip_upgrade,
+    enable_memory,
 )
 from kimi_mcp_hub.config import KimiConfig
 from kimi_mcp_hub.plugin_installer import install_plugin, is_plugin_installed
@@ -729,6 +730,9 @@ class TestObsidianAuto:
         assert str(vault.resolve()) in config.get_obsidian_vaults()
         assert config.get_default_memory_vault() == str(vault.resolve())
 
+        hooks = config.load_toml_config().get("hooks", [])
+        assert any("memory_hook" in h.get("command", "") for h in hooks)
+
     def test_auto_uses_existing_vault(self, home):
         repo = self._make_git_repo(home, "crmtTracker")
         vault = repo / "crmtTracker-Memory"
@@ -827,3 +831,30 @@ class TestObsidianAuto:
         assert result.exit_code == 0, result.output
         assert not (repo / ".gitignore").exists()
         assert "to .gitignore" not in result.output
+
+
+class TestEnableMemory:
+    @pytest.fixture
+    def home(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        return tmp_path
+
+    def test_enable_memory_installs_hooks(self, home):
+        config = KimiConfig()
+        enable_memory(config)
+
+        hooks = config.load_toml_config().get("hooks", [])
+        commands = [h.get("command", "") for h in hooks]
+        assert any("memory_hook session_start" in c for c in commands)
+        assert any("memory_hook post_tool_use" in c for c in commands)
+        assert any("memory_hook stop" in c for c in commands)
+        assert any("memory_hook session_end" in c for c in commands)
+
+    def test_enable_memory_is_idempotent(self, home):
+        config = KimiConfig()
+        enable_memory(config)
+        enable_memory(config)
+
+        hooks = config.load_toml_config().get("hooks", [])
+        commands = [h.get("command", "") for h in hooks]
+        assert commands.count(f"{sys.executable} -m kimi_mcp_hub.memory_hook stop") == 1

@@ -4,6 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from kimi_mcp_hub.config import KimiConfig
+from kimi_mcp_hub.memory.db import MemoryDB
+from kimi_mcp_hub.memory.hooks import MemoryHooks
 from kimi_mcp_hub.servers.obsidian import ObsidianServer
 
 
@@ -177,3 +180,68 @@ class TestObsidianTemplateSync:
             tmp_path / "does-not-exist", vault, missing_ok=True
         )
         assert copied == []
+
+
+class TestMemoryHooksObsidian:
+    def test_stop_writes_session_note_to_default_vault(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        db = MemoryDB()
+        db.add_observation(
+            session_id="sess-1",
+            obs_type="tool",
+            content="output",
+            summary="Used bash",
+            tags=["bash"],
+        )
+
+        hooks = MemoryHooks(db=db)
+        hooks.stop({"session_id": "sess-1", "project_path": "/tmp/project"})
+
+        notes = list((vault / "Sessions").glob("*.md"))
+        assert len(notes) == 1
+        text = notes[0].read_text(encoding="utf-8")
+        assert "# Session" in text
+        assert "sess-1" in text
+        assert "Used bash" in text
+
+    def test_stop_does_nothing_without_default_vault(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+
+        db = MemoryDB()
+        hooks = MemoryHooks(db=db)
+        hooks.stop({"session_id": "sess-1", "project_path": "/tmp/project"})
+
+        assert not vault.exists()
+
+
+class TestMemoryHookCli:
+    def test_cli_stop_writes_session_note(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        import json
+        import subprocess
+        import sys
+
+        payload = json.dumps({"session_id": "sess-cli", "project_path": "/tmp/project"})
+        result = subprocess.run(
+            [sys.executable, "-m", "kimi_mcp_hub.memory_hook", "stop"],
+            input=payload,
+            text=True,
+            capture_output=True,
+            cwd=str(tmp_path),
+        )
+        assert result.returncode == 0, result.stderr
+
+        notes = list((vault / "Sessions").glob("*.md"))
+        assert len(notes) == 1
+        assert "sess-cli" in notes[0].read_text(encoding="utf-8")
