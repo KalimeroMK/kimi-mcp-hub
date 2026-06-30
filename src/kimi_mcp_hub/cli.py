@@ -47,7 +47,11 @@ from .auth.providers import (
     authenticate_github,
 )
 from .import_claude import import_claude_servers
-from .plugin_installer import install_plugin
+from .plugin_installer import (
+    install_plugin,
+    uninstall_plugin,
+    update_plugin,
+)
 from ._post_install import check_first_run
 from .memory.db import MemoryDB
 from .preflight import maybe_install_npx_deps
@@ -668,9 +672,11 @@ def status():
     config = KimiConfig()
     table.add_row(
         "Memory",
-        "[green]enabled[/green]"
-        if config.memory_db.exists()
-        else "[dim]disabled[/dim]",
+        (
+            "[green]enabled[/green]"
+            if config.memory_db.exists()
+            else "[dim]disabled[/dim]"
+        ),
     )
 
     # Check if Kimi CLI is installed
@@ -1149,12 +1155,14 @@ def test(server_name: str):
                 )
             else:
                 console.print(f"[red]{cmd[0]} not found. Install with npm/npx.[/red]")
+                sys.exit(1)
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
+            sys.exit(1)
     elif "url" in cfg:
         console.print(f"[green]HTTP endpoint configured: {cfg['url'][:60]}[/green]")
         console.print(
-            "[dim]   Use 'kimi mcp auth {server_name}' to complete OAuth.[/dim]"
+            f"[dim]   Use 'kimi mcp auth {server_name}' to complete OAuth.[/dim]"
         )
 
 
@@ -1200,6 +1208,60 @@ def install_plugin_cmd(repo: str, yes: bool, name: str | None):
             return
 
     install_plugin(repo, config, name=name)
+
+
+@main.command(name="uninstall-plugin")
+@click.argument("plugin_name")
+def uninstall_plugin_cmd(plugin_name: str):
+    """Remove an installed plugin from Kimi CLI."""
+    print_header()
+    config = KimiConfig()
+
+    try:
+        result = uninstall_plugin(plugin_name, config)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+    except Exception as exc:
+        console.print(f"[red]Uninstall failed: {exc}[/red]")
+        sys.exit(1)
+
+    console.print(f"[green]Plugin '{plugin_name}' uninstalled.[/green]")
+    console.print(f"[dim]Removed plugin directory: {result['plugin_dir']}[/dim]")
+    if result["hooks_removed"]:
+        console.print(
+            f"[dim]Removed {result['hooks_removed']} hook(s) from config.toml[/dim]"
+        )
+    if result["skills_removed"]:
+        console.print(
+            f"[dim]Removed skills: {', '.join(result['skills_removed'])}[/dim]"
+        )
+    if result["agents_md_removed"]:
+        console.print("[dim]Removed AGENTS.md section.[/dim]")
+
+
+@main.command(name="update-plugin")
+@click.argument("plugin_name")
+def update_plugin_cmd(plugin_name: str):
+    """Update an installed plugin."""
+    print_header()
+    config = KimiConfig()
+
+    try:
+        result = update_plugin(plugin_name, config)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+    except Exception as exc:
+        console.print(f"[red]Update failed: {exc}[/red]")
+        sys.exit(1)
+
+    console.print(f"[green]Plugin '{plugin_name}' updated.[/green]")
+    console.print(f"[dim]Hooks installed: {result['hooks_installed']}[/dim]")
+    if result["skills_installed"]:
+        console.print(
+            f"[dim]Skills installed: {', '.join(result['skills_installed'])}[/dim]"
+        )
 
 
 @main.command()

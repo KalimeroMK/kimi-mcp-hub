@@ -157,9 +157,14 @@ def clone_or_update_repo(url: str, plugin_dir: Path) -> None:
 
     If url points to a local directory, copy it instead of cloning so that
     plain directories (e.g. during tests or local plugin development) work.
+    When the source path is the same as the install path (e.g. re-installing
+    an already-copied local plugin), leave the directory in place.
     """
     source_path = Path(url)
     if source_path.exists() and source_path.is_dir():
+        if source_path.resolve() == plugin_dir.resolve():
+            # Already in place; just re-merge artifacts.
+            return
         if plugin_dir.exists():
             shutil.rmtree(plugin_dir, ignore_errors=True)
         shutil.copytree(source_path, plugin_dir)
@@ -482,6 +487,7 @@ def convert_hooks(
                         "matcher": _map_matcher(matcher),
                         "command": command,
                         "timeout": hook.get("timeout", 30),
+                        "plugin": plugin_name,
                     }
                 )
     return kimi_hooks
@@ -516,6 +522,35 @@ def _copy_skills(
     return installed
 
 
+_PLUGIN_META_FILE = ".kimi-mcp-hub-meta.json"
+
+
+def _save_plugin_metadata(plugin_dir: Path, result: dict[str, Any]) -> None:
+    """Write a small metadata file describing installed artifacts."""
+    existing = _load_plugin_metadata(plugin_dir)
+    meta = {
+        "plugin_name": result.get("plugin_name", plugin_dir.name),
+        "skills_installed": result.get("skills_installed", []),
+        "hooks_installed": result.get("hooks_installed", 0),
+        "agents_md_installed": result.get("agents_md_installed", False),
+        "source": result.get("source") or existing.get("source"),
+    }
+    (plugin_dir / _PLUGIN_META_FILE).write_text(
+        json.dumps(meta, indent=2), encoding="utf-8"
+    )
+
+
+def _load_plugin_metadata(plugin_dir: Path) -> dict[str, Any]:
+    """Read install metadata if it exists."""
+    meta_path = plugin_dir / _PLUGIN_META_FILE
+    if not meta_path.exists():
+        return {}
+    try:
+        return json.loads(meta_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def install_plugin(
     repo: str,
     config: Any,
@@ -536,6 +571,15 @@ def install_plugin(
 
     clone_or_update_repo(url, plugin_dir)
 
+    # Remember the original source so `update_plugin` can re-copy local plugins.
+    try:
+        url_path = Path(url)
+        is_install_dir = (
+            url_path.exists() and url_path.resolve() == plugin_dir.resolve()
+        )
+    except OSError:
+        is_install_dir = False
+
     layout = discover_plugin_layout(plugin_dir)
     result: dict[str, Any] = {
         "plugin_name": plugin_name,
@@ -543,6 +587,7 @@ def install_plugin(
         "agents_md_installed": False,
         "hooks_installed": 0,
         "skills_installed": [],
+        "source": None if is_install_dir else url,
     }
 
     # Merge AGENTS.md
@@ -595,8 +640,116 @@ def install_plugin(
         if installed:
             console.print(f"[green]Installed skills: {', '.join(installed)}[/green]")
 
+    # Persist install metadata so uninstall can identify this plugin's artifacts.
+    _save_plugin_metadata(plugin_dir, result)
+
     console.print(
         f"\n[bold green]Plugin '{plugin_name}' installed successfully.[/bold green]"
     )
     console.print("[dim]Restart Kimi CLI for hook changes to take effect.[/dim]")
     return result
+
+
+def _plugin_install_dir(config: Any, name: str) -> Path:
+    """Return the plugin install directory without creating it."""
+    return config.plugins_dir / name
+
+
+def is_plugin_installed(name: str, config: Any) -> bool:
+    """Return True if the plugin has a non-empty install directory."""
+    plugin_dir = _plugin_install_dir(config, name)
+    return plugin_dir.exists() and any(plugin_dir.iterdir())
+
+
+def uninstall_plugin(name: str, config: Any) -> dict[str, Any]:
+    """Remove an installed plugin and its artifacts from Kimi CLI config.
+
+    Raises ValueError when the plugin is not installed.
+    """
+    if not is_plugin_installed(name, config):
+        raise ValueError(f"Plugin '{name}' is not installed.")
+
+    plugin_dir = _plugin_install_dir(config, name)
+    meta = _load_plugin_metadata(plugin_dir)
+    result: dict[str, Any] = {
+        "plugin_name": name,
+        "plugin_dir": plugin_dir,
+        "plugin_dir_removed": False,
+        "hooks_removed": 0,
+        "skills_removed": [],
+        "agents_md_removed": False,
+    }
+
+    # Remove hooks that belong to this plugin.
+    toml_data = config.load_toml_config()
+    hooks = toml_data.get("hooks", [])
+    if isinstance(hooks, list):
+        plugin_prefix = f'cd "{plugin_dir}" &&'
+        kept: list[dict[str, Any]] = []
+        for hook in hooks:
+            # Prefer the explicit plugin tag; fall back to legacy prefix matching.
+            if hook.get("plugin") == name:
+                result["hooks_removed"] += 1
+                continue
+            if "plugin" not in hook and plugin_prefix in hook.get("command", ""):
+                result["hooks_removed"] += 1
+                continue
+            kept.append(hook)
+        toml_data["hooks"] = kept
+        config.save_toml_config(toml_data)
+
+    # Remove skills installed by this plugin.
+    installed_skills = meta.get("skills_installed", [])
+    if installed_skills and config.skills_dir.exists():
+        for skill_name in installed_skills:
+            skill_dir = config.skills_dir / skill_name
+            if skill_dir.exists() and skill_dir.is_dir():
+                shutil.rmtree(skill_dir)
+                result["skills_removed"].append(skill_name)
+    elif config.skills_dir.exists():
+        # Fallback for plugins installed before metadata tracking.
+        for skill_dir in config.skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            if skill_dir.name == name or skill_dir.name.startswith(f"{name}-"):
+                shutil.rmtree(skill_dir)
+                result["skills_removed"].append(skill_dir.name)
+
+    # Remove AGENTS.md section added by this plugin.
+    result["agents_md_removed"] = config.remove_agents_md_section(name)
+
+    # Remove plugin directory last so metadata is available until cleanup is done.
+    shutil.rmtree(plugin_dir)
+    result["plugin_dir_removed"] = True
+
+    return result
+
+
+def update_plugin(name: str, config: Any) -> dict[str, Any]:
+    """Update an installed plugin.
+
+    Git plugins are pulled with ``git pull --ff-only``; local plugins are
+    re-installed in place. After the source is updated the install logic is
+    re-run so new hooks, skills, and AGENTS.md content are merged.
+
+    Raises ValueError when the plugin is not installed.
+    """
+    if not is_plugin_installed(name, config):
+        raise ValueError(f"Plugin '{name}' is not installed.")
+
+    plugin_dir = _plugin_install_dir(config, name)
+    meta = _load_plugin_metadata(plugin_dir)
+
+    if (plugin_dir / ".git").is_dir():
+        subprocess.run(
+            ["git", "-C", str(plugin_dir), "pull", "--ff-only"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    elif meta.get("source"):
+        # Local plugin: re-copy from the original source directory before merging.
+        clone_or_update_repo(meta["source"], plugin_dir)
+
+    # Re-run install logic to merge updated hooks/skills/AGENTS.md.
+    return install_plugin(str(plugin_dir), config, name=name)

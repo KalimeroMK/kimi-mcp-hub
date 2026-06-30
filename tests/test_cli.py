@@ -1,5 +1,6 @@
 """Tests for the Kimi MCP Hub CLI."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -19,6 +20,7 @@ from kimi_mcp_hub.cli import (
     _run_pip_upgrade,
 )
 from kimi_mcp_hub.config import KimiConfig
+from kimi_mcp_hub.plugin_installer import install_plugin, is_plugin_installed
 from kimi_mcp_hub import __version__, TOTAL_SERVERS, TOTAL_SKILLS
 from kimi_mcp_hub.servers.linear import LinearServer
 from kimi_mcp_hub.servers.figma import FigmaServer
@@ -593,3 +595,106 @@ class TestObsidianCLI:
         result = runner.invoke(main, ["obsidian", "sync-templates", "unknown"])
         assert result.exit_code == 1
         assert "No vault with slug 'unknown'" in result.output
+
+
+class TestPluginCommands:
+    @pytest.fixture
+    def home(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        return tmp_path
+
+    def _make_plugin_dir(self, config, name):
+        plugin_dir = config.plugin_dir(name)
+        plugin_dir.mkdir(parents=True, exist_ok=True)
+        (plugin_dir / "AGENTS.md").write_text(f"## {name}\nUse stdlib.")
+        (plugin_dir / "hooks.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "Write",
+                                "hooks": [
+                                    {"type": "command", "command": "node guard.js"}
+                                ],
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        skills = plugin_dir / "skills" / "review"
+        skills.mkdir(parents=True)
+        (skills / "SKILL.md").write_text("# Review")
+        return plugin_dir
+
+    def test_uninstall_plugin_removes_artifacts(self, home):
+        config = KimiConfig()
+        config.agents_md.write_text("# Original AGENTS.md\n")
+        plugin_dir = self._make_plugin_dir(config, "ponytail")
+        install_plugin(str(plugin_dir), config)
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["uninstall-plugin", "ponytail"])
+
+        assert result.exit_code == 0, result.output
+        assert "Plugin 'ponytail' uninstalled" in result.output
+        assert "Removed plugin directory" in result.output
+        assert "Removed 1 hook" in result.output
+        assert "Removed skills: ponytail-review" in result.output
+        assert "Removed AGENTS.md section" in result.output
+        assert not is_plugin_installed("ponytail", config)
+
+    def test_uninstall_plugin_unknown_errors(self, home):
+        runner = CliRunner()
+        result = runner.invoke(main, ["uninstall-plugin", "missing"])
+        assert result.exit_code == 1
+        assert "Plugin 'missing' is not installed" in result.output
+
+    def test_update_plugin_git_pull(self, home):
+        config = KimiConfig()
+        plugin_dir = self._make_plugin_dir(config, "git-plugin")
+        (plugin_dir / ".git").mkdir()
+
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.plugin_installer.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+            result = runner.invoke(main, ["update-plugin", "git-plugin"])
+
+        assert result.exit_code == 0, result.output
+        assert "Plugin 'git-plugin' updated" in result.output
+        git_calls = [c for c in run_mock.call_args_list if c[0][0][0] == "git"]
+        assert any("pull" in str(c) and "--ff-only" in str(c) for c in git_calls)
+
+    def test_update_plugin_local_reinstalls(self, home):
+        config = KimiConfig()
+        self._make_plugin_dir(config, "local-plugin")
+
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.plugin_installer.subprocess.run") as run_mock:
+            result = runner.invoke(main, ["update-plugin", "local-plugin"])
+
+        assert result.exit_code == 0, result.output
+        assert "Plugin 'local-plugin' updated" in result.output
+        run_mock.assert_not_called()
+
+    def test_update_plugin_unknown_errors(self, home):
+        runner = CliRunner()
+        result = runner.invoke(main, ["update-plugin", "missing"])
+        assert result.exit_code == 1
+        assert "Plugin 'missing' is not installed" in result.output
+
+    def test_update_plugin_git_pull_failure_exits_one(self, home):
+        config = KimiConfig()
+        plugin_dir = self._make_plugin_dir(config, "git-plugin")
+        (plugin_dir / ".git").mkdir()
+
+        runner = CliRunner()
+        with mock.patch(
+            "kimi_mcp_hub.plugin_installer.subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, ["git"], stderr="pull failed"),
+        ):
+            result = runner.invoke(main, ["update-plugin", "git-plugin"])
+
+        assert result.exit_code == 1
+        assert "Update failed" in result.output

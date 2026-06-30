@@ -26,6 +26,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [CLAUDE.md Compatibility](#claudemd-compatibility)
 - [All Commands](#all-commands)
+- [Testing](#testing)
 - [MCP Servers](#24-mcp-servers)
 - [Skills](#57-skills)
 - [Architecture](#architecture)
@@ -379,6 +380,20 @@ kimi-mcp-hub install-plugin DietrichGebert/ponytail --yes
 
 After installing a plugin, **restart Kimi CLI** for the hooks to take effect.
 
+### Managing installed plugins
+
+Plugins installed from GitHub can be updated and removed through the CLI:
+
+```bash
+# Pull latest changes for a git plugin, or re-copy a local plugin
+kimi-mcp-hub update-plugin ponytail
+
+# Remove a plugin completely
+kimi-mcp-hub uninstall-plugin ponytail
+```
+
+`update-plugin` re-runs the install merge, so new hooks, skills, and `AGENTS.md` sections are applied automatically. `uninstall-plugin` removes the plugin directory, deletes its hooks from `~/.kimi-code/config.toml`, removes any skills it installed, and removes its section from `~/.kimi-code/AGENTS.md`.
+
 ---
 
 ## Project-Level MCP Configuration
@@ -541,6 +556,8 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub install-plugin <repo>` | Install Claude/Codex plugin into Kimi |
 | `kimi-mcp-hub install-plugin <repo> --yes` | Install plugin without confirmation |
+| `kimi-mcp-hub update-plugin <name>` | Update an installed plugin |
+| `kimi-mcp-hub uninstall-plugin <name>` | Remove an installed plugin and its artifacts |
 | `kimi-mcp-hub list` | All servers + skills + memory |
 | `kimi-mcp-hub list-skills` | All 57 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
@@ -702,6 +719,19 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | Skill | Description |
 |-------|-------------|
 | **stripe-best-practices** | Stripe integration best practices |
+
+---
+
+## Testing
+
+The test suite lives in `tests/`:
+
+```bash
+pytest -q
+```
+
+- `tests/test_integration.py` covers end-to-end flows such as `init --yes`, server `add`, `remove`, and `test`.
+- Unit tests cover config handling, Obsidian vault management, and the plugin installer.
 
 ---
 

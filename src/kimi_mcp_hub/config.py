@@ -236,6 +236,32 @@ class KimiConfig:
             f.write(block)
         return True
 
+    def remove_agents_md_section(self, marker: str) -> bool:
+        """Remove a plugin's marked section from ~/.kimi-code/AGENTS.md.
+
+        Returns True if the file was changed, False if the marker was not found.
+        """
+        import re
+
+        start_marker = f"<!-- plugin: {marker} -->"
+        end_marker = f"<!-- /plugin: {marker} -->"
+
+        if not self.agents_md.exists():
+            return False
+
+        existing = self.agents_md.read_text(encoding="utf-8")
+        if start_marker not in existing:
+            return False
+
+        pattern = re.escape(start_marker) + r".*?" + re.escape(end_marker)
+        new_text = re.sub(pattern, "", existing, count=1, flags=re.DOTALL)
+        new_text = new_text.strip()
+        if new_text:
+            self.agents_md.write_text(new_text + "\n", encoding="utf-8")
+        else:
+            self.agents_md.unlink()
+        return True
+
     def reload_kimi_mcp(self) -> None:
         """Signal Kimi CLI to reload MCP config (if running)."""
         pass

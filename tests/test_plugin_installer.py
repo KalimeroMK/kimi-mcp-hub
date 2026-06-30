@@ -1,7 +1,9 @@
 """Tests for plugin installer."""
 
 import json
+import subprocess
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -17,6 +19,8 @@ from kimi_mcp_hub.plugin_installer import (
     discover_plugin_layout,
     install_plugin,
     resolve_repo,
+    uninstall_plugin,
+    update_plugin,
 )
 
 
@@ -730,3 +734,222 @@ class TestCloneOrUpdateRepo:
 
         assert (plugin_dir / "hooks.json").exists()
         assert not (plugin_dir / "stale-file.txt").exists()
+
+    def test_reinstall_local_plugin_leaves_dir_in_place(self, tmp_path):
+        plugin_dir = tmp_path / "my-plugin"
+        plugin_dir.mkdir()
+        (plugin_dir / "hooks.json").write_text(json.dumps({"hooks": {}}))
+
+        clone_or_update_repo(str(plugin_dir), plugin_dir)
+
+        assert (plugin_dir / "hooks.json").exists()
+
+
+class TestUninstallPlugin:
+    def _make_plugin(self, config, name, tmp_path):
+        plugin_dir = config.plugin_dir(name)
+        plugin_dir.mkdir(parents=True, exist_ok=True)
+        (plugin_dir / "AGENTS.md").write_text(f"## {name}\nUse stdlib.")
+        (plugin_dir / "hooks.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "Write",
+                                "hooks": [
+                                    {"type": "command", "command": "node guard.js"}
+                                ],
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        skills = plugin_dir / "skills" / "review"
+        skills.mkdir(parents=True)
+        (skills / "SKILL.md").write_text("# Review")
+        return plugin_dir
+
+    def test_uninstall_removes_everything(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        config.agents_md.write_text("# Original AGENTS.md\n")
+
+        plugin_dir = self._make_plugin(config, "ponytail", tmp_path)
+        install_plugin(str(plugin_dir), config)
+
+        result = uninstall_plugin("ponytail", config)
+
+        assert result["plugin_dir_removed"] is True
+        assert not plugin_dir.exists()
+        assert result["hooks_removed"] == 1
+        assert config.load_toml_config().get("hooks", []) == []
+        assert result["skills_removed"] == ["ponytail-review"]
+        assert not (config.skills_dir / "ponytail-review").exists()
+        assert result["agents_md_removed"] is True
+        assert config.agents_md.read_text(encoding="utf-8") == "# Original AGENTS.md\n"
+
+    def test_uninstall_unknown_plugin(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        with pytest.raises(ValueError, match="Plugin 'missing' is not installed"):
+            uninstall_plugin("missing", config)
+
+    def test_uninstall_multi_plugin_agents_md(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+
+        plugin_a = tmp_path / "plugin-a"
+        plugin_a.mkdir()
+        (plugin_a / "AGENTS.md").write_text("## Plugin A\nA rules.")
+        (plugin_a / "hooks.json").write_text(json.dumps({"hooks": {}}))
+
+        plugin_b = tmp_path / "plugin-b"
+        plugin_b.mkdir()
+        (plugin_b / "AGENTS.md").write_text("## Plugin B\nB rules.")
+        (plugin_b / "hooks.json").write_text(json.dumps({"hooks": {}}))
+
+        install_plugin(str(plugin_a), config)
+        install_plugin(str(plugin_b), config)
+
+        text_before = config.agents_md.read_text(encoding="utf-8")
+        assert "<!-- plugin: plugin-a -->" in text_before
+        assert "<!-- plugin: plugin-b -->" in text_before
+
+        uninstall_plugin("plugin-a", config)
+
+        text_after = config.agents_md.read_text(encoding="utf-8")
+        assert "<!-- plugin: plugin-a -->" not in text_after
+        assert "<!-- plugin: plugin-b -->" in text_after
+        assert "B rules." in text_after
+        assert "A rules." not in text_after
+
+    def test_uninstall_skill_prefix_collision_uses_metadata(
+        self, monkeypatch, tmp_path
+    ):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+
+        plugin_a = tmp_path / "plugin-a"
+        plugin_a.mkdir()
+        (plugin_a / "hooks.json").write_text(json.dumps({"hooks": {}}))
+        skills_a = plugin_a / "skills" / "review"
+        skills_a.mkdir(parents=True)
+        (skills_a / "SKILL.md").write_text("# A review")
+
+        plugin_ab = tmp_path / "plugin-ab"
+        plugin_ab.mkdir()
+        (plugin_ab / "hooks.json").write_text(json.dumps({"hooks": {}}))
+        skills_ab = plugin_ab / "skills" / "review"
+        skills_ab.mkdir(parents=True)
+        (skills_ab / "SKILL.md").write_text("# AB review")
+
+        install_plugin(str(plugin_a), config)
+        install_plugin(str(plugin_ab), config)
+
+        assert (config.skills_dir / "plugin-a-review").exists()
+        assert (config.skills_dir / "plugin-ab-review").exists()
+
+        uninstall_plugin("plugin-a", config)
+
+        assert not (config.skills_dir / "plugin-a-review").exists()
+        assert (config.skills_dir / "plugin-ab-review").exists()
+
+    def test_uninstall_fallback_without_metadata(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+
+        plugin_dir = self._make_plugin(config, "legacy", tmp_path)
+        install_plugin(str(plugin_dir), config)
+
+        # Simulate a plugin installed before metadata tracking.
+        meta_path = plugin_dir / ".kimi-mcp-hub-meta.json"
+        meta_path.unlink()
+
+        result = uninstall_plugin("legacy", config)
+
+        assert result["plugin_dir_removed"] is True
+        assert "legacy-review" in result["skills_removed"]
+        assert not (config.skills_dir / "legacy-review").exists()
+
+
+class TestUpdatePlugin:
+    def _make_plugin(self, config, name):
+        plugin_dir = config.plugin_dir(name)
+        plugin_dir.mkdir(parents=True, exist_ok=True)
+        (plugin_dir / "AGENTS.md").write_text(f"## {name}\nUse stdlib.")
+        (plugin_dir / "hooks.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {
+                                "matcher": "Write",
+                                "hooks": [
+                                    {"type": "command", "command": "node guard.js"}
+                                ],
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        skills = plugin_dir / "skills" / "review"
+        skills.mkdir(parents=True)
+        (skills / "SKILL.md").write_text("# Review")
+        return plugin_dir
+
+    def test_update_git_plugin_pulls(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        plugin_dir = self._make_plugin(config, "ponytail")
+        (plugin_dir / ".git").mkdir()
+
+        run_calls = []
+
+        def fake_run(cmd, **kwargs):
+            run_calls.append(cmd)
+            if cmd[0] == "git":
+                return mock.Mock(returncode=0, stdout="", stderr="")
+            return subprocess.run(cmd, **kwargs)
+
+        with mock.patch(
+            "kimi_mcp_hub.plugin_installer.subprocess.run", side_effect=fake_run
+        ):
+            result = update_plugin("ponytail", config)
+
+        assert any("pull" in c and "--ff-only" in c for c in run_calls)
+        assert result["plugin_name"] == "ponytail"
+        assert result["hooks_installed"] == 1
+
+    def test_update_local_plugin_reinstalls(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        self._make_plugin(config, "ponytail")
+
+        with mock.patch("kimi_mcp_hub.plugin_installer.subprocess.run") as run_mock:
+            result = update_plugin("ponytail", config)
+
+        run_mock.assert_not_called()
+        assert result["plugin_name"] == "ponytail"
+        assert result["hooks_installed"] == 1
+
+    def test_update_unknown_plugin(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        with pytest.raises(ValueError, match="Plugin 'missing' is not installed"):
+            update_plugin("missing", config)
+
+    def test_update_git_pull_failure(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        plugin_dir = self._make_plugin(config, "ponytail")
+        (plugin_dir / ".git").mkdir()
+
+        with mock.patch(
+            "kimi_mcp_hub.plugin_installer.subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, ["git"], stderr="fail"),
+        ):
+            with pytest.raises(subprocess.CalledProcessError):
+                update_plugin("ponytail", config)
