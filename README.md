@@ -305,6 +305,9 @@ kimi-mcp-hub pack
 # Pack a specific repository
 kimi-mcp-hub pack /path/to/repo
 
+# Include only Python files
+kimi-mcp-hub pack -i '*.py' -i '**/*.py'
+
 # Exclude patterns
 kimi-mcp-hub pack -e '*.test.js' -e 'dist/'
 
@@ -315,6 +318,7 @@ kimi-mcp-hub pack --max-size 1048576 -o repo.md
 - `.gitignore` is respected by default; use `--no-gitignore` to disable.
 - Binary files appear in the generated file tree but are omitted from code blocks.
 - Files that would push the output over the size budget are listed in a warning and skipped.
+- Use `-` as the output path to force stdout (`-o -`).
 
 ---
 
@@ -360,32 +364,6 @@ k() {
 
 Then use `k` instead of `kimi`. Each project gets its own memory vault automatically.
 
-### LLM-powered session summaries
-
-By default, every session is saved as a raw observation note. You can also enable LLM-generated summaries that extract the goal, key decisions, files/tools touched, and open TODOs.
-
-```bash
-# Configure an OpenAI-compatible provider
-kimi-mcp-hub memory config-summary --api-key sk-... --model gpt-4o-mini
-
-# Or use an environment variable (safer — avoids shell history)
-export KIMI_MEMORY_SUMMARY_API_KEY=sk-...
-kimi-mcp-hub memory config-summary --model gpt-4o-mini
-
-# Interactive prompt (key is hidden)
-kimi-mcp-hub memory config-summary
-
-# Disable summaries but keep raw notes
-kimi-mcp-hub memory config-summary --api-key sk-... --disabled
-```
-
-Supported providers include OpenAI, OpenRouter, and local [Ollama](https://ollama.com) endpoints. If no key is configured or the LLM call fails, `kimi-mcp-hub` falls back to the raw observation note.
-
-After a session you will find two notes in `<vault>/Sessions/`:
-
-- `YYYY-MM-DD-HHMMSS-<session>.md` — raw observations
-- `YYYY-MM-DD-HHMMSS-<session>-summary.md` — LLM-generated summary
-
 ---
 
 ## Advanced Memory Layer
@@ -410,6 +388,32 @@ kimi-mcp-hub memory forget 3
 ```
 
 Project memories (`--category project`) are injected into the session context whenever you start Kimi in the matching project directory. This is useful for base URLs, coding conventions, or reminders that should apply to a specific codebase.
+
+### LLM-powered session summaries
+
+By default, every session is saved as a raw observation note in your default Obsidian vault. You can also enable LLM-generated summaries that extract the goal, key decisions, files/tools touched, and open TODOs.
+
+```bash
+# Configure an OpenAI-compatible provider
+kimi-mcp-hub memory config-summary --api-key sk-... --model gpt-4o-mini
+
+# Or use an environment variable (safer — avoids shell history)
+export KIMI_MEMORY_SUMMARY_API_KEY=sk-...
+kimi-mcp-hub memory config-summary --model gpt-4o-mini
+
+# Interactive prompt (key is hidden)
+kimi-mcp-hub memory config-summary
+
+# Disable summaries but keep raw notes
+kimi-mcp-hub memory config-summary --api-key sk-... --disabled
+```
+
+Supported providers include OpenAI, OpenRouter, and local [Ollama](https://ollama.com) endpoints. If no key is configured or the LLM call fails, `kimi-mcp-hub` falls back to the raw observation note.
+
+After a session you will find two notes in `<vault>/Sessions/`:
+
+- `YYYY-MM-DD-HHMMSS-<session>.md` — raw observations
+- `YYYY-MM-DD-HHMMSS-<session>-summary.md` — LLM-generated summary
 
 ---
 
