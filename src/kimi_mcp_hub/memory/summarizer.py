@@ -102,9 +102,9 @@ class Summarizer:
                 or not isinstance(data["choices"][0].get("message"), dict)
                 or "content" not in data["choices"][0]["message"]
             ):
-                _logger.debug("Unexpected LLM response shape: %s", data)
+                _logger.warning("Unexpected LLM response shape: %s", data)
                 return None
             return data["choices"][0]["message"]["content"].strip()
         except Exception as exc:
-            _logger.debug("Session summarization failed: %s", exc)
+            _logger.warning("Session summarization failed: %s", exc)
             return None

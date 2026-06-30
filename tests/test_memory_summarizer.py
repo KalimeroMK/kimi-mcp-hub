@@ -2,7 +2,6 @@
 
 from unittest import mock
 
-import pytest
 import requests
 
 from kimi_mcp_hub.memory.summarizer import Summarizer

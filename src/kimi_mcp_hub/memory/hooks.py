@@ -54,7 +54,6 @@ class MemoryHooks:
     def stop(self, payload: dict) -> None:
         """Called on Stop. Summarizes session."""
         session_id = payload.get("session_id", "unknown")
-        # Could call LLM for summary here; for now, store raw
         self.db.add_observation(
             session_id=session_id,
             obs_type="session",

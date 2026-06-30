@@ -13,14 +13,14 @@ Currently, `kimi-mcp-hub` writes raw session observations to the default Obsidia
 
 ## Non-Goals
 
-- Real-time summarization during a turn (summaries happen on `Stop`/`SessionEnd`).
+- Real-time summarization during a turn (summaries happen on `Stop`).
 - Summarization of the full conversation transcript (only observations captured by memory hooks are summarized).
 - Support for non-OpenAI-compatible providers in the first version.
 
 ## Architecture
 
 ```
-┌─────────────────┐     Stop/SessionEnd      ┌──────────────────┐
+┌─────────────────┐           Stop           ┌──────────────────┐
 │  Kimi CLI hook  │ ───────────────────────► │   MemoryHooks    │
 └─────────────────┘                          └────────┬─────────┘
                                                       │
@@ -47,9 +47,9 @@ Currently, `kimi-mcp-hub` writes raw session observations to the default Obsidia
    - Returns markdown summary or `None` on failure.
 
 2. **`memory/hooks.py`**
-   - `MemoryHooks.stop()` and `session_end()` call `Summarizer`.
+   - `MemoryHooks.stop()` calls `Summarizer`.
    - If a summary is returned, write it to `<vault>/Sessions/<timestamp>-<session>-summary.md`.
-   - Always keep raw observations in `<vault>/Sessions/<timestamp>-<session>-raw.md` for reference.
+   - Always keep raw observations in `<vault>/Sessions/<timestamp>-<session>.md` for reference.
    - If summarization is disabled or fails, fall back to a structured note (no `-summary` suffix).
 
 3. **`cli.py`**
@@ -134,7 +134,7 @@ Debug why the local Obsidian vault was created but nothing was written to it.
 2. Mock `requests.post` to test successful summary generation.
 3. Mock `requests.post` raising `RequestException` to test fallback.
 4. CLI test for `kimi-mcp-hub memory config-summary` updating `config.toml`.
-5. Integration test that `MemoryHooks.stop()` writes both `-summary.md` and `-raw.md` when LLM succeeds.
+5. Integration test that `MemoryHooks.stop()` writes both `-summary.md` and `.md` when LLM succeeds.
 
 ## Future Work
 
