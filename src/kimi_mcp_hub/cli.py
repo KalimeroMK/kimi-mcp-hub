@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import stat
 import subprocess
 import sys
 import shutil
+import urllib.parse
 from pathlib import Path
 
 import click
@@ -312,12 +314,14 @@ def print_welcome():
     )
 
 
-def print_header():
+def print_header(title: str | None = None):
     """Print compact header (used by subcommands)."""
+    panel_title = f"[bold]{title}[/bold]" if title else None
     console.print(
         Panel.fit(
             f"[bold cyan]{__title__}[/bold cyan] [dim]v{__version__}[/dim]\n"
             f"[dim]{len(SERVERS)} MCP Servers  |  {len(SKILLS)} Skills  |  Persistent Memory[/dim]",
+            title=panel_title,
             border_style="cyan",
         )
     )
@@ -1799,6 +1803,63 @@ def obsidian_sync_templates(vault_slug: str, templates_dir: Path | None):
             console.print(f"  [dim]{note}[/dim]")
     else:
         console.print(f"[dim]No new templates to sync to {vault_slug}.[/dim]")
+
+
+def _validate_base_url(ctx, param, value):
+    """Ensure the base URL has a scheme and netloc."""
+    parsed = urllib.parse.urlparse(value)
+    if not parsed.scheme or not parsed.netloc:
+        raise click.BadParameter(f"Invalid base URL: {value}")
+    return value
+
+
+@main.group(name="memory")
+def memory():
+    """Manage persistent memory settings."""
+
+
+@memory.command(name="config-summary")
+@click.option(
+    "--api-key", required=False, help="API key for the summary LLM provider."
+)
+@click.option("--model", default="gpt-4o-mini", show_default=True, help="Model name.")
+@click.option(
+    "--base-url",
+    default="https://api.openai.com/v1",
+    show_default=True,
+    callback=_validate_base_url,
+    help="OpenAI-compatible base URL.",
+)
+@click.option("--enabled/--disabled", default=True, help="Enable or disable summaries.")
+def config_summary(api_key: str | None, model: str, base_url: str, enabled: bool):
+    """Configure the LLM used for session summaries."""
+    print_header("Memory Summary Configuration")
+    config = KimiConfig()
+
+    if not api_key:
+        api_key = os.environ.get("KIMI_MEMORY_SUMMARY_API_KEY")
+    if not api_key:
+        if sys.stdin.isatty():
+            api_key = Prompt.ask("API key", password=True)
+        else:
+            console.print("[red]API key is required.[/red]")
+            sys.exit(1)
+
+    config.set_memory_summary_config(
+        api_key=api_key,
+        model=model,
+        base_url=base_url,
+        enabled=enabled,
+    )
+    masked = (
+        f"{api_key[:3]}...{api_key[-4:]}"
+        if len(api_key) > 7
+        else "..."
+    )
+    console.print("[green]Memory summary configuration saved.[/green]")
+    console.print(f"[dim]API key:[/dim] {masked}")
+    console.print(f"[dim]Model:[/dim] {model}")
+    console.print(f"[dim]Base URL:[/dim] {base_url}")
 
 
 # -- Helper functions --

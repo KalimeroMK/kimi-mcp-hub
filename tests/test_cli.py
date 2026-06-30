@@ -858,3 +858,110 @@ class TestEnableMemory:
         hooks = config.load_toml_config().get("hooks", [])
         commands = [h.get("command", "") for h in hooks]
         assert commands.count(f"{sys.executable} -m kimi_mcp_hub.memory_hook stop") == 1
+
+
+class TestMemoryConfigSummary:
+    @pytest.fixture
+    def home(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        return tmp_path
+
+    def test_config_summary_stores_values(self, home):
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "memory",
+                "config-summary",
+                "--api-key",
+                "sk-test",
+                "--model",
+                "gpt-4o",
+                "--base-url",
+                "https://api.example.com/v1",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+
+        config = KimiConfig()
+        assert config.get_memory_summary_api_key() == "sk-test"
+        assert config.get_memory_summary_model() == "gpt-4o"
+        assert config.get_memory_summary_base_url() == "https://api.example.com/v1"
+        assert config.is_memory_summary_enabled() is True
+
+    def test_config_summary_uses_env_var(self, home, monkeypatch):
+        monkeypatch.setenv("KIMI_MEMORY_SUMMARY_API_KEY", "sk-env")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["memory", "config-summary"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+
+        config = KimiConfig()
+        assert config.get_memory_summary_api_key() == "sk-env"
+        assert config.is_memory_summary_enabled() is True
+
+    def test_config_summary_defaults(self, home):
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["memory", "config-summary", "--api-key", "sk-test"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+
+        config = KimiConfig()
+        assert config.get_memory_summary_api_key() == "sk-test"
+        assert config.get_memory_summary_model() == "gpt-4o-mini"
+        assert config.get_memory_summary_base_url() == "https://api.openai.com/v1"
+
+    def test_config_summary_disabled(self, home):
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["memory", "config-summary", "--api-key", "sk-test", "--disabled"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+
+        config = KimiConfig()
+        assert config.is_memory_summary_enabled() is False
+
+    def test_config_summary_preserves_other_memory_keys(self, home):
+        config = KimiConfig()
+        config.set_default_memory_vault("/some/path")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["memory", "config-summary", "--api-key", "sk-test"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+
+        assert config.get_default_memory_vault() == "/some/path"
+
+    def test_config_summary_invalid_url(self, home):
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "memory",
+                "config-summary",
+                "--api-key",
+                "sk-test",
+                "--base-url",
+                "not-a-url",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "Invalid base URL" in result.output
+
+    def test_config_summary_requires_api_key(self, home):
+        runner = CliRunner()
+        result = runner.invoke(main, ["memory", "config-summary"])
+        assert result.exit_code != 0
+        assert "API key" in result.output
