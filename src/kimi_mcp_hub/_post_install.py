@@ -79,13 +79,15 @@ def _print_first_install_message():
         console.print("")
     except Exception:
         # Fallback if rich is not available
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"  {__title__} v{__version__} installed successfully!")
-        print(f"{'='*50}")
-        print(f"  {TOTAL_SERVERS} MCP servers | {TOTAL_SKILLS} AI skills | Persistent memory")
-        print(f"")
-        print(f"  Get started: kimi-mcp-hub init")
-        print(f"{'='*50}\n")
+        print(f"{'=' * 50}")
+        print(
+            f"  {TOTAL_SERVERS} MCP servers | {TOTAL_SKILLS} AI skills | Persistent memory"
+        )
+        print("")
+        print("  Get started: kimi-mcp-hub init")
+        print(f"{'=' * 50}\n")
 
 
 def _print_upgrade_message(old_ver: str, new_ver: str):

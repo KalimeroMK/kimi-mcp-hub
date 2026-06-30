@@ -1,8 +1,6 @@
 """Tests for KimiConfig and MemoryDB."""
 
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 

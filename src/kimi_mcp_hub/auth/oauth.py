@@ -19,7 +19,6 @@ import base64
 import secrets
 import time
 from pathlib import Path
-from typing import Callable
 
 import requests
 from rich.console import Console
@@ -34,12 +33,14 @@ def generate_pkce_pair() -> tuple[str, str]:
     Returns:
         (code_verifier, code_challenge)
     """
-    verifier = base64.urlsafe_b64encode(
-        secrets.token_bytes(32)
-    ).decode("ascii").rstrip("=")
-    challenge = base64.urlsafe_b64encode(
-        hashlib.sha256(verifier.encode()).digest()
-    ).decode("ascii").rstrip("=")
+    verifier = (
+        base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii").rstrip("=")
+    )
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+        .decode("ascii")
+        .rstrip("=")
+    )
     return verifier, challenge
 
 
@@ -110,8 +111,8 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
                 <div class="box">
                     <div style="font-size: 64px; margin-bottom: 10px;">&#x274C;</div>
                     <h1>Authorization Failed</h1>
-                    <p>{server.error or 'Unknown error'}</p>
-                    <p>{server.error_description or ''}</p>
+                    <p>{server.error or "Unknown error"}</p>
+                    <p>{server.error_description or ""}</p>
                 </div>
             </body></html>
             """
@@ -155,7 +156,9 @@ class LocalCallbackServer:
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("[cyan]Waiting for browser authorization...", total=timeout * 10)
+            task = progress.add_task(
+                "[cyan]Waiting for browser authorization...", total=timeout * 10
+            )
             for _ in range(timeout * 10):
                 if self.server.code:
                     progress.update(task, completed=timeout * 10)
@@ -203,7 +206,9 @@ class DeviceFlowHandler:
         resp.raise_for_status()
         return resp.json()
 
-    def poll_for_token(self, device_code: str, interval: int = 5, expires_in: int = 600) -> dict | None:
+    def poll_for_token(
+        self, device_code: str, interval: int = 5, expires_in: int = 600
+    ) -> dict | None:
         """Poll token endpoint until user authorizes or timeout.
 
         Returns token dict with access_token, or None on failure.
@@ -222,7 +227,9 @@ class DeviceFlowHandler:
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("[cyan]Waiting for you to authorize in browser...", total=max_attempts)
+            task = progress.add_task(
+                "[cyan]Waiting for you to authorize in browser...", total=max_attempts
+            )
 
             for attempt in range(max_attempts):
                 time.sleep(interval)
@@ -303,8 +310,8 @@ class WebFlowHandler:
         auth_url = f"{self.auth_url}?{urllib.parse.urlencode(params)}"
 
         # Open browser
-        console.print(f"\n[bold cyan]Opening browser for authorization...[/bold cyan]")
-        console.print(f"[dim]If browser doesn't open, use this URL:[/dim]")
+        console.print("\n[bold cyan]Opening browser for authorization...[/bold cyan]")
+        console.print("[dim]If browser doesn't open, use this URL:[/dim]")
         console.print(f"[blue underline]{auth_url}[/blue underline]\n")
 
         opened = webbrowser.open(auth_url, new=2, autoraise=True)
@@ -322,7 +329,9 @@ class WebFlowHandler:
         # Exchange code for token
         return self.exchange_code(code, redirect_uri, code_verifier)
 
-    def exchange_code(self, code: str, redirect_uri: str, code_verifier: str) -> dict | None:
+    def exchange_code(
+        self, code: str, redirect_uri: str, code_verifier: str
+    ) -> dict | None:
         """Exchange authorization code for access token."""
         data = {
             "grant_type": "authorization_code",
@@ -361,7 +370,11 @@ class OAuthHandler:
     def wait_for_code(self, timeout: int = 120) -> str | None:
         return self._callback.wait_for_code(timeout)
 
-    def atlassian_oauth(self, client_id: str, scope: str = "read:jira-work write:jira-work read:confluence-content write:confluence-content") -> dict:
+    def atlassian_oauth(
+        self,
+        client_id: str,
+        scope: str = "read:jira-work write:jira-work read:confluence-content write:confluence-content",
+    ) -> dict:
         """Atlassian 2-click OAuth for Jira/Confluence."""
         port = self.start_callback_server()
         redirect_uri = f"http://127.0.0.1:{port}/callback"
@@ -377,7 +390,9 @@ class OAuthHandler:
             f"&prompt=consent"
         )
 
-        console.print(f"\n[bold cyan]Opening browser for Atlassian authorization...[/bold cyan]")
+        console.print(
+            "\n[bold cyan]Opening browser for Atlassian authorization...[/bold cyan]"
+        )
         console.print(f"[dim]If browser doesn't open: {auth_url}[/dim]\n")
         webbrowser.open(auth_url)
 

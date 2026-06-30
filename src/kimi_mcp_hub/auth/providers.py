@@ -6,9 +6,9 @@ Supports both Device Flow (for CLI) and Web Flow (with browser redirect).
 
 from __future__ import annotations
 
-import secrets
 import urllib.parse
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
 from rich.console import Console
@@ -55,6 +55,7 @@ class OAuthProvider:
         """Get token store for this provider."""
         from pathlib import Path
         import platformdirs
+
         config_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
         config_dir.mkdir(parents=True, exist_ok=True)
         return TokenStore(config_dir)
@@ -96,11 +97,13 @@ def authenticate_github(pat_fallback: bool = True) -> dict | None:
         if not Confirm.ask("GitHub already authorized. Re-authorize?", default=False):
             return existing
 
-    console.print(Panel.fit(
-        f"[bold]{provider.display_name} Authorization[/bold]\n"
-        f"[dim]Device Flow -- secure, no copy-paste needed[/dim]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]{provider.display_name} Authorization[/bold]\n"
+            f"[dim]Device Flow -- secure, no copy-paste needed[/dim]",
+            border_style="cyan",
+        )
+    )
 
     # Allow users to bring their own OAuth app for security/control.
     custom_client_id = Prompt.ask(
@@ -121,7 +124,11 @@ def authenticate_github(pat_fallback: bool = True) -> dict | None:
         console.print("Create at: https://github.com/settings/tokens")
         token = Prompt.ask("GitHub PAT", password=True)
         if token:
-            token_data = {"access_token": token, "token_type": "bearer", "scope": "repo"}
+            token_data = {
+                "access_token": token,
+                "token_type": "bearer",
+                "scope": "repo",
+            }
             store.save("github", token_data)
             console.print("[green]GitHub PAT saved![/green]")
             return token_data
@@ -145,6 +152,7 @@ def _github_device_flow(client_id: str | None = None) -> dict | None:
     # Step 1: Request device code
     try:
         import requests
+
         resp = requests.post(
             provider.device_auth_url,
             data={"client_id": client_id, "scope": " ".join(provider.scopes)},
@@ -158,28 +166,37 @@ def _github_device_flow(client_id: str | None = None) -> dict | None:
         return None
 
     user_code = device_info.get("user_code", "")
-    verification_uri = device_info.get("verification_uri", "https://github.com/login/device")
+    verification_uri = device_info.get(
+        "verification_uri", "https://github.com/login/device"
+    )
     device_code = device_info.get("device_code", "")
     interval = device_info.get("interval", 5)
     expires_in = device_info.get("expires_in", 600)
 
     # Step 2: Auto-open browser + show code
-    console.print(f"\n[bold]Your verification code:[/bold] [yellow]{user_code}[/yellow]")
-    console.print(f"[dim]Opening browser...[/dim]\n")
+    console.print(
+        f"\n[bold]Your verification code:[/bold] [yellow]{user_code}[/yellow]"
+    )
+    console.print("[dim]Opening browser...[/dim]\n")
 
     import webbrowser
+
     webbrowser.open(verification_uri, new=2, autoraise=True)
 
-    console.print(Panel.fit(
-        f"[bold]If browser didn't open:[/bold]\n"
-        f"1. Go to: [blue]{verification_uri}[/blue]\n"
-        f"2. Enter code: [yellow]{user_code}[/yellow]\n"
-        f"3. Click 'Authorize'",
-        border_style="yellow",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]If browser didn't open:[/bold]\n"
+            f"1. Go to: [blue]{verification_uri}[/blue]\n"
+            f"2. Enter code: [yellow]{user_code}[/yellow]\n"
+            f"3. Click 'Authorize'",
+            border_style="yellow",
+        )
+    )
 
     # Step 3: Poll for token
-    token_data = handler.poll_for_token(device_code, interval=interval, expires_in=expires_in)
+    token_data = handler.poll_for_token(
+        device_code, interval=interval, expires_in=expires_in
+    )
 
     if token_data and "access_token" in token_data:
         # GitHub returns x-www-form-urlencoded, handle both formats
@@ -187,7 +204,9 @@ def _github_device_flow(client_id: str | None = None) -> dict | None:
             token_data = dict(urllib.parse.parse_qsl(token_data))
 
         store.save("github", token_data)
-        console.print(f"\n[bold green]{provider.display_name} authorized successfully![/bold green]")
+        console.print(
+            f"\n[bold green]{provider.display_name} authorized successfully![/bold green]"
+        )
         return token_data
 
     return None
@@ -205,7 +224,12 @@ ATLASSIAN_PROVIDER = OAuthProvider(
     token_url="https://auth.atlassian.com/oauth/token",
     # Public OAuth app for kimi-mcp-hub
     client_id="kimi-mcp-hub-atlassian",
-    scopes=["read:jira-work", "write:jira-work", "read:confluence-content", "write:confluence-content"],
+    scopes=[
+        "read:jira-work",
+        "write:jira-work",
+        "read:confluence-content",
+        "write:confluence-content",
+    ],
     default_flow="web",
 )
 
@@ -214,11 +238,13 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
     """Authenticate with Atlassian for Jira or Confluence."""
     provider = ATLASSIAN_PROVIDER
 
-    console.print(Panel.fit(
-        f"[bold]Atlassian {service.title()} Authorization[/bold]\n"
-        f"[dim]PKCE Web Flow with auto browser open[/dim]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]Atlassian {service.title()} Authorization[/bold]\n"
+            f"[dim]PKCE Web Flow with auto browser open[/dim]",
+            border_style="cyan",
+        )
+    )
 
     # Atlassian requires registering your own OAuth app
     console.print("\n[bold]Atlassian OAuth Setup[/bold]\n")
@@ -232,9 +258,13 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
     console.print("   Create at: https://developer.atlassian.com/console/myapps/\n")
 
     console.print("[bold]3. API Token (Simpler):[/bold]")
-    console.print("   Get token at: https://id.atlassian.com/manage-profile/security/api-tokens")
+    console.print(
+        "   Get token at: https://id.atlassian.com/manage-profile/security/api-tokens"
+    )
 
-    choice = Prompt.ask("Option", choices=["mcp", "oauth", "api-token"], default="api-token")
+    choice = Prompt.ask(
+        "Option", choices=["mcp", "oauth", "api-token"], default="api-token"
+    )
 
     if choice == "api-token":
         from ..servers.jira import JiraServer
@@ -272,7 +302,9 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
         if token_data:
             store = provider.get_token_store()
             store.save(service, token_data)
-            console.print(f"[bold green]{service.title()} authorized successfully![/bold green]")
+            console.print(
+                f"[bold green]{service.title()} authorized successfully![/bold green]"
+            )
             return token_data
         return None
 
@@ -283,6 +315,7 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
 # Google (Gmail)
 # ---------------------------------------------------------------------------
 
+
 def authenticate_google() -> dict | None:
     """Authenticate with Google for Gmail access.
 
@@ -290,15 +323,19 @@ def authenticate_google() -> dict | None:
     1. Desktop app credentials (client_id + client_secret)
     2. Service account
     """
-    console.print(Panel.fit(
-        "[bold]Google Gmail Authorization[/bold]\n"
-        "[dim]OAuth 2.0 for Gmail access[/dim]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]Google Gmail Authorization[/bold]\n"
+            "[dim]OAuth 2.0 for Gmail access[/dim]",
+            border_style="cyan",
+        )
+    )
 
     console.print("\n[bold]Google OAuth Setup[/bold]\n")
     console.print("Google requires a project in Google Cloud Console:\n")
-    console.print("1. Go to: [blue]https://console.cloud.google.com/apis/credentials[/blue]")
+    console.print(
+        "1. Go to: [blue]https://console.cloud.google.com/apis/credentials[/blue]"
+    )
     console.print("2. Create OAuth 2.0 credentials (Desktop app)")
     console.print("3. Enable Gmail API\n")
 
@@ -308,6 +345,7 @@ def authenticate_google() -> dict | None:
         console.print("\n[yellow]Using npx mode (no OAuth needed)[/yellow]")
         from ..servers.gmail import GmailServer
         from ..config import KimiConfig
+
         config = KimiConfig()
         cfg = GmailServer.get_npx_config()
         maybe_install_npx_deps(cfg, console)
@@ -341,13 +379,15 @@ def authenticate_google() -> dict | None:
 # Slack
 # ---------------------------------------------------------------------------
 
+
 def authenticate_slack() -> dict | None:
     """Authenticate with Slack."""
-    console.print(Panel.fit(
-        "[bold]Slack Authorization[/bold]\n"
-        "[dim]OAuth 2.0 with auto browser[/dim]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]Slack Authorization[/bold]\n[dim]OAuth 2.0 with auto browser[/dim]",
+            border_style="cyan",
+        )
+    )
 
     console.print("\n[bold]Slack OAuth Setup[/bold]\n")
     console.print("Create a Slack app at: [blue]https://api.slack.com/apps[/blue]\n")
@@ -355,11 +395,14 @@ def authenticate_slack() -> dict | None:
     choice = Prompt.ask("Method", choices=["oauth", "bot-token"], default="bot-token")
 
     if choice == "bot-token":
-        console.print("\nGet Bot Token from: https://api.slack.com/apps -> Your App -> OAuth & Permissions")
+        console.print(
+            "\nGet Bot Token from: https://api.slack.com/apps -> Your App -> OAuth & Permissions"
+        )
         token = Prompt.ask("Bot User OAuth Token (xoxb-...)", password=True)
         if token:
             from ..servers.slack import SlackServer
             from ..config import KimiConfig
+
             config = KimiConfig()
             cfg = SlackServer.get_stdio_config(token, token_type="bot")
             maybe_install_npx_deps(cfg, console)
@@ -376,7 +419,15 @@ def authenticate_slack() -> dict | None:
             token_url="https://slack.com/api/oauth.v2.access",
             client_id=client_id,
             client_secret=client_secret,
-            scopes=["chat:write", "channels:read", "groups:read", "im:read", "mpim:read", "search:read", "users:read"],
+            scopes=[
+                "chat:write",
+                "channels:read",
+                "groups:read",
+                "im:read",
+                "mpim:read",
+                "search:read",
+                "users:read",
+            ],
         )
 
         token_data = handler.authorize(timeout=120)
@@ -393,13 +444,15 @@ def authenticate_slack() -> dict | None:
 # Figma
 # ---------------------------------------------------------------------------
 
+
 def authenticate_figma() -> dict | None:
     """Authenticate with Figma."""
-    console.print(Panel.fit(
-        "[bold]Figma Authorization[/bold]\n"
-        "[dim]OAuth 2.0 with auto browser[/dim]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]Figma Authorization[/bold]\n[dim]OAuth 2.0 with auto browser[/dim]",
+            border_style="cyan",
+        )
+    )
 
     console.print("\n[bold]Figma OAuth Setup[/bold]\n")
     console.print("Options:\n")
@@ -407,15 +460,20 @@ def authenticate_figma() -> dict | None:
     console.print("   URL: [blue]https://mcp.figma.com/mcp[/blue]")
     console.print("   Add the server, then trigger auth from Kimi CLI.\n")
     console.print("[bold]2. Personal Access Token (PAT):[/bold] Easiest")
-    console.print("   Get at: [blue]https://www.figma.com/developers/api#access-tokens[/blue]")
+    console.print(
+        "   Get at: [blue]https://www.figma.com/developers/api#access-tokens[/blue]"
+    )
     console.print("[bold]3. Custom OAuth 2.0 App:[/bold] Full access, requires app")
     console.print("   Create app at: [blue]https://www.figma.com/developers[/blue]\n")
 
-    choice = Prompt.ask("Method", choices=["official", "pat", "oauth"], default="official")
+    choice = Prompt.ask(
+        "Method", choices=["official", "pat", "oauth"], default="official"
+    )
 
     if choice == "official":
         from ..servers.figma import FigmaServer
         from ..config import KimiConfig
+
         config = KimiConfig()
         cfg = FigmaServer.get_official_config()
         maybe_install_npx_deps(cfg, console)
@@ -429,6 +487,7 @@ def authenticate_figma() -> dict | None:
         if token:
             from ..servers.figma import FigmaServer
             from ..config import KimiConfig
+
             config = KimiConfig()
             cfg = FigmaServer.get_console_config(token)
             maybe_install_npx_deps(cfg, console)
@@ -492,10 +551,11 @@ def authenticate(server: str) -> dict | None:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def __get_config_dir() -> Path:
     """Get config directory."""
-    from pathlib import Path
     import platformdirs
+
     config_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir

@@ -4,14 +4,15 @@ import sqlite3
 import json
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Optional
 
 import platformdirs
 
 
 def _default_memory_db() -> Path:
     """Return the default memory database path."""
-    return Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI")) / "memory.db"
+    return (
+        Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI")) / "memory.db"
+    )
 
 
 class MemoryDB:
@@ -74,7 +75,15 @@ class MemoryDB:
             cursor = conn.execute(
                 """INSERT INTO observations (session_id, timestamp, type, content, summary, tags, project_path)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (session_id, timestamp, obs_type, content, summary, tags_str, project_path),
+                (
+                    session_id,
+                    timestamp,
+                    obs_type,
+                    content,
+                    summary,
+                    tags_str,
+                    project_path,
+                ),
             )
             obs_id = cursor.lastrowid
             conn.execute(
@@ -136,5 +145,7 @@ class MemoryDB:
         """Return database statistics."""
         with sqlite3.connect(str(self.db_path)) as conn:
             total = conn.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
-            sessions = conn.execute("SELECT COUNT(DISTINCT session_id) FROM observations").fetchone()[0]
+            sessions = conn.execute(
+                "SELECT COUNT(DISTINCT session_id) FROM observations"
+            ).fetchone()[0]
             return {"total_observations": total, "total_sessions": sessions}

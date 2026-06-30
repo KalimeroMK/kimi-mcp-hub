@@ -1,9 +1,5 @@
 """Kimi CLI hooks for automatic memory capture."""
 
-import json
-import sys
-from pathlib import Path
-
 from .db import MemoryDB
 
 
@@ -15,15 +11,17 @@ class MemoryHooks:
 
     def session_start(self, payload: dict) -> str:
         """Called on SessionStart. Injects relevant context."""
-        session_id = payload.get("session_id", "unknown")
-        project_path = payload.get("project_path", "")
+        _session_id = payload.get("session_id", "unknown")
+        _project_path = payload.get("project_path", "")
 
         # Get recent observations for this project
         recent = self.db.get_recent(limit=5)
         if recent:
             context = "\n[Memory] Recent context:\n"
             for obs in recent:
-                context += f"- [{obs['type']}] {obs['summary'] or obs['content'][:100]}\n"
+                context += (
+                    f"- [{obs['type']}] {obs['summary'] or obs['content'][:100]}\n"
+                )
             return context
         return ""
 
