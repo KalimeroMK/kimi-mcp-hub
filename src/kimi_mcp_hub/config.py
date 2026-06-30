@@ -149,6 +149,53 @@ class KimiConfig:
             data.pop("memory", None)
         self.save_toml_config(data)
 
+    # --- Memory summary helpers ---
+
+    def get_memory_summary_api_key(self) -> str:
+        """Return the memory summary API key from config.toml, if set."""
+        return self.load_toml_config().get("memory", {}).get("summary_api_key", "")
+
+    def get_memory_summary_model(self) -> str:
+        """Return the memory summary model from config.toml."""
+        return self.load_toml_config().get("memory", {}).get("summary_model", "gpt-4o-mini")
+
+    def get_memory_summary_base_url(self) -> str:
+        """Return the memory summary base URL from config.toml."""
+        return self.load_toml_config().get("memory", {}).get(
+            "summary_base_url", "https://api.openai.com/v1"
+        )
+
+    def is_memory_summary_enabled(self) -> bool:
+        """Return whether memory summarization is enabled.
+
+        If summary_enabled is explicitly set, that value wins. Otherwise,
+        summarization is enabled when a summary_api_key is configured.
+        """
+        memory = self.load_toml_config().get("memory", {})
+        if "summary_enabled" in memory:
+            return bool(memory["summary_enabled"])
+        return bool(memory.get("summary_api_key", ""))
+
+    def set_memory_summary_config(
+        self,
+        api_key: str = "",
+        model: str = "gpt-4o-mini",
+        base_url: str = "https://api.openai.com/v1",
+        enabled: bool = True,
+    ) -> None:
+        """Store memory summarization settings in config.toml.
+
+        This overwrites all memory summary keys in config.toml with the
+        provided values.
+        """
+        data = self.load_toml_config()
+        memory = data.setdefault("memory", {})
+        memory["summary_api_key"] = api_key
+        memory["summary_model"] = model
+        memory["summary_base_url"] = base_url
+        memory["summary_enabled"] = enabled
+        self.save_toml_config(data)
+
     def save_token(self, server: str, token_data: dict) -> None:
         """Save OAuth/token data securely."""
         tokens = {}

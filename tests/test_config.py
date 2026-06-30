@@ -15,6 +15,8 @@ def temp_config(tmp_path):
     # Override paths for isolation
     config.kimi_dir = tmp_path / ".kimi"
     config.mcp_json = config.kimi_dir / "mcp.json"
+    config.config_toml = config.kimi_dir / "config.toml"
+    config.agents_md = config.kimi_dir / "AGENTS.md"
     config.skills_dir = tmp_path / ".kimi-code" / "skills"
     config.hub_dir = tmp_path / ".config" / "kimi-mcp-hub"
     config.tokens_file = config.hub_dir / "tokens.json"
@@ -43,6 +45,55 @@ class TestKimiConfig:
         temp_config.save_token("github", {"access_token": "secret123"})
         loaded = temp_config.load_token("github")
         assert loaded["access_token"] == "secret123"
+
+    def test_memory_summary_config_defaults(self, temp_config):
+        assert temp_config.get_memory_summary_api_key() == ""
+        assert temp_config.get_memory_summary_model() == "gpt-4o-mini"
+        assert temp_config.get_memory_summary_base_url() == "https://api.openai.com/v1"
+        assert temp_config.is_memory_summary_enabled() is False
+
+    def test_memory_summary_config_round_trip(self, temp_config):
+        temp_config.set_memory_summary_config(
+            api_key="sk-test",
+            model="gpt-4o-mini",
+            base_url="https://api.example.com/v1",
+            enabled=True,
+        )
+        assert temp_config.get_memory_summary_api_key() == "sk-test"
+        assert temp_config.get_memory_summary_model() == "gpt-4o-mini"
+        assert temp_config.get_memory_summary_base_url() == "https://api.example.com/v1"
+        assert temp_config.is_memory_summary_enabled() is True
+
+    def test_memory_summary_config_disabled_round_trip(self, temp_config):
+        temp_config.set_memory_summary_config(
+            api_key="sk-test",
+            model="gpt-4o-mini",
+            base_url="https://api.example.com/v1",
+            enabled=False,
+        )
+        assert temp_config.is_memory_summary_enabled() is False
+
+    def test_memory_summary_enabled_fallback_to_api_key(self, temp_config):
+        data = temp_config.load_toml_config()
+        data.setdefault("memory", {})["summary_api_key"] = "sk-test"
+        temp_config.save_toml_config(data)
+        assert temp_config.is_memory_summary_enabled() is True
+
+    def test_memory_summary_config_overwrite(self, temp_config):
+        temp_config.set_memory_summary_config(
+            api_key="sk-first",
+            model="gpt-4o-mini",
+            base_url="https://api.first.com/v1",
+            enabled=True,
+        )
+        temp_config.set_memory_summary_config(
+            api_key="sk-second",
+            model="gpt-4o",
+        )
+        assert temp_config.get_memory_summary_api_key() == "sk-second"
+        assert temp_config.get_memory_summary_model() == "gpt-4o"
+        assert temp_config.get_memory_summary_base_url() == "https://api.openai.com/v1"
+        assert temp_config.is_memory_summary_enabled() is True
 
 
 class TestMemoryDB:
