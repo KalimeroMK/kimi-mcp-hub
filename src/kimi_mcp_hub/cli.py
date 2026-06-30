@@ -1543,6 +1543,46 @@ def _get_git_root(cwd: Path | None = None) -> Path | None:
         return None
 
 
+def _ensure_gitignored(git_root: Path, vault_path: Path) -> bool:
+    """Add a gitignore entry for vault_path if it lives under git_root.
+
+    Returns True when a new entry was written, False otherwise.
+    """
+    try:
+        git_root = git_root.resolve()
+        vault_path = vault_path.resolve()
+        vault_path.relative_to(git_root)
+    except (OSError, ValueError):
+        return False
+
+    gitignore = git_root / ".gitignore"
+    rel_vault = vault_path.relative_to(git_root).as_posix()
+    # Always treat the vault as a directory entry.
+    entry = f"/{rel_vault}/"
+
+    existing_lines: list[str] = []
+    if gitignore.exists():
+        try:
+            existing_lines = gitignore.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return False
+
+    normalized = {line.strip().rstrip("/") for line in existing_lines}
+    if rel_vault in normalized or entry.strip("/") in normalized:
+        return False
+
+    if existing_lines and existing_lines[-1] != "":
+        existing_lines.append("")
+    existing_lines.append(f"# Kimi memory vault for {git_root.name}")
+    existing_lines.append(entry)
+
+    try:
+        gitignore.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
+    except OSError:
+        return False
+    return True
+
+
 @obsidian.command(name="auto")
 @click.option(
     "--path",
@@ -1590,6 +1630,9 @@ def obsidian_auto(path: Path | None):
         console.print(f"[green]Created project vault:[/green] {vault_path}")
     else:
         console.print(f"[dim]Using existing project vault:[/dim] {vault_path}")
+
+    if _ensure_gitignored(git_root, vault_path):
+        console.print(f"[dim]Added {vault_path.name} to .gitignore.[/dim]")
 
     config.set_default_memory_vault(vault_path_str)
     console.print(f"[dim]Default memory vault set to {slug}.[/dim]")

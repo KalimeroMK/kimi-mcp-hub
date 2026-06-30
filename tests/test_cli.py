@@ -771,3 +771,59 @@ class TestObsidianAuto:
         config = KimiConfig()
         assert str(custom.resolve()) in config.get_obsidian_vaults()
         assert config.get_default_memory_vault() == str(custom.resolve())
+
+    def test_auto_adds_vault_to_gitignore(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(main, ["obsidian", "auto"], catch_exceptions=False)
+
+        assert result.exit_code == 0, result.output
+        gitignore = repo / ".gitignore"
+        assert gitignore.exists()
+        content = gitignore.read_text()
+        assert "crmtTracker-Memory/" in content
+        assert "Added crmtTracker-Memory to .gitignore" in result.output
+
+    def test_auto_appends_to_existing_gitignore(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        gitignore = repo / ".gitignore"
+        gitignore.write_text("node_modules/\n")
+
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(main, ["obsidian", "auto"], catch_exceptions=False)
+
+        assert result.exit_code == 0, result.output
+        content = gitignore.read_text()
+        assert "node_modules/" in content
+        assert "crmtTracker-Memory/" in content
+        assert content.count("crmtTracker-Memory") == 1
+
+    def test_auto_does_not_duplicate_gitignore_entry(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        gitignore = repo / ".gitignore"
+        gitignore.write_text("crmtTracker-Memory/\n")
+
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(main, ["obsidian", "auto"], catch_exceptions=False)
+
+        assert result.exit_code == 0, result.output
+        content = gitignore.read_text()
+        assert content.count("crmtTracker-Memory") == 1
+        assert "Added crmtTracker-Memory to .gitignore" not in result.output
+
+    def test_auto_skips_gitignore_for_vault_outside_repo(self, home):
+        repo = self._make_git_repo(home, "crmtTracker")
+        outside = home / "Outside-Memory"
+        runner = CliRunner()
+        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+            result = runner.invoke(
+                main,
+                ["obsidian", "auto", "--path", str(outside)],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 0, result.output
+        assert not (repo / ".gitignore").exists()
+        assert "to .gitignore" not in result.output

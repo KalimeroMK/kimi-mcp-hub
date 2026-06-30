@@ -323,7 +323,7 @@ The first vault added is set as the default memory vault. After adding a vault, 
 
 ### Project-specific memory
 
-When working across multiple repositories, `kimi-mcp-hub obsidian auto` detects the current git repo and creates/switches to a project-specific vault at `<repo-root>/<RepoName>-Memory`. To make this automatic whenever you start Kimi, add a shell wrapper to your `~/.zshrc`:
+When working across multiple repositories, `kimi-mcp-hub obsidian auto` detects the current git repo and creates/switches to a project-specific vault at `<repo-root>/<RepoName>-Memory`. If the vault lives inside the repo, the command also adds it to `.gitignore` so it is never committed. To make this automatic whenever you start Kimi, add a shell wrapper to your `~/.zshrc`:
 
 ```bash
 k() {
