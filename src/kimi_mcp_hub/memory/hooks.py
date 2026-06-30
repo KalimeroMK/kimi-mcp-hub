@@ -1,11 +1,15 @@
 """Kimi CLI hooks for automatic memory capture."""
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
 from ..config import KimiConfig
 from ..servers.obsidian import ObsidianServer
 from .db import MemoryDB
+from .summarizer import Summarizer
+
+_logger = logging.getLogger(__name__)
 
 
 class MemoryHooks:
@@ -58,11 +62,11 @@ class MemoryHooks:
             summary="Session completed",
             tags=["session"],
         )
-        self._write_session_note(payload)
+        self._write_session_notes(payload)
 
     def session_end(self, payload: dict) -> None:
         """Called on SessionEnd. Finalizes."""
-        self._write_session_note(payload)
+        pass
 
     def _default_vault_path(self) -> Path | None:
         """Return the configured default Obsidian vault, if any."""
@@ -71,13 +75,12 @@ class MemoryHooks:
             return Path(path).expanduser().resolve()
         return None
 
-    def _write_session_note(self, payload: dict) -> None:
-        """Persist a session summary to the default Obsidian vault."""
+    def _write_session_notes(self, payload: dict) -> None:
+        """Persist raw observations and an LLM summary to the default Obsidian vault."""
         vault_path = self._default_vault_path()
         if not vault_path:
             return
 
-        # Ensure the vault is valid so obsidian-mcp recognizes anything we add.
         if not ObsidianServer.validate_vault(vault_path, fix=True):
             return
 
@@ -90,24 +93,60 @@ class MemoryHooks:
         try:
             note_dir = vault_path / "Sessions"
             note_dir.mkdir(parents=True, exist_ok=True)
-            note_path = note_dir / f"{timestamp}-{session_id[:8]}.md"
 
-            lines = [
-                f"# Session {timestamp}",
-                "",
-                f"- **Session ID:** `{session_id}`",
-                f"- **Project:** `{project_path}`",
-                "",
-                "## Observations",
-                "",
-            ]
-            for obs in recent:
-                summary = obs["summary"] or obs["content"][:200]
-                lines.append(f"- [{obs['type']}] {summary}")
-            if not recent:
-                lines.append("- No observations captured yet.")
+            raw_path = note_dir / f"{timestamp}-{session_id}.md"
+            raw_path.write_text(
+                self._format_raw_note(timestamp, session_id, project_path, recent),
+                encoding="utf-8",
+            )
 
-            note_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            summarizer = Summarizer.from_config()
+            summary = summarizer.summarize_session(recent)
+            if summary:
+                summary_path = note_dir / f"{timestamp}-{session_id}-summary.md"
+                summary_path.write_text(
+                    self._format_summary_note(
+                        timestamp, session_id, project_path, summary
+                    ),
+                    encoding="utf-8",
+                )
         except OSError:
-            # Fail silently: memory hooks should not break the CLI session.
+            _logger.debug("Failed to write Obsidian session notes", exc_info=True)
             return
+
+    def _format_raw_note(
+        self,
+        timestamp: str,
+        session_id: str,
+        project_path: str,
+        observations: list[dict],
+    ) -> str:
+        lines = [
+            f"# Session {timestamp}",
+            "",
+            f"- **Session ID:** `{session_id}`",
+            f"- **Project:** `{project_path}`",
+            "",
+            "## Observations",
+            "",
+        ]
+        for obs in observations:
+            summary = obs["summary"] or obs["content"][:200]
+            lines.append(f"- [{obs['type']}] {summary}")
+        if not observations:
+            lines.append("- No observations captured yet.")
+        return "\n".join(lines) + "\n"
+
+    def _format_summary_note(
+        self,
+        timestamp: str,
+        session_id: str,
+        project_path: str,
+        summary: str,
+    ) -> str:
+        return (
+            f"# Session Summary {timestamp}\n\n"
+            f"- **Session ID:** `{session_id}`\n"
+            f"- **Project:** `{project_path}`\n\n"
+            f"{summary}\n"
+        )

@@ -1,6 +1,7 @@
 """Tests for ObsidianServer multi-vault helpers and templates."""
 
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -183,9 +184,7 @@ class TestObsidianTemplateSync:
 
 
 class TestMemoryHooksObsidian:
-    def test_stop_writes_session_note_to_default_vault(
-        self, tmp_path, monkeypatch
-    ):
+    def test_stop_writes_session_note_to_default_vault(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
         vault = tmp_path / "Memory"
         config = KimiConfig()
@@ -219,6 +218,87 @@ class TestMemoryHooksObsidian:
         hooks.stop({"session_id": "sess-1", "project_path": "/tmp/project"})
 
         assert not vault.exists()
+
+    def test_stop_writes_summary_and_raw_notes(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+        config.set_memory_summary_config(api_key="sk-test", model="gpt-4o-mini")
+
+        db = MemoryDB()
+        db.add_observation(
+            session_id="sess-1",
+            obs_type="tool",
+            content="output",
+            summary="Used bash",
+            tags=["bash"],
+        )
+
+        hooks = MemoryHooks(db=db)
+        with mock.patch(
+            "kimi_mcp_hub.memory.hooks.Summarizer.summarize_session",
+            return_value="## Summary\n\nGreat session.",
+        ):
+            hooks.stop({"session_id": "sess-1", "project_path": "/tmp/project"})
+
+        summary_notes = list((vault / "Sessions").glob("*summary.md"))
+        raw_notes = [
+            p
+            for p in (vault / "Sessions").glob("*.md")
+            if not p.name.endswith("-summary.md")
+        ]
+        assert len(summary_notes) == 1
+        assert len(raw_notes) == 1
+        assert "## Summary" in summary_notes[0].read_text(encoding="utf-8")
+        assert "Used bash" in raw_notes[0].read_text(encoding="utf-8")
+
+    def test_session_start_returns_recent_context(self, tmp_path):
+        db = MemoryDB(db_path=tmp_path / "memory.db")
+        db.add_observation(
+            session_id="sess-start",
+            obs_type="tool",
+            content="output content",
+            summary="Used bash",
+            tags=["bash"],
+        )
+
+        hooks = MemoryHooks(db=db)
+        context = hooks.session_start(
+            {"session_id": "sess-start", "project_path": "/tmp/project"}
+        )
+
+        assert "[Memory] Recent context:" in context
+        assert "Used bash" in context
+
+    def test_post_tool_use_adds_observation(self, tmp_path):
+        db = MemoryDB(db_path=tmp_path / "memory.db")
+        hooks = MemoryHooks(db=db)
+        hooks.post_tool_use(
+            {
+                "session_id": "sess-tool",
+                "tool": "bash",
+                "output": "some output",
+            }
+        )
+
+        recent = db.get_recent()
+        assert len(recent) == 1
+        assert recent[0]["type"] == "tool"
+        assert recent[0]["summary"] == "Used bash"
+        assert recent[0]["content"] == "some output"
+
+    def test_session_end_writes_no_notes(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        db = MemoryDB()
+        hooks = MemoryHooks(db=db)
+        hooks.session_end({"session_id": "sess-end", "project_path": "/tmp/project"})
+
+        assert not (vault / "Sessions").exists()
 
 
 class TestMemoryHookCli:
