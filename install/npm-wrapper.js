@@ -8,7 +8,6 @@ const path = require("path");
 const os = require("os");
 
 const REPO = "KalimeroMK/kimi-mcp-hub";
-const PYPI_NAME = "kimi-mcp-hub";
 const PYTHON_MODULE = "kimi_mcp_hub";
 const INSTALL_DIR = path.join(os.homedir(), ".kimi-mcp-hub");
 const VENV_DIR = process.env.KIMI_MCP_HUB_VENV || path.join(INSTALL_DIR, ".venv");
@@ -100,22 +99,9 @@ function installPackage(python) {
   run(venvPy, ["-m", "pip", "install", "--upgrade", "pip"]);
 
   const installSpec = getInstallSpec();
-
-  // Prefer PyPI when the package is published and not running from a local repo.
-  let installArgs;
-  if (installSpec === LOCAL_REPO_DIR) {
-    installArgs = ["-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", installSpec];
-  } else {
-    const pypiDry = spawnSync(
-      venvPy,
-      ["-m", "pip", "install", "--dry-run", PYPI_NAME],
-      { stdio: "pipe", shell: false }
-    );
-    installArgs =
-      pypiDry.status === 0
-        ? ["-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", PYPI_NAME]
-        : ["-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", installSpec];
-  }
+  const installArgs = [
+    "-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "--upgrade", installSpec,
+  ];
 
   const installResult = run(venvPy, installArgs);
   if (installResult !== 0) {

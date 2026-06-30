@@ -229,8 +229,7 @@ class TestUpdateCommand:
         assert result.exit_code == 0
         pip_mock.assert_called_once()
         sources = pip_mock.call_args[0][1]
-        assert sources[0][0] == "GitHub"
-        assert sources[1][0] == "PyPI"
+        assert [s[0] for s in sources] == ["GitHub"]
         link_mock.assert_called_once_with(venv_dir)
 
     def test_update_in_place_existing_venv(self):
@@ -269,12 +268,11 @@ class TestUpdateCommand:
         assert "Update failed" in result.output
         link_mock.assert_not_called()
         sources = pip_mock.call_args[0][1]
-        assert [s[0] for s in sources] == ["GitHub", "PyPI"]
+        assert [s[0] for s in sources] == ["GitHub"]
 
-    def test_run_pip_upgrade_tries_sources_in_order(self):
+    def test_run_pip_upgrade_tries_single_source(self):
         results = iter(
             [
-                mock.Mock(returncode=1, stdout="", stderr="git error"),
                 mock.Mock(returncode=0, stdout="", stderr=""),
             ]
         )
@@ -289,16 +287,14 @@ class TestUpdateCommand:
                 "/fake/python",
                 [
                     ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"),
-                    ("PyPI", "kimi-mcp-hub"),
                 ],
             )
         assert success is True
-        assert run_mock.call_count == 2
+        assert run_mock.call_count == 1
         assert (
             run_mock.call_args_list[0][0][0][-1]
             == "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"
         )
-        assert run_mock.call_args_list[1][0][0][-1] == "kimi-mcp-hub"
 
     def test_link_venv_binaries_creates_symlinks(self, tmp_path, monkeypatch):
         home = tmp_path / "home"

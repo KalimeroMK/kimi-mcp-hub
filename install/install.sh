@@ -151,14 +151,6 @@ link_binaries() {
     fi
 }
 
-install_from_pypi() {
-    print_info "Installing kimi-mcp-hub from PyPI..."
-    create_venv
-    "$VENV_DIR/bin/pip" install --upgrade kimi-mcp-hub
-    link_binaries
-    print_success "Installed from PyPI"
-}
-
 install_from_github() {
     print_info "Cloning repository..."
     
@@ -316,7 +308,7 @@ main() {
                 OBSIDIAN_VAULT="$2"
                 shift 2
                 ;;
-            --pip|--clone|--pypi|pip|clone|pypi)
+            --pip|--clone|pip|clone)
                 METHOD="$1"
                 shift
                 ;;
@@ -334,18 +326,8 @@ main() {
         --clone|clone)
             install_from_github
             ;;
-        --pypi|pypi)
-            install_from_pypi
-            ;;
         *)
-            # Try PyPI first, fallback to pip+git
-            create_venv
-            if "$VENV_DIR/bin/pip" install --dry-run kimi-mcp-hub &>/dev/null 2>&1; then
-                install_from_pypi
-            else
-                print_info "PyPI package not found, installing from GitHub..."
-                install_pip_git
-            fi
+            install_pip_git
             ;;
     esac
     

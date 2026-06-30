@@ -606,13 +606,12 @@ def install():
         return
 
     sources = [
-        ("PyPI", "kimi-mcp-hub"),
         ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"),
     ]
     _perform_upgrade(
         sources,
         success_message="Installation complete.",
-        failure_message="Install failed. Try:",
+        failure_message="Install failed. Try the curl installer:",
     )
 
 
@@ -627,16 +626,13 @@ def update():
         console.print("Run: [bold]git pull && pip install -e .[/bold] from repo root\n")
         return
 
-    # For updates prefer GitHub (latest main) over PyPI, since the package may
-    # not be published yet.
     sources = [
         ("GitHub", "git+https://github.com/KalimeroMK/kimi-mcp-hub.git"),
-        ("PyPI", "kimi-mcp-hub"),
     ]
     _perform_upgrade(
         sources,
         success_message="Update complete. Restart your terminal to use the new version.",
-        failure_message="Update failed. Try:",
+        failure_message="Update failed. Try the curl installer:",
     )
 
 

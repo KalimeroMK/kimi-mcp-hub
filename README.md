@@ -10,7 +10,6 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
   - [One-liner with npx (recommended)](#one-liner-with-npx-recommended)
   - [One-liner (curl / PowerShell)](#one-liner-curl-powershell)
   - [From GitHub (pip) inside a venv](#from-github-pip-inside-a-venv)
-  - [From PyPI (when published)](#from-pypi-when-published)
   - [Clone + Install (development)](#clone-install-development)
   - [Requirements](#requirements)
   - [Verify](#verify)
@@ -71,14 +70,6 @@ iwr -useb https://raw.githubusercontent.com/KalimeroMK/kimi-mcp-hub/main/install
 # Direct from GitHub -- no clone needed
 python3 -m venv ~/.kimi-mcp-hub/.venv
 ~/.kimi-mcp-hub/.venv/bin/pip install --upgrade git+https://github.com/KalimeroMK/kimi-mcp-hub.git
-ln -s ~/.kimi-mcp-hub/.venv/bin/kimi-mcp-hub ~/.local/bin/kimi-mcp-hub
-```
-
-### From PyPI (when published)
-
-```bash
-python3 -m venv ~/.kimi-mcp-hub/.venv
-~/.kimi-mcp-hub/.venv/bin/pip install --upgrade kimi-mcp-hub
 ln -s ~/.kimi-mcp-hub/.venv/bin/kimi-mcp-hub ~/.local/bin/kimi-mcp-hub
 ```
 
@@ -253,7 +244,7 @@ Update `kimi-mcp-hub` to the latest version in the isolated venv:
 kimi-mcp-hub update
 ```
 
-This upgrades the package from GitHub (preferred) or PyPI and refreshes the `~/.local/bin` symlinks. Development installs (git checkouts) are detected and skipped.
+This upgrades the package from GitHub and refreshes the `~/.local/bin` symlinks. Development installs (git checkouts) are detected and skipped.
 
 ---
 
@@ -742,7 +733,7 @@ pytest -q
 |         kimi-mcp-hub CLI                |
 |  +---------------------------------+    |
 |  |  (no args) -> welcome banner    |    |
-|  |  install -> PyPI/GitHub update  |    |
+|  |  install -> GitHub update  |    |
 |  |  init -> interactive wizard     |    |
 |  |  add  -> writes ~/.kimi-code/...|    |
 |  |  add --project -> writes ./.kimi|    |
