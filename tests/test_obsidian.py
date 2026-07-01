@@ -253,6 +253,29 @@ class TestMemoryHooksObsidian:
         assert "## Summary" in summary_notes[0].read_text(encoding="utf-8")
         assert "Used bash" in raw_notes[0].read_text(encoding="utf-8")
 
+    def test_stop_writes_session_note_using_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        db = MemoryDB()
+        db.add_observation(
+            session_id="sess-1",
+            obs_type="tool",
+            content="output",
+            summary="Used bash",
+            tags=["bash"],
+        )
+
+        hooks = MemoryHooks(db=db)
+        hooks.stop({"session_id": "sess-1", "cwd": "/tmp/project"})
+
+        notes = list((vault / "Sessions").glob("*.md"))
+        assert len(notes) == 1
+        text = notes[0].read_text(encoding="utf-8")
+        assert "`/tmp/project`" in text
+
     def test_session_start_returns_recent_context(self, tmp_path):
         db = MemoryDB(db_path=tmp_path / "memory.db")
         db.add_observation(
@@ -287,6 +310,24 @@ class TestMemoryHooksObsidian:
         assert recent[0]["type"] == "tool"
         assert recent[0]["summary"] == "Used bash"
         assert recent[0]["content"] == "some output"
+
+    def test_post_tool_use_adds_observation_from_kimi_payload(self, tmp_path):
+        db = MemoryDB(db_path=tmp_path / "memory.db")
+        hooks = MemoryHooks(db=db)
+        hooks.post_tool_use(
+            {
+                "session_id": "sess-tool",
+                "tool_name": "bash",
+                "tool_input": {"command": "ls -la"},
+                "tool_output": "file.txt\n",
+            }
+        )
+
+        recent = db.get_recent()
+        assert len(recent) == 1
+        assert recent[0]["type"] == "tool"
+        assert recent[0]["summary"] == "Used bash"
+        assert recent[0]["content"] == "file.txt\n"
 
     def test_session_end_writes_no_notes(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -338,6 +379,20 @@ class TestMemoryHooksProjectMemory:
         )
         result = hooks.session_start(
             {"session_id": "s1", "project_path": str(tmp_path)}
+        )
+        assert "[Memory] Project notes:" in result
+        assert "Always run tests before push" in result
+
+    def test_session_start_uses_cwd_as_project_path(self, tmp_path):
+        db = MemoryDB(db_path=tmp_path / "memory.db")
+        hooks = MemoryHooks(db=db)
+        db.add_memory(
+            "Always run tests before push",
+            category="project",
+            project_path=str(tmp_path),
+        )
+        result = hooks.session_start(
+            {"session_id": "s1", "cwd": str(tmp_path)}
         )
         assert "[Memory] Project notes:" in result
         assert "Always run tests before push" in result

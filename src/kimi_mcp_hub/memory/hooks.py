@@ -26,7 +26,9 @@ class MemoryHooks:
 
     def session_start(self, payload: dict) -> str:
         """Called on SessionStart. Injects relevant context."""
-        project_path = payload.get("project_path", "")
+        # Kimi CLI sends the working directory as ``cwd``; keep ``project_path``
+        # as a fallback for tests and alternative callers.
+        project_path = payload.get("cwd") or payload.get("project_path", "")
         if project_path:
             project_path = str(Path(project_path).resolve())
         parts: list[str] = []
@@ -56,8 +58,10 @@ class MemoryHooks:
     def post_tool_use(self, payload: dict) -> None:
         """Called on PostToolUse. Saves tool output."""
         session_id = payload.get("session_id", "unknown")
-        tool_name = payload.get("tool", "")
-        output = payload.get("output") or ""
+        # Kimi CLI uses ``tool_name`` and ``tool_output``; keep ``tool``/``output``
+        # as fallbacks for tests and alternative callers.
+        tool_name = payload.get("tool_name") or payload.get("tool", "")
+        output = payload.get("tool_output") or payload.get("output") or ""
         output = str(output)
 
         if len(output) > 1000:
@@ -105,7 +109,9 @@ class MemoryHooks:
 
         session_id = payload.get("session_id", "unknown")
         safe_session_id = _sanitize_session_id(session_id)
-        project_path = payload.get("project_path", "")
+        # Kimi CLI sends the working directory as ``cwd``; keep ``project_path``
+        # as a fallback for tests and alternative callers.
+        project_path = payload.get("cwd") or payload.get("project_path", "")
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
 
         recent = self.db.get_recent(session_id=session_id, limit=50)
