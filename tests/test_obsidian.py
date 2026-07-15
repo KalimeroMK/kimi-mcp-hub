@@ -276,6 +276,82 @@ class TestMemoryHooksObsidian:
         text = notes[0].read_text(encoding="utf-8")
         assert "`/tmp/project`" in text
 
+    def test_stop_note_includes_content_not_only_generic_summary(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        db = MemoryDB()
+        db.add_observation(
+            session_id="sess-1",
+            obs_type="tool",
+            content="file.txt\n",
+            summary="Used bash",
+            tags=["bash"],
+        )
+
+        hooks = MemoryHooks(db=db)
+        hooks.stop({"session_id": "sess-1", "cwd": "/tmp/project"})
+
+        notes = list((vault / "Sessions").glob("*.md"))
+        assert len(notes) == 1
+        text = notes[0].read_text(encoding="utf-8")
+        assert "Used bash" in text
+        assert "file.txt" in text
+        assert "- [tool] Used\n" not in text
+
+    def test_stop_note_saves_image_attachment_to_vault(self, tmp_path, monkeypatch):
+        import base64
+
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        db = MemoryDB()
+        hooks = MemoryHooks(db=db)
+        png_bytes = b"\x89PNG\r\n\x1a\n" + b"fake-image-bytes" * 8
+        hooks.post_tool_use(
+            {
+                "session_id": "sess-img",
+                "tool_name": "take_screenshot",
+                "tool_output": {
+                    "mime_type": "image/png",
+                    "data": base64.b64encode(png_bytes).decode(),
+                },
+            }
+        )
+        hooks.stop({"session_id": "sess-img", "cwd": "/tmp/project"})
+
+        notes = list((vault / "Sessions").glob("*.md"))
+        assert len(notes) == 1
+        attachments = list((vault / "Attachments").glob("*.png"))
+        assert len(attachments) == 1
+        text = notes[0].read_text(encoding="utf-8")
+        assert "![take_screenshot]" in text
+        assert "Attachments/" in text
+
+    def test_stop_note_falls_back_to_current_working_directory(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Memory"
+        config = KimiConfig()
+        config.set_default_memory_vault(str(vault))
+
+        db = MemoryDB()
+        hooks = MemoryHooks(db=db)
+        monkeypatch.chdir(tmp_path)
+        hooks.stop({"session_id": "sess-cwd"})
+
+        notes = list((vault / "Sessions").glob("*.md"))
+        assert len(notes) == 1
+        text = notes[0].read_text(encoding="utf-8")
+        assert f"`{tmp_path}`" in text
+
     def test_session_start_returns_recent_context(self, tmp_path):
         db = MemoryDB(db_path=tmp_path / "memory.db")
         db.add_observation(
@@ -328,6 +404,41 @@ class TestMemoryHooksObsidian:
         assert recent[0]["type"] == "tool"
         assert recent[0]["summary"] == "Used bash"
         assert recent[0]["content"] == "file.txt\n"
+
+    def test_post_tool_use_reads_tool_response(self, tmp_path):
+        db = MemoryDB(db_path=tmp_path / "memory.db")
+        hooks = MemoryHooks(db=db)
+        hooks.post_tool_use(
+            {
+                "session_id": "sess-tool",
+                "tool_name": "Bash",
+                "tool_input": {"command": "echo hi"},
+                "tool_response": {"stdout": "hi\n", "stderr": "", "isImage": False},
+            }
+        )
+
+        recent = db.get_recent()
+        assert len(recent) == 1
+        assert recent[0]["type"] == "tool"
+        assert recent[0]["summary"] == "Used Bash"
+        assert "hi" in recent[0]["content"]
+
+    def test_post_tool_use_extracts_text_from_dict_response(self, tmp_path):
+        db = MemoryDB(db_path=tmp_path / "memory.db")
+        hooks = MemoryHooks(db=db)
+        hooks.post_tool_use(
+            {
+                "session_id": "sess-tool",
+                "name": "Read",
+                "tool_input": {"file_path": "foo.txt"},
+                "tool_response": "line 1\nline 2\n",
+            }
+        )
+
+        recent = db.get_recent()
+        assert len(recent) == 1
+        assert recent[0]["summary"] == "Used Read"
+        assert "line 1" in recent[0]["content"]
 
     def test_session_end_writes_no_notes(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -391,9 +502,7 @@ class TestMemoryHooksProjectMemory:
             category="project",
             project_path=str(tmp_path),
         )
-        result = hooks.session_start(
-            {"session_id": "s1", "cwd": str(tmp_path)}
-        )
+        result = hooks.session_start({"session_id": "s1", "cwd": str(tmp_path)})
         assert "[Memory] Project notes:" in result
         assert "Always run tests before push" in result
 
