@@ -367,6 +367,18 @@ def _confirm(text: str, default: bool = False, yes: bool = False) -> bool:
     return Confirm.ask(text, default=default)
 
 
+def _require_project_root() -> Path:
+    """Resolve the current project root or exit with an error."""
+    project_root = find_project_root()
+    if not project_root:
+        console.print("[red]No project root found.[/red]")
+        console.print(
+            "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+        )
+        sys.exit(1)
+    return project_root
+
+
 @main.command()
 @click.option(
     "--project",
@@ -385,13 +397,7 @@ def init(project: bool, yes: bool):
 
     project_root = None
     if project:
-        project_root = find_project_root()
-        if not project_root:
-            console.print("[red]No project root found.[/red]")
-            console.print(
-                "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
-            )
-            sys.exit(1)
+        project_root = _require_project_root()
         console.print(f"\n[dim]Saving MCP servers to project: {project_root}[/dim]\n")
 
     console.print("\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n")
@@ -678,7 +684,6 @@ def status():
         )
         table.add_row("Project", project_status)
 
-    config = KimiConfig()
     table.add_row(
         "Memory",
         (
@@ -765,13 +770,7 @@ def add(server_name: str, project: bool):
 
     project_root = None
     if project:
-        project_root = find_project_root()
-        if not project_root:
-            console.print("[red]No project root found.[/red]")
-            console.print(
-                "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
-            )
-            sys.exit(1)
+        project_root = _require_project_root()
         console.print(f"[dim]Adding to project: {project_root}[/dim]\n")
 
     add_server_interactive(server_name, config, project_root=project_root)
@@ -787,10 +786,7 @@ def add(server_name: str, project: bool):
 def remove(server_name: str, project: bool):
     """Remove an MCP server."""
     if project:
-        project_root = find_project_root()
-        if not project_root:
-            console.print("[red]No project root found.[/red]")
-            sys.exit(1)
+        project_root = _require_project_root()
         pc = ProjectConfig(project_root)
         pc.remove_server(server_name)
         console.print(f"[green]Removed {server_name} from project config[/green]")
@@ -842,7 +838,6 @@ def list():
         console.print("\n[yellow]No skills installed.[/yellow]")
 
     # Memory
-    config = KimiConfig()
     if config.memory_db.exists():
         console.print(f"\n[green]Memory enabled:[/green] {config.memory_db}")
     else:
@@ -959,7 +954,7 @@ def apply_claude_compat_patch(yes: bool = False) -> bool:
             )
         )
 
-        if not Confirm.ask("\nDodaj go ova vo ~/.kimi-code/AGENTS.md?", default=True):
+        if not Confirm.ask("\nAdd this to ~/.kimi-code/AGENTS.md?", default=True):
             console.print("[dim]Cancelled.[/dim]")
             return False
 
@@ -999,10 +994,7 @@ def auth(server_name: str, project: bool):
 
     project_root = None
     if project:
-        project_root = find_project_root()
-        if not project_root:
-            console.print("[red]No project root found.[/red]")
-            sys.exit(1)
+        project_root = _require_project_root()
         console.print(f"[dim]Saving to project: {project_root}[/dim]\n")
 
     # Servers with new auto-browser OAuth
@@ -1308,9 +1300,10 @@ def doctor():
 
     console.print(table)
 
+    config = KimiConfig()
+
     # Permission check / fix for sensitive files
     if sys.platform != "win32":
-        config = KimiConfig()
         fixed_files = []
         for sensitive_path in (config.mcp_json, config.tokens_file, config.memory_db):
             if sensitive_path.exists():
@@ -1326,7 +1319,6 @@ def doctor():
             for fp in fixed_files:
                 console.print(f"  {fp}")
 
-    config = KimiConfig()
     servers = config.list_servers()
     if servers:
         console.print(
@@ -2143,10 +2135,15 @@ def add_server_interactive(
     elif name == "github":
         choice = Prompt.ask(
             "Auth method",
-            choices=["pat", "oauth-device"],
-            default="pat",
+            choices=["official-oauth", "pat", "oauth-device"],
+            default="official-oauth",
         )
-        if choice == "oauth-device":
+        if choice == "official-oauth":
+            cfg = GitHubServer.get_official_config()
+            add_server_with_preflight(name, cfg, config, project_root=project_root)
+            console.print(f"[green]Added {display} (Official remote MCP)[/green]")
+            console.print(f"[dim]   Run: kimi mcp auth {name} to complete OAuth[/dim]")
+        elif choice == "oauth-device":
             token_data = authenticate_github()
             if token_data and "access_token" in token_data:
                 cfg = GitHubServer.get_stdio_config(token_data["access_token"])

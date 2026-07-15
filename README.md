@@ -96,13 +96,13 @@ pip install -e .
 
 ```bash
 kimi-mcp-hub --version
-# -> kimi-mcp-hub, version 0.2.0
+# -> kimi-mcp-hub, version 0.2.1
 ```
 
 On first run you'll see:
 
 ```
-Kimi MCP Hub v0.2.0 installed successfully!
+Kimi MCP Hub v0.2.1 installed successfully!
 
 24 MCP servers available
 57 AI skills for better coding

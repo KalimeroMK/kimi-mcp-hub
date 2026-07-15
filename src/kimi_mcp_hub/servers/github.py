@@ -4,7 +4,7 @@ from typing import Any
 
 
 class GitHubServer:
-    """GitHub MCP server — GitHub token based."""
+    """GitHub MCP server -- official remote (OAuth/PAT) or token-based stdio."""
 
     name = "github"
     display_name = "GitHub"
@@ -12,7 +12,21 @@ class GitHubServer:
     icon = "🐙"
 
     @classmethod
+    def get_official_config(cls) -> dict[str, Any]:
+        """Official GitHub remote MCP server (OAuth 2.1 browser flow).
+
+        After adding, complete authorization from Kimi CLI with
+        ``kimi mcp auth github``.
+        """
+        return {
+            "transport": "http",
+            "url": "https://api.githubcopilot.com/mcp/",
+            "auth": "oauth",
+        }
+
+    @classmethod
     def get_stdio_config(cls, token: str) -> dict[str, Any]:
+        """Legacy community stdio server using a personal access token."""
         return {
             "command": "npx",
             "args": ["-y", "@modelcontextprotocol/server-github"],
@@ -24,10 +38,10 @@ class GitHubServer:
     @classmethod
     def get_tools(cls) -> list[dict[str, str]]:
         return [
-            {"name": "github_search_repos", "desc": "Search repositories"},
-            {"name": "github_create_issue", "desc": "Create issue"},
-            {"name": "github_create_pull_request", "desc": "Create PR"},
-            {"name": "github_list_commits", "desc": "List commits"},
-            {"name": "github_read_file", "desc": "Read file contents"},
-            {"name": "github_search_code", "desc": "Search code across repos"},
+            {"name": "search_repositories", "desc": "Search repositories"},
+            {"name": "create_issue", "desc": "Create issue"},
+            {"name": "create_pull_request", "desc": "Create PR"},
+            {"name": "list_commits", "desc": "List commits"},
+            {"name": "get_file_contents", "desc": "Read file contents"},
+            {"name": "search_code", "desc": "Search code across repos"},
         ]

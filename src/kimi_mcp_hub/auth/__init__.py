@@ -10,7 +10,6 @@ Usage:
 """
 
 from .oauth import (
-    OAuthHandler,
     TokenStore,
     DeviceFlowHandler,
     WebFlowHandler,
@@ -22,7 +21,6 @@ from .providers import authenticate, AUTH_HANDLERS
 __all__ = [
     "authenticate",
     "AUTH_HANDLERS",
-    "OAuthHandler",
     "TokenStore",
     "DeviceFlowHandler",
     "WebFlowHandler",

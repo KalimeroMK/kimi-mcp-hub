@@ -47,18 +47,9 @@ class OAuthProvider:
     # Default flow preference
     default_flow: str = "web"  # "web" or "device"
 
-    def is_configured(self) -> bool:
-        """Check if provider has required credentials."""
-        return self.client_id is not None
-
     def get_token_store(self) -> TokenStore:
         """Get token store for this provider."""
-        from pathlib import Path
-        import platformdirs
-
-        config_dir = Path(platformdirs.user_config_dir("kimi-mcp-hub", "MoonshotAI"))
-        config_dir.mkdir(parents=True, exist_ok=True)
-        return TokenStore(config_dir)
+        return TokenStore(_get_config_dir())
 
 
 # ---------------------------------------------------------------------------
@@ -151,16 +142,7 @@ def _github_device_flow(client_id: str | None = None) -> dict | None:
 
     # Step 1: Request device code
     try:
-        import requests
-
-        resp = requests.post(
-            provider.device_auth_url,
-            data={"client_id": client_id, "scope": " ".join(provider.scopes)},
-            headers={"Accept": "application/json"},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        device_info = resp.json()
+        device_info = handler.start()
     except Exception as e:
         console.print(f"[red]Failed to start device flow: {e}[/red]")
         return None
@@ -222,8 +204,10 @@ ATLASSIAN_PROVIDER = OAuthProvider(
     icon="",
     auth_url="https://auth.atlassian.com/authorize",
     token_url="https://auth.atlassian.com/oauth/token",
-    # Public OAuth app for kimi-mcp-hub
-    client_id="kimi-mcp-hub-atlassian",
+    # Atlassian requires each user to register their own OAuth 2.0 app at
+    # https://developer.atlassian.com/console/myapps/ — there is no public
+    # client_id, so the OAuth option prompts for one.
+    client_id=None,
     scopes=[
         "read:jira-work",
         "write:jira-work",
@@ -287,11 +271,13 @@ def authenticate_atlassian(service: str = "jira") -> dict | None:
         return {"token": token, "email": email, "base_url": base_url}
 
     if choice == "oauth":
-        custom_client_id = Prompt.ask(
-            "Atlassian OAuth Client ID",
-            default=provider.client_id,
-        ).strip()
-        client_id = custom_client_id or provider.client_id
+        client_id = Prompt.ask("Atlassian OAuth Client ID").strip()
+        if not client_id:
+            console.print(
+                "[red]A Client ID is required for OAuth. "
+                "Create an app at https://developer.atlassian.com/console/myapps/[/red]"
+            )
+            return None
         handler = WebFlowHandler(
             auth_url=provider.auth_url,
             token_url=provider.token_url,
@@ -367,7 +353,7 @@ def authenticate_google() -> dict | None:
     token_data = handler.authorize(timeout=120)
 
     if token_data and "access_token" in token_data:
-        store = TokenStore(__get_config_dir())
+        store = TokenStore(_get_config_dir())
         store.save("gmail", token_data)
         console.print("[bold green]Gmail authorized successfully![/bold green]")
         return token_data
@@ -432,7 +418,7 @@ def authenticate_slack() -> dict | None:
 
         token_data = handler.authorize(timeout=120)
         if token_data:
-            store = TokenStore(__get_config_dir())
+            store = TokenStore(_get_config_dir())
             store.save("slack", token_data)
             console.print("[bold green]Slack authorized![/bold green]")
             return token_data
@@ -508,7 +494,7 @@ def authenticate_figma() -> dict | None:
 
         token_data = handler.authorize(timeout=120)
         if token_data:
-            store = TokenStore(__get_config_dir())
+            store = TokenStore(_get_config_dir())
             store.save("figma", token_data)
             console.print("[bold green]Figma authorized![/bold green]")
             return token_data
@@ -552,7 +538,7 @@ def authenticate(server: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-def __get_config_dir() -> Path:
+def _get_config_dir() -> Path:
     """Get config directory."""
     import platformdirs
 

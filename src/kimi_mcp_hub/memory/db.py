@@ -53,15 +53,6 @@ class MemoryDB:
                 )
             """)
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS sessions (
-                    session_id TEXT PRIMARY KEY,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT,
-                    project_path TEXT,
-                    summary TEXT
-                )
-            """)
-            conn.execute("""
                 CREATE TABLE IF NOT EXISTS memories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,

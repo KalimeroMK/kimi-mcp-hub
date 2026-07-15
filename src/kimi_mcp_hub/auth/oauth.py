@@ -4,7 +4,7 @@ Supports:
 - PKCE (Proof Key for Code Exchange) for secure OAuth
 - Device Flow for CLI apps (GitHub, Google, etc.)
 - Localhost callback with auto browser open
-- Token storage with optional keyring encryption
+- Plain-JSON token storage (chmod 600 on Unix)
 """
 
 import json
@@ -50,6 +50,7 @@ class _CallbackServer(socketserver.TCPServer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.code: str | None = None
+        self.state: str | None = None
         self.error: str | None = None
         self.error_description: str | None = None
 
@@ -63,6 +64,7 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
 
         server = self.server  # type: ignore[attr-defined]
         server.code = query.get("code", [None])[0]
+        server.state = query.get("state", [None])[0]
         server.error = query.get("error", [None])[0]
         server.error_description = query.get("error_description", [None])[0]
 
@@ -202,7 +204,12 @@ class DeviceFlowHandler:
             "client_id": self.client_id,
             "scope": " ".join(self.scopes),
         }
-        resp = requests.post(self.device_endpoint, data=data, timeout=30)
+        resp = requests.post(
+            self.device_endpoint,
+            data=data,
+            headers={"Accept": "application/json"},
+            timeout=30,
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -326,6 +333,11 @@ class WebFlowHandler:
         if not code:
             return None
 
+        # Validate state to protect against CSRF on the redirect
+        if callback.server is None or callback.server.state != state:
+            console.print("[red]OAuth state mismatch. Authorization aborted.[/red]")
+            return None
+
         # Exchange code for token
         return self.exchange_code(code, redirect_uri, code_verifier)
 
@@ -352,60 +364,12 @@ class WebFlowHandler:
             return None
 
 
-# --- Legacy compat ---
-class OAuthHandler:
-    """Legacy OAuth handler -- kept for backward compatibility."""
-
-    def __init__(self, port: int = 0):
-        self._callback = LocalCallbackServer()
-        self.port = port
-
-    def start_callback_server(self) -> int:
-        self.port = self._callback.start()
-        return self.port
-
-    def stop_callback_server(self):
-        self._callback.stop()
-
-    def wait_for_code(self, timeout: int = 120) -> str | None:
-        return self._callback.wait_for_code(timeout)
-
-    def atlassian_oauth(
-        self,
-        client_id: str,
-        scope: str = "read:jira-work write:jira-work read:confluence-content write:confluence-content",
-    ) -> dict:
-        """Atlassian 2-click OAuth for Jira/Confluence."""
-        port = self.start_callback_server()
-        redirect_uri = f"http://127.0.0.1:{port}/callback"
-
-        auth_url = (
-            f"https://auth.atlassian.com/authorize"
-            f"?audience=api.atlassian.com"
-            f"&client_id={client_id}"
-            f"&scope={urllib.parse.quote(scope)}"
-            f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
-            f"&state=kimi-mcp-hub-{port}"
-            f"&response_type=code"
-            f"&prompt=consent"
-        )
-
-        console.print(
-            "\n[bold cyan]Opening browser for Atlassian authorization...[/bold cyan]"
-        )
-        console.print(f"[dim]If browser doesn't open: {auth_url}[/dim]\n")
-        webbrowser.open(auth_url)
-
-        code = self.wait_for_code()
-        self.stop_callback_server()
-
-        if not code:
-            return {}
-        return {"code": code, "redirect_uri": redirect_uri}
-
-
 class TokenStore:
-    """Secure token storage with optional platform keyring encryption."""
+    """Plain-JSON token storage in the hub config directory.
+
+    Files are chmod 600 on Unix (enforced by ``kimi-mcp-hub doctor``), but
+    tokens are not encrypted at rest.
+    """
 
     def __init__(self, config_dir: Path):
         self.file = config_dir / "tokens.json"
