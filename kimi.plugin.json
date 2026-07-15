@@ -1,0 +1,80 @@
+{
+  "name": "kimi-mcp-hub",
+  "version": "0.3.0",
+  "description": "MCP servers, skills, and persistent memory for Kimi Code CLI",
+  "keywords": ["mcp", "skills", "memory", "plugins", "kimi"],
+  "author": "KalimeroMK",
+  "homepage": "https://github.com/KalimeroMK/kimi-mcp-hub",
+  "license": "MIT",
+  "skills": "./src/kimi_mcp_hub/skills/",
+  "commands": "./commands/",
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--port", "9229"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "desktop-commander": {
+      "command": "npx",
+      "args": ["-y", "@wonderwhy-er/desktop-commander@latest"]
+    },
+    "mobile": {
+      "command": "npx",
+      "args": ["-y", "@mobilenext/mobile-mcp@latest"]
+    },
+    "linear": {
+      "transport": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "auth": "oauth"
+    },
+    "jira": {
+      "transport": "http",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "auth": "oauth"
+    },
+    "confluence": {
+      "transport": "http",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "auth": "oauth"
+    },
+    "supabase": {
+      "transport": "http",
+      "url": "https://mcp.supabase.com/mcp?read_only=true",
+      "auth": "oauth"
+    },
+    "figma": {
+      "transport": "http",
+      "url": "https://mcp.figma.com/mcp",
+      "auth": "oauth"
+    },
+    "stripe": {
+      "transport": "http",
+      "url": "https://mcp.stripe.com",
+      "auth": "oauth"
+    },
+    "gitlab": {
+      "transport": "http",
+      "url": "https://gitlab.com/api/v4/mcp",
+      "auth": "oauth"
+    },
+    "github": {
+      "transport": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "auth": "oauth"
+    }
+  },
+  "interface": {
+    "displayName": "Kimi MCP Hub",
+    "shortDescription": "13 MCP servers + 57 skills, installable without leaving Kimi",
+    "longDescription": "One-click MCP servers, AI skills, and persistent memory for Kimi Code CLI. Zero-config servers work immediately; OAuth servers authorize with /mcp-config login; API-key servers via /kimi-mcp-hub:add.",
+    "developerName": "KalimeroMK",
+    "websiteURL": "https://github.com/KalimeroMK/kimi-mcp-hub"
+  }
+}

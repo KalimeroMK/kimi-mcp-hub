@@ -1,6 +1,7 @@
 # Remote MCP Server Setup
 
-This guide covers official **remote MCP servers** that use OAuth 2.1 and are authorized through a browser popup inside Kimi CLI.
+This guide covers official **remote MCP servers** that use OAuth 2.1 and are
+authorized through a browser popup inside Kimi CLI.
 
 ## Which servers use this flow
 
@@ -11,65 +12,62 @@ This guide covers official **remote MCP servers** that use OAuth 2.1 and are aut
 - **Figma**
 - **Stripe**
 - **GitLab**
+- **GitHub**
 
-These servers are hosted by the service provider and require OAuth authorization from within Kimi CLI.
+These servers are hosted by the service provider and require OAuth authorization
+from within Kimi CLI.
 
 ---
 
-## Quick steps
+## Quick steps (Kimi plugin — recommended)
 
-### 1. Add the server outside Kimi CLI
+Everything happens inside the Kimi session:
 
-Open your normal terminal (not the Kimi CLI session) and run:
-
-```bash
-kimi-mcp-hub add <server>
-```
-
-For example:
-
-```bash
-kimi-mcp-hub add linear
-```
-
-When prompted, choose `official-oauth` (or `official`).
-
-This writes the server entry to `~/.kimi-code/mcp.json`.
-
-### 2. Restart Kimi CLI
-
-The new config is only read when Kimi starts:
-
-```bash
-exit
-kimi
-```
-
-### 3. Authorize from inside Kimi CLI
-
-Once Kimi is running, run:
+### 1. Install the plugin
 
 ```text
-/mcp-config login <server>
+/plugins install https://github.com/KalimeroMK/kimi-mcp-hub
+/reload
 ```
 
-For example:
+All eight OAuth servers above are declared by the plugin, plus five zero-config
+stdio servers and 57 skills.
+
+### 2. Authorize each server you want
 
 ```text
 /mcp-config login linear
 ```
 
-Kimi will open a browser OAuth popup. Complete the authorization there.
+Kimi opens a browser OAuth popup. Complete the authorization there. Repeat per
+server (`/mcp-config login jira`, `/mcp-config login github`, ...).
 
-### 4. Verify the server is connected
-
-Run:
+### 3. Verify
 
 ```text
 /mcp
 ```
 
-You should see the tools from the server listed.
+You should see the server's tools listed (namespaced as
+`mcp__plugin-kimi-mcp-hub_<server>__*`).
+
+---
+
+## Classic flow (terminal CLI)
+
+If you installed the Python package instead of the plugin, add servers from a
+normal terminal:
+
+```bash
+kimi-mcp-hub add linear   # choose official-oauth
+```
+
+This writes the server entry to `~/.kimi-code/mcp.json`. Then **restart Kimi
+CLI** and authorize with `/mcp-config login linear` as above.
+
+> Note: servers added this way are not namespaced; don't keep both the plugin
+> and the manual entry for the same server, or tools appear twice. Remove the
+> manual one with `kimi-mcp-hub remove <server>`.
 
 ---
 
@@ -77,57 +75,34 @@ You should see the tools from the server listed.
 
 ### `unknown command 'mcp'`
 
-You probably ran `kimi mcp auth <server>` outside of Kimi CLI. This command must be executed **inside** the Kimi session as `/mcp-config login <server>`.
-
-Fix:
-
-```bash
-kimi
-```
-
-Then inside Kimi:
-
-```text
-/mcp-config login linear
-```
+You probably ran `kimi mcp auth <server>` outside of Kimi CLI. Authorization
+must be executed **inside** the Kimi session as `/mcp-config login <server>`.
 
 ### Server does not appear in `/mcp`
 
-Check that the server was actually saved:
-
-```bash
-kimi-mcp-hub list
-```
-
-If it is missing, repeat step 1.
+- Plugin install: make sure you ran `/reload` (or started a new session) after
+  installing. Check `/plugins info kimi-mcp-hub` — the server should be listed
+  and enabled (`/plugins mcp enable kimi-mcp-hub <server>` if disabled).
+- Classic install: check `kimi-mcp-hub list` and repeat the add step if missing.
 
 ### OAuth popup does not open
 
-Make sure Kimi CLI has permission to open your browser. If not, use the URL shown in the popup prompt or try:
-
-```text
-/mcp-config login linear
-```
-
-again after granting permissions.
+Make sure Kimi CLI has permission to open your browser. If not, use the URL
+shown in the popup prompt, or run `/mcp-config login <server>` again after
+granting permissions.
 
 ---
 
 ## API-key alternative
 
-Some servers also support an API key instead of OAuth. To use that:
+Some servers also support an API key instead of OAuth:
 
-```bash
-kimi-mcp-hub add linear
-```
+- **In-session:** `/kimi-mcp-hub:add linear` — the agent asks for the key and
+  writes the config (credentials typed in chat land in session history).
+- **Terminal:** `kimi-mcp-hub add linear`, choose `api-key`. No browser
+  authorization needed; restart Kimi CLI afterwards.
 
-Choose `api-key` and enter your token. No browser authorization is needed.
-
-For Linear, you can create an API key at:
-
-```text
-https://linear.app/settings/api
-```
+For Linear, create an API key at `https://linear.app/settings/api`.
 
 ---
 
@@ -135,7 +110,7 @@ https://linear.app/settings/api
 
 | Step | Where | Command |
 |------|-------|---------|
-| Add server | Normal terminal | `kimi-mcp-hub add linear` |
-| Restart | Normal terminal | `kimi` |
+| Install plugin | Inside Kimi CLI | `/plugins install https://github.com/KalimeroMK/kimi-mcp-hub` |
+| Activate | Inside Kimi CLI | `/reload` |
 | Authorize | Inside Kimi CLI | `/mcp-config login linear` |
 | Verify | Inside Kimi CLI | `/mcp` |

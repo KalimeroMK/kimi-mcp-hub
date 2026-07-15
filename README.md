@@ -6,6 +6,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 
 ## Table of Contents
 
+- [Install as a Kimi plugin (recommended)](#install-as-a-kimi-plugin-recommended)
 - [Install](#install)
   - [One-liner with npx (recommended)](#one-liner-with-npx-recommended)
   - [One-liner (curl / PowerShell)](#one-liner-curl-powershell)
@@ -31,6 +32,48 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [MCP Servers](#24-mcp-servers)
 - [Skills](#57-skills)
 - [Architecture](#architecture)
+
+---
+
+## Install as a Kimi plugin (recommended)
+
+Since Kimi Code CLI 0.23, `kimi-mcp-hub` ships as a native Kimi plugin
+(`kimi.plugin.json`). This installs MCP servers and all 57 skills **without
+leaving Kimi CLI** — no external terminal step, no manual config editing.
+
+Inside a Kimi session:
+
+```text
+/plugins install https://github.com/KalimeroMK/kimi-mcp-hub
+/reload
+```
+
+What you get after `/reload`:
+
+| What | Servers | Action needed |
+|------|---------|---------------|
+| Zero-config stdio servers | chrome-devtools, context7, playwright, desktop-commander, mobile | None — works immediately |
+| Official remote OAuth servers | linear, jira, confluence, supabase, figma, stripe, gitlab, github | One login per server: `/mcp-config login <name>` |
+| Skills | all 57 | None — loaded from the plugin |
+
+Servers that need API keys or tokens (perplexity, slack, datadog, sentry,
+hubspot, postgres, gmail, ...) can be added in-session too:
+
+```text
+/kimi-mcp-hub:add perplexity
+```
+
+The agent asks for the credential, writes `~/.kimi-code/mcp.json`, and tells you
+when to `/reload`. Run `/kimi-mcp-hub:setup` anytime for a guided overview of
+what is ready, what needs a login, and what needs credentials.
+
+**Migrating from the classic install:** plugin MCP servers are namespaced
+(`mcp__plugin-kimi-mcp-hub_<server>__*`), so they coexist with older entries in
+`~/.kimi-code/mcp.json`. Remove duplicates once with
+`kimi-mcp-hub remove <server>` to avoid seeing the same tools twice.
+
+**Persistent memory** (SQLite + Obsidian hooks) still requires the Python
+package — install it via the classic method below and run `kimi-mcp-hub init`.
 
 ---
 
@@ -96,13 +139,13 @@ pip install -e .
 
 ```bash
 kimi-mcp-hub --version
-# -> kimi-mcp-hub, version 0.2.1
+# -> kimi-mcp-hub, version 0.3.0
 ```
 
 On first run you'll see:
 
 ```
-Kimi MCP Hub v0.2.1 installed successfully!
+Kimi MCP Hub v0.3.0 installed successfully!
 
 24 MCP servers available
 57 AI skills for better coding
@@ -270,6 +313,9 @@ Skills are toggled **inside Kimi CLI**:
   ```
 
 ### MCP Servers
+
+> **Tip:** with the [Kimi plugin install](#install-as-a-kimi-plugin-recommended),
+> 13 servers and all skills are available without these manual steps.
 
 MCP servers are enabled **outside Kimi CLI**, in your regular terminal:
 
