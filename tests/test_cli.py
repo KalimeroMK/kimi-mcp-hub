@@ -206,7 +206,7 @@ class TestOAuthRedirect:
 class TestUpdateCommand:
     def test_update_dev_install(self):
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._is_dev_install", return_value=True):
+        with mock.patch("kimi_mcp_hub.cli.self_cmds._is_dev_install", return_value=True):
             result = runner.invoke(main, ["update"])
         assert result.exit_code == 0
         assert "Detected development install" in result.output
@@ -216,15 +216,15 @@ class TestUpdateCommand:
         runner = CliRunner()
         venv_dir = Path("/fake/venv")
         with (
-            mock.patch("kimi_mcp_hub.cli._is_dev_install", return_value=False),
+            mock.patch("kimi_mcp_hub.cli.self_cmds._is_dev_install", return_value=False),
             mock.patch(
-                "kimi_mcp_hub.cli._get_venv_info",
+                "kimi_mcp_hub.cli.self_cmds._get_venv_info",
                 return_value=("/fake/venv/bin/python", venv_dir, False),
             ),
             mock.patch(
-                "kimi_mcp_hub.cli._run_pip_upgrade", return_value=True
+                "kimi_mcp_hub.cli.self_cmds._run_pip_upgrade", return_value=True
             ) as pip_mock,
-            mock.patch("kimi_mcp_hub.cli._link_venv_binaries") as link_mock,
+            mock.patch("kimi_mcp_hub.cli.self_cmds._link_venv_binaries") as link_mock,
         ):
             result = runner.invoke(main, ["update"])
         assert result.exit_code == 0
@@ -236,15 +236,15 @@ class TestUpdateCommand:
     def test_update_in_place_existing_venv(self):
         runner = CliRunner()
         with (
-            mock.patch("kimi_mcp_hub.cli._is_dev_install", return_value=False),
+            mock.patch("kimi_mcp_hub.cli.self_cmds._is_dev_install", return_value=False),
             mock.patch(
-                "kimi_mcp_hub.cli._get_venv_info",
+                "kimi_mcp_hub.cli.self_cmds._get_venv_info",
                 return_value=(sys.executable, Path("/existing/venv"), True),
             ),
             mock.patch(
-                "kimi_mcp_hub.cli._run_pip_upgrade", return_value=True
+                "kimi_mcp_hub.cli.self_cmds._run_pip_upgrade", return_value=True
             ) as pip_mock,
-            mock.patch("kimi_mcp_hub.cli._link_venv_binaries") as link_mock,
+            mock.patch("kimi_mcp_hub.cli.self_cmds._link_venv_binaries") as link_mock,
         ):
             result = runner.invoke(main, ["update"])
         assert result.exit_code == 0
@@ -254,15 +254,15 @@ class TestUpdateCommand:
     def test_update_failure_shows_fallback(self):
         runner = CliRunner()
         with (
-            mock.patch("kimi_mcp_hub.cli._is_dev_install", return_value=False),
+            mock.patch("kimi_mcp_hub.cli.self_cmds._is_dev_install", return_value=False),
             mock.patch(
-                "kimi_mcp_hub.cli._get_venv_info",
+                "kimi_mcp_hub.cli.self_cmds._get_venv_info",
                 return_value=("/fake/venv/bin/python", Path("/fake/venv"), False),
             ),
             mock.patch(
-                "kimi_mcp_hub.cli._run_pip_upgrade", return_value=False
+                "kimi_mcp_hub.cli.self_cmds._run_pip_upgrade", return_value=False
             ) as pip_mock,
-            mock.patch("kimi_mcp_hub.cli._link_venv_binaries") as link_mock,
+            mock.patch("kimi_mcp_hub.cli.self_cmds._link_venv_binaries") as link_mock,
         ):
             result = runner.invoke(main, ["update"])
         assert result.exit_code == 1
@@ -279,7 +279,7 @@ class TestUpdateCommand:
         )
         with (
             mock.patch(
-                "kimi_mcp_hub.cli.subprocess.run",
+                "kimi_mcp_hub.cli.self_cmds.subprocess.run",
                 side_effect=lambda *a, **k: next(results),
             ) as run_mock,
             mock.patch("kimi_mcp_hub.cli.console.print"),
@@ -315,8 +315,8 @@ class TestUpdateCommand:
     def test_get_venv_info_creates_and_reuses_isolated_venv(
         self, tmp_path, monkeypatch
     ):
-        monkeypatch.setattr("kimi_mcp_hub.cli.sys.prefix", "/usr")
-        monkeypatch.setattr("kimi_mcp_hub.cli.sys.base_prefix", "/usr")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.sys.prefix", "/usr")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.sys.base_prefix", "/usr")
         monkeypatch.setenv("HOME", str(tmp_path))
 
         created = []
@@ -330,7 +330,7 @@ class TestUpdateCommand:
             return mock.Mock(returncode=0, stdout="", stderr="")
 
         with mock.patch(
-            "kimi_mcp_hub.cli.subprocess.run", side_effect=fake_subprocess
+            "kimi_mcp_hub.cli.self_cmds.subprocess.run", side_effect=fake_subprocess
         ) as run_mock:
             target, venv_dir, in_venv = _get_venv_info()
         assert in_venv is False
@@ -339,16 +339,16 @@ class TestUpdateCommand:
         assert (venv_dir / "bin" / "python").exists()
         assert "venv" in run_mock.call_args[0][0]
 
-        with mock.patch("kimi_mcp_hub.cli.subprocess.run") as run_mock2:
+        with mock.patch("kimi_mcp_hub.cli.self_cmds.subprocess.run") as run_mock2:
             target2, venv_dir2, in_venv2 = _get_venv_info()
         assert venv_dir2 == venv_dir
         assert in_venv2 is False
         run_mock2.assert_not_called()
 
     def test_get_venv_info_uses_active_venv(self, monkeypatch):
-        monkeypatch.setattr("kimi_mcp_hub.cli.sys.prefix", "/venv")
-        monkeypatch.setattr("kimi_mcp_hub.cli.sys.base_prefix", "/usr")
-        monkeypatch.setattr("kimi_mcp_hub.cli.sys.executable", "/venv/bin/python")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.sys.prefix", "/venv")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.sys.base_prefix", "/usr")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.sys.executable", "/venv/bin/python")
         target, venv_dir, in_venv = _get_venv_info()
         assert in_venv is True
         assert target == "/venv/bin/python"
@@ -359,14 +359,14 @@ class TestDevInstallDetection:
     def test_is_dev_install_true_in_git_repo(self, tmp_path, monkeypatch):
         repo = tmp_path / "repo"
         (repo / ".git").mkdir(parents=True)
-        fake_file = str(repo / "src" / "kimi_mcp_hub" / "cli.py")
-        monkeypatch.setattr("kimi_mcp_hub.cli.__file__", fake_file)
+        fake_file = str(repo / "src" / "kimi_mcp_hub" / "cli" / "self_cmds.py")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.__file__", fake_file)
         assert _is_dev_install() is True
 
     def test_is_dev_install_false_outside_git_repo(self, tmp_path, monkeypatch):
         site_packages = tmp_path / "site-packages" / "kimi_mcp_hub"
-        fake_file = str(site_packages / "cli.py")
-        monkeypatch.setattr("kimi_mcp_hub.cli.__file__", fake_file)
+        fake_file = str(site_packages / "cli" / "self_cmds.py")
+        monkeypatch.setattr("kimi_mcp_hub.cli.self_cmds.__file__", fake_file)
         assert _is_dev_install() is False
 
 
@@ -627,6 +627,7 @@ class TestPluginCommands:
 
     def test_uninstall_plugin_removes_artifacts(self, home):
         config = KimiConfig()
+        config.agents_md.parent.mkdir(parents=True, exist_ok=True)
         config.agents_md.write_text("# Original AGENTS.md\n")
         plugin_dir = self._make_plugin_dir(config, "ponytail")
         install_plugin(str(plugin_dir), config)
@@ -713,7 +714,7 @@ class TestObsidianAuto:
     def test_auto_creates_project_vault_and_sets_default(self, home):
         repo = self._make_git_repo(home, "crmtTracker")
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(
                 main,
                 ["obsidian", "auto"],
@@ -741,7 +742,7 @@ class TestObsidianAuto:
         config.set_obsidian_vaults([str(vault.resolve())])
 
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(
                 main,
                 ["obsidian", "auto"],
@@ -753,7 +754,7 @@ class TestObsidianAuto:
 
     def test_auto_exits_silently_outside_git_repo(self, home):
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=None):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=None):
             result = runner.invoke(main, ["obsidian", "auto"])
         assert result.exit_code == 0, result.output
         assert "Not inside a git repository" in result.output
@@ -762,7 +763,7 @@ class TestObsidianAuto:
         repo = self._make_git_repo(home, "crmtTracker")
         custom = repo / "Custom-Memory"
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(
                 main,
                 ["obsidian", "auto", "--path", str(custom)],
@@ -779,7 +780,7 @@ class TestObsidianAuto:
     def test_auto_adds_vault_to_gitignore(self, home):
         repo = self._make_git_repo(home, "crmtTracker")
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(main, ["obsidian", "auto"], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -795,7 +796,7 @@ class TestObsidianAuto:
         gitignore.write_text("node_modules/\n")
 
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(main, ["obsidian", "auto"], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -810,7 +811,7 @@ class TestObsidianAuto:
         gitignore.write_text("crmtTracker-Memory/\n")
 
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(main, ["obsidian", "auto"], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -822,7 +823,7 @@ class TestObsidianAuto:
         repo = self._make_git_repo(home, "crmtTracker")
         outside = home / "Outside-Memory"
         runner = CliRunner()
-        with mock.patch("kimi_mcp_hub.cli._get_git_root", return_value=repo):
+        with mock.patch("kimi_mcp_hub.cli.obsidian_cmds._get_git_root", return_value=repo):
             result = runner.invoke(
                 main,
                 ["obsidian", "auto", "--path", str(outside)],

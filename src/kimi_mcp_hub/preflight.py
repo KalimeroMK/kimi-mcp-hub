@@ -9,9 +9,6 @@ import subprocess
 from typing import Optional
 
 
-PLACEHOLDER_RE = None  # avoid circular import; defined locally where needed
-
-
 def get_npx_package(args: list[str]) -> Optional[str]:
     """Extract the npm package specifier from npx args.
 
@@ -66,12 +63,17 @@ def is_package_installed_globally(package_spec: str) -> bool:
         return False
 
 
-def ensure_npx_package(args: list, console, timeout: int = 120) -> bool:
+def ensure_npx_package(
+    args: list, console, timeout: int = 120, assume_yes: bool = False
+) -> bool:
     """Prompt to install an npx package locally if it is missing.
 
     Returns True when the package is (or was already) available, and the caller
     can safely write the MCP config. Returns False if the installation failed
     and the caller may still proceed at its own discretion.
+
+    When ``assume_yes`` is True (non-interactive mode), the install proceeds
+    without prompting, matching the default answer.
     """
     package_spec = get_npx_package(args)
     if not package_spec:
@@ -83,9 +85,9 @@ def ensure_npx_package(args: list, console, timeout: int = 120) -> bool:
     from rich.prompt import Confirm
 
     console.print(
-        f"[yellow]Package [bold]{package_spec}[/bold] is not installed locally.[/yellow]"
+        f"[yellow]Package [bold]{package_spec}[/bold] is not installed globally.[/yellow]"
     )
-    if not Confirm.ask(
+    if not assume_yes and not Confirm.ask(
         f"Install {package_spec} now to avoid first-run timeouts?",
         default=True,
     ):
@@ -93,6 +95,9 @@ def ensure_npx_package(args: list, console, timeout: int = 120) -> bool:
             "[dim]Continuing without install. First launch may timeout while npx downloads the package.[/dim]"
         )
         return True
+
+    if assume_yes:
+        console.print(f"[dim]Non-interactive mode: installing {package_spec}.[/dim]")
 
     npm = shutil.which("npm")
     if not npm:
@@ -122,7 +127,9 @@ def ensure_npx_package(args: list, console, timeout: int = 120) -> bool:
         return False
 
 
-def maybe_install_npx_deps(server_config: dict, console) -> bool:
+def maybe_install_npx_deps(
+    server_config: dict, console, assume_yes: bool = False
+) -> bool:
     """Check and optionally install npx package dependencies for a server config.
 
     Returns True if the caller should proceed with saving the config.
@@ -130,4 +137,4 @@ def maybe_install_npx_deps(server_config: dict, console) -> bool:
     """
     if server_config.get("command") != "npx":
         return True
-    return ensure_npx_package(server_config.get("args", []), console)
+    return ensure_npx_package(server_config.get("args", []), console, assume_yes=assume_yes)

@@ -774,6 +774,7 @@ class TestUninstallPlugin:
     def test_uninstall_removes_everything(self, monkeypatch, tmp_path):
         monkeypatch.setenv("HOME", str(tmp_path))
         config = KimiConfig()
+        config.agents_md.parent.mkdir(parents=True, exist_ok=True)
         config.agents_md.write_text("# Original AGENTS.md\n")
 
         plugin_dir = self._make_plugin(config, "ponytail", tmp_path)

@@ -32,12 +32,12 @@ class TestInitAndServerConfig:
     def test_init_yes_creates_valid_config(self, home, runner, monkeypatch):
         # Allow npx auto-install to run but skip the actual npm install prompts.
         monkeypatch.setattr(
-            "kimi_mcp_hub.cli.shutil.which",
+            "kimi_mcp_hub.cli.servers_cmds.shutil.which",
             lambda cmd: "/usr/bin/npx" if cmd == "npx" else None,
         )
         monkeypatch.setattr(
-            "kimi_mcp_hub.cli.maybe_install_npx_deps",
-            lambda cfg, console: True,
+            "kimi_mcp_hub.cli.helpers.maybe_install_npx_deps",
+            lambda cfg, console, **kw: True,
         )
 
         result = runner.invoke(main, ["init", "--yes"])
@@ -53,8 +53,8 @@ class TestInitAndServerConfig:
 
     def test_add_server_writes_config(self, home, runner, monkeypatch):
         monkeypatch.setattr(
-            "kimi_mcp_hub.cli.maybe_install_npx_deps",
-            lambda cfg, console: True,
+            "kimi_mcp_hub.cli.helpers.maybe_install_npx_deps",
+            lambda cfg, console, **kw: True,
         )
 
         result = runner.invoke(main, ["add", "playwright"])
@@ -67,8 +67,8 @@ class TestInitAndServerConfig:
 
     def test_remove_server_removes_from_config(self, home, runner, monkeypatch):
         monkeypatch.setattr(
-            "kimi_mcp_hub.cli.maybe_install_npx_deps",
-            lambda cfg, console: True,
+            "kimi_mcp_hub.cli.helpers.maybe_install_npx_deps",
+            lambda cfg, console, **kw: True,
         )
         result = runner.invoke(main, ["add", "playwright"])
         assert result.exit_code == 0, result.output
@@ -89,8 +89,8 @@ class TestInitAndServerConfig:
         monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
 
         monkeypatch.setattr(
-            "kimi_mcp_hub.cli.maybe_install_npx_deps",
-            lambda cfg, console: True,
+            "kimi_mcp_hub.cli.helpers.maybe_install_npx_deps",
+            lambda cfg, console, **kw: True,
         )
         result = runner.invoke(main, ["add", "playwright"])
         assert result.exit_code == 0, result.output

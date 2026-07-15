@@ -30,9 +30,9 @@ class KimiConfig:
         self.tokens_file = self.hub_dir / "tokens.json"
         self.memory_db = self.hub_dir / "memory.db"
         self.plugins_dir = self.hub_dir / "plugins"
-        self.hub_dir.mkdir(parents=True, exist_ok=True)
-        self.kimi_dir.mkdir(parents=True, exist_ok=True)
-        self.plugins_dir.mkdir(parents=True, exist_ok=True)
+        # Directories are created lazily by the write paths (_secure_write,
+        # save_toml_config, install_skill, plugin_dir, ...), so instantiating
+        # KimiConfig for a read-only command has no filesystem side effects.
         # Migrate legacy config from ~/.kimi/mcp.json if the new path is empty
         self._migrate_legacy_config()
 
@@ -196,24 +196,27 @@ class KimiConfig:
         memory["summary_enabled"] = enabled
         self.save_toml_config(data)
 
+    def _load_tokens(self) -> dict:
+        """Load the tokens file, tolerating corruption."""
+        if not self.tokens_file.exists():
+            return {}
+        self._warn_if_readable_by_others(self.tokens_file)
+        try:
+            with open(self.tokens_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
     def save_token(self, server: str, token_data: dict) -> None:
         """Save OAuth/token data securely."""
-        tokens = {}
-        if self.tokens_file.exists():
-            self._warn_if_readable_by_others(self.tokens_file)
-            with open(self.tokens_file, "r", encoding="utf-8") as f:
-                tokens = json.load(f)
+        tokens = self._load_tokens()
         tokens[server] = token_data
         self._secure_write(self.tokens_file, tokens)
 
     def load_token(self, server: str) -> dict | None:
         """Load token for a server."""
-        if not self.tokens_file.exists():
-            return None
-        self._warn_if_readable_by_others(self.tokens_file)
-        with open(self.tokens_file, "r", encoding="utf-8") as f:
-            tokens = json.load(f)
-        return tokens.get(server)
+        return self._load_tokens().get(server)
 
     def install_skill(self, name: str, content: str) -> Path:
         """Install a SKILL.md into ~/.kimi-code/skills/."""
@@ -308,7 +311,3 @@ class KimiConfig:
         else:
             self.agents_md.unlink()
         return True
-
-    def reload_kimi_mcp(self) -> None:
-        """Signal Kimi CLI to reload MCP config (if running)."""
-        pass

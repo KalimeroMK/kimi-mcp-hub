@@ -7,9 +7,17 @@ __author__ = "KalimeroMK"
 
 from .config import KimiConfig
 
-# Total counts for display (kept in sync with cli.py SERVERS and SKILLS)
-TOTAL_SERVERS = 24
-TOTAL_SKILLS = 57
-
-# Lazy imports to avoid circular dependencies
 __all__ = ["__version__", "__title__", "TOTAL_SERVERS", "TOTAL_SKILLS", "KimiConfig"]
+
+
+def __getattr__(name: str):
+    """Lazily derive catalog counts from the registry (single source of truth).
+
+    Kept lazy so importing ``kimi_mcp_hub`` (e.g. in the memory hooks, which
+    run on every tool call) does not pay for importing all server modules.
+    """
+    if name in ("TOTAL_SERVERS", "TOTAL_SKILLS"):
+        from .registry import SERVERS, SKILLS
+
+        return len(SERVERS) if name == "TOTAL_SERVERS" else len(SKILLS)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

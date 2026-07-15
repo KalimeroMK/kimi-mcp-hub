@@ -30,9 +30,18 @@ class MemoryDB:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
+    def _connect(self) -> sqlite3.Connection:
+        """Open a connection with a busy timeout for concurrent hook writers."""
+        conn = sqlite3.connect(str(self.db_path), timeout=10)
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
+
     def _init_db(self) -> None:
         """Initialize tables and FTS5 index."""
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
+            # WAL allows concurrent readers while a hook is writing, which
+            # matters when several Kimi sessions share one database.
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS observations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,7 +132,7 @@ class MemoryDB:
         tags_str = json.dumps(tags or [])
         timestamp = datetime.now(timezone.utc).isoformat()
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             cursor = conn.execute(
                 """INSERT INTO observations (session_id, timestamp, type, content, summary, tags, project_path)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -151,7 +160,7 @@ class MemoryDB:
             raise ValueError("limit must be non-negative")
         if limit == 0 or not query.strip():
             return []
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             try:
                 if project_path:
@@ -184,7 +193,7 @@ class MemoryDB:
             raise ValueError("limit must be non-negative")
         if limit == 0:
             return []
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             if session_id:
                 rows = conn.execute(
@@ -200,7 +209,7 @@ class MemoryDB:
 
     def get_stats(self) -> dict:
         """Return database statistics."""
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             total = conn.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
             sessions = conn.execute(
                 "SELECT COUNT(DISTINCT session_id) FROM observations"
@@ -220,7 +229,7 @@ class MemoryDB:
         tags_str = json.dumps(tags or [])
         timestamp = datetime.now(timezone.utc).isoformat()
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             cursor = conn.execute(
                 """INSERT INTO memories (timestamp, category, content, tags, project_path)
                    VALUES (?, ?, ?, ?, ?)""",
@@ -256,7 +265,7 @@ class MemoryDB:
         sql += " ORDER BY rank LIMIT ?"
         params.append(limit)
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             try:
                 rows = conn.execute(sql, params).fetchall()
@@ -288,21 +297,21 @@ class MemoryDB:
         sql += " ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
 
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(sql, params).fetchall()
             return [dict(row) for row in rows]
 
     def delete_memory(self, memory_id: int) -> bool:
         """Delete a memory; the FTS index is cleaned up by a trigger."""
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             cursor = conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
             conn.commit()
             return cursor.rowcount > 0
 
     def get_memory_stats(self) -> dict:
         """Return memory statistics."""
-        with sqlite3.connect(str(self.db_path)) as conn:
+        with self._connect() as conn:
             total = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
             categories = conn.execute(
                 "SELECT category, COUNT(*) FROM memories GROUP BY category"
