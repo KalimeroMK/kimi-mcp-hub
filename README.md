@@ -772,6 +772,16 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **web-design-guidelines** | Audit UI code against Vercel guidelines |
 | **agent-browser** | Browser automation for web tasks and testing |
 
+**Recommended external skill:** [hallmark](https://github.com/nutlope/hallmark) --
+an "anti-AI-slop" design skill (20 themes, 57 slop-test gates) that keeps
+generated UIs from looking generic. It complements the stack above, which
+focuses on correctness (a11y, tokens, guidelines, perf). Install it directly
+through the hub (it stays updateable via `update-plugin`):
+
+```bash
+kimi-mcp-hub install-plugin nutlope/hallmark
+```
+
 ### Code Quality & Review Skills
 
 | Skill | Description |
