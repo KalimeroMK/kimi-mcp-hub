@@ -1,6 +1,10 @@
 # Kimi MCP Hub
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 24 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (7 core + 50 optional), persistent memory, and Claude Desktop import.
+[![CI](https://github.com/KalimeroMK/kimi-mcp-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/KalimeroMK/kimi-mcp-hub/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 24 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (7 core + 7 frontend + 43 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -793,6 +797,7 @@ kimi-mcp-hub install-plugin nutlope/hallmark
 | **perf-optimization** | Performance profiling and optimization |
 | **security-audit** | Security review checklist |
 | **security-guidance** | 3-layer security scanning guidance |
+| **caveman-review** | Ultra-compressed code review comments |
 
 ### Architecture & Design Skills
 
@@ -815,6 +820,7 @@ kimi-mcp-hub install-plugin nutlope/hallmark
 | **gitnexus** | Code knowledge graph and blast radius |
 | **resolving-merge-conflicts** | Resolve git merge/rebase conflicts |
 | **deployment-patterns** | CI/CD and deployment best practices |
+| **caveman-commit** | Ultra-compressed Conventional Commits messages |
 
 ### Language / Framework Skills
 
@@ -850,8 +856,6 @@ kimi-mcp-hub install-plugin nutlope/hallmark
 | Skill | Description |
 |-------|-------------|
 | **claude-compat** | Auto-load CLAUDE.md and CLAUDE.local.md at session start |
-| **caveman-review** | Ultra-compressed code review comments |
-| **caveman-commit** | Ultra-compressed Conventional Commits messages |
 | **memory-palace** | Advanced memory and context retrieval |
 | **hindsight** | Memory that learns from past decisions |
 | **task-master** | Task management system |
@@ -874,7 +878,7 @@ kimi-mcp-hub install-plugin nutlope/hallmark
 
 ## Testing
 
-The test suite lives in `tests/`:
+The test suite lives in `tests/` (240+ tests, runs in CI on Python 3.10-3.13):
 
 ```bash
 pytest -q
@@ -882,6 +886,8 @@ pytest -q
 
 - `tests/test_integration.py` covers end-to-end flows such as `init --yes`, server `add`, `remove`, and `test`.
 - Unit tests cover config handling, Obsidian vault management, and the plugin installer.
+- `tests/test_registry_sync.py` guards catalog consistency: skills on disk match the registry, the plugin manifest matches the CLI, and all manifest versions stay in sync.
+- CI (`.github/workflows/ci.yml`) runs ruff + pytest on every push and PR.
 
 ---
 
