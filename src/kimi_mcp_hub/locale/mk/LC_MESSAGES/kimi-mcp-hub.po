@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: kimi-mcp-hub 0.3.0\n"
+"Project-Id-Version: kimi-mcp-hub 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-18 11:29+0200\n"
 "PO-Revision-Date: 2026-07-18 12:00+0200\n"
