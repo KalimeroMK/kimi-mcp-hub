@@ -28,6 +28,8 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Advanced Memory Layer](#advanced-memory-layer)
 - [Install Claude/Codex Plugins](#install-claudecodex-plugins)
 - [Project-Level MCP Configuration](#project-level-mcp-configuration)
+- [Profiles](#profiles)
+- [Localization](#localization)
 - [Remote MCP Server Setup](docs/remote-mcp-server-setup.md)
 - [OAuth Auto-Browser](#oauth-auto-browser)
 - [CLAUDE.md Compatibility](#claudemd-compatibility)
@@ -545,6 +547,15 @@ kimi-mcp-hub add --project linear   # choose the default "official-oauth" mode
 kimi-mcp-hub sync
 ```
 
+Once a project has a `.kimi/` directory, project mode becomes **automatic** —
+`add`, `remove`, `auth`, and `init` write to `./.kimi/mcp.json` without needing
+`--project`. Use `--global` to explicitly target the global config instead:
+
+```bash
+kimi-mcp-hub add linear          # inside a .kimi/ project -> writes ./.kimi/mcp.json
+kimi-mcp-hub add --global slack  # force the global ~/.kimi-code/mcp.json
+```
+
 This creates:
 
 ```text
@@ -581,7 +592,31 @@ cd project-b && kimi-mcp-hub sync   # global config now uses project-b's Linear
 
 Project servers override global servers with the same name. Global servers that are not overridden remain available.
 
-### Commands with --project
+### Auto-sync on every Kimi start (shell-init)
+
+To make `sync` automatic, install the shell wrapper:
+
+```bash
+kimi-mcp-hub shell-init --install   # appends to ~/.zshrc or ~/.bashrc
+```
+
+Then use `k` instead of `kimi`. Every Kimi start inside a project with
+`.kimi/mcp.json` syncs that project's servers first. `kimi-mcp-hub shell-init`
+without `--install` just prints the snippet.
+
+### Project skills (.kimi/skills.json)
+
+A project can also declare the skills it needs:
+
+```bash
+kimi-mcp-hub install-skill --project php-pro   # installs now + records in .kimi/skills.json
+```
+
+`kimi-mcp-hub sync` installs any missing skills from `.kimi/skills.json`, so
+teammates who clone the repo get them on their first sync. Commit
+`.kimi/skills.json` (it contains no secrets).
+
+### Commands with --project / --global
 
 ```bash
 kimi-mcp-hub init --project          # save wizard servers to current project
@@ -589,9 +624,14 @@ kimi-mcp-hub add --project perplexity # add API-key server to current project
 kimi-mcp-hub add --project linear    # add official remote OAuth server to current project
 kimi-mcp-hub auth --project figma    # authorize and save an OAuth server to current project
 kimi-mcp-hub remove --project perplexity # remove server from current project
+kimi-mcp-hub add --global linear     # force global config even inside a .kimi/ project
 kimi-mcp-hub sync                    # merge current project into global config
 kimi-mcp-hub sync /path/to/project   # merge a specific project
 ```
+
+`--project` and `--global` are mutually exclusive. Without either flag,
+commands write to the project config when a `.kimi/` directory exists, and to
+the global config otherwise.
 
 
 If you have **Desktop Commander** installed, you can also ask Kimi to run the command for you:
@@ -599,6 +639,57 @@ If you have **Desktop Commander** installed, you can also ask Kimi to run the co
 ```text
 run kimi-mcp-hub add linear in the terminal
 ```
+
+---
+
+## Profiles
+
+Named bundles of your whole MCP-server set, independent of projects:
+
+```bash
+kimi-mcp-hub profile save work      # snapshot current global servers
+kimi-mcp-hub profile load work      # replace global servers with the profile
+kimi-mcp-hub profile load work --yes # skip the confirmation prompt
+kimi-mcp-hub profile list           # show saved profiles
+kimi-mcp-hub profile remove work
+```
+
+Profiles are stored as JSON in `~/.config/kimi-mcp-hub/profiles/` (platform-specific config dir). `load` **replaces** the global server set — servers not in the profile are removed from `~/.kimi-code/mcp.json`.
+
+---
+
+## Localization
+
+The CLI speaks your language via standard gettext. Language resolution order:
+
+1. `KIMI_MCP_HUB_LANG` env var (explicit override, e.g. `mk`, `en`)
+2. Standard locale env vars (`LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`)
+3. Fallback: English
+
+```bash
+KIMI_MCP_HUB_LANG=mk kimi-mcp-hub status   # Macedonian output
+```
+
+Shipped translations:
+
+| Code | Language | Coverage |
+|------|----------|----------|
+| `mk` | Македонски | Core commands (`init`, `add`, `remove`, `list`, `sync`, `status`, `welcome`, `doctor`, `notify`, `pack`, `test`, first-run banner) |
+
+### Adding a language
+
+1. Extract new strings after wrapping them with `_()` (see `src/kimi_mcp_hub/i18n.py`):
+   ```bash
+   xgettext -o /tmp/kimi-mcp-hub.pot --no-location src/kimi_mcp_hub/cli/*.py src/kimi_mcp_hub/_post_install.py
+   ```
+2. Create the locale: `msginit -i /tmp/kimi-mcp-hub.pot -l <code> -o src/kimi_mcp_hub/locale/<code>/LC_MESSAGES/kimi-mcp-hub.po`
+3. Translate the `msgstr` entries (keep `[bold]`/`[dim]` rich tags and `{placeholders}` intact).
+4. Compile: `msgfmt -o src/kimi_mcp_hub/locale/<code>/LC_MESSAGES/kimi-mcp-hub.mo src/kimi_mcp_hub/locale/<code>/LC_MESSAGES/kimi-mcp-hub.po`
+
+Not yet translated: the per-server `auth` flows, `repair`, `obsidian`, `memory`,
+plugin commands, `--help` texts, and the skills/README content (skills are LLM
+prompts and stay English). Wrap them with `_()` and regenerate the catalog to
+extend coverage.
 
 ---
 
@@ -686,11 +777,17 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub add <server>` | Add an MCP server |
 | `kimi-mcp-hub add obsidian` | Add Obsidian vault as local memory |
 | `kimi-mcp-hub add --project <server>` | Add an MCP server to the current project |
+| `kimi-mcp-hub add --global <server>` | Force add to the global config inside a project |
 | `kimi-mcp-hub remove <server>` | Remove an MCP server |
 | `kimi-mcp-hub remove --project <server>` | Remove an MCP server from the current project |
 | `kimi-mcp-hub auth <server>` | OAuth with auto-browser |
 | `kimi-mcp-hub auth --project <server>` | OAuth and save to the current project |
 | `kimi-mcp-hub sync` | Merge project `.kimi/mcp.json` into global config |
+| `kimi-mcp-hub shell-init [--install]` | Shell wrapper that auto-syncs on every Kimi start |
+| `kimi-mcp-hub profile save <name>` | Save current global servers as a named profile |
+| `kimi-mcp-hub profile load <name> [--yes]` | Replace global servers with a profile |
+| `kimi-mcp-hub profile list` | List saved profiles |
+| `kimi-mcp-hub profile remove <name>` | Delete a profile |
 | `kimi-mcp-hub repair` | Fix broken/outdated server configs |
 | `kimi-mcp-hub import-claude` | Import from Claude Desktop |
 | `kimi-mcp-hub install-plugin <repo>` | Install Claude/Codex plugin into Kimi |
@@ -700,8 +797,9 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub list` | All servers + skills + memory |
 | `kimi-mcp-hub list-skills` | All 57 available skills |
 | `kimi-mcp-hub install-skill <name>` | Install a skill |
+| `kimi-mcp-hub install-skill --project <name>` | Install a skill and record it in `.kimi/skills.json` |
 | `kimi-mcp-hub test <server>` | Check if server binary/HTTP endpoint is configured |
-| `kimi-mcp-hub doctor` | System health check |
+| `kimi-mcp-hub doctor` | System health check + duplicate server detection |
 | `kimi-mcp-hub obsidian status` | Show configured Obsidian vaults |
 | `kimi-mcp-hub obsidian add <path>` | Add an Obsidian vault path |
 | `kimi-mcp-hub obsidian auto` | Create/switch to project vault in current git repo |
@@ -878,14 +976,14 @@ kimi-mcp-hub install-plugin nutlope/hallmark
 
 ## Testing
 
-The test suite lives in `tests/` (240+ tests, runs in CI on Python 3.10-3.13):
+The test suite lives in `tests/` (310+ tests, runs in CI on Python 3.10-3.13):
 
 ```bash
 pytest -q
 ```
 
 - `tests/test_integration.py` covers end-to-end flows such as `init --yes`, server `add`, `remove`, and `test`.
-- Unit tests cover config handling, Obsidian vault management, and the plugin installer.
+- Unit tests cover config handling, project-level configs, profiles, localization, Obsidian vault management, and the plugin installer.
 - `tests/test_registry_sync.py` guards catalog consistency: skills on disk match the registry, the plugin manifest matches the CLI, and all manifest versions stay in sync.
 - CI (`.github/workflows/ci.yml`) runs ruff + pytest on every push and PR.
 
@@ -901,8 +999,9 @@ pytest -q
 |  |  install -> GitHub update       |    |
 |  |  init -> interactive wizard     |    |
 |  |  add  -> writes ~/.kimi-code/...|    |
-|  |  add --project -> writes ./.kimi|    |
+|  |  add (in .kimi/ project) -> ./.kimi| |
 |  |  sync -> merge project + global |    |
+|  |  profile -> named server bundles|    |
 |  |  auth -> OAuth + auto browser   |    |
 |  |  repair -> fix broken configs   |    |
 |  |  import-claude -> migrate config|    |

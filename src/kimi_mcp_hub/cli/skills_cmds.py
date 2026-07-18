@@ -11,8 +11,10 @@ from rich.prompt import Confirm
 from rich.table import Table
 
 from ..config import KimiConfig
+from ..i18n import _
+from ..project import ProjectConfig
 from ..registry import CORE_SKILLS, SKILLS
-from .base import main, print_header
+from .base import _require_project_root, main, print_header
 from .common import console
 from .helpers import install_skill, list_installed_skills
 
@@ -98,7 +100,12 @@ def apply_claude_compat_patch(yes: bool = False) -> bool:
 
 @main.command()
 @click.argument("skill_name")
-def install_skill_cmd(skill_name: str):
+@click.option(
+    "--project",
+    is_flag=True,
+    help="Also record the skill in the project's .kimi/skills.json.",
+)
+def install_skill_cmd(skill_name: str, project: bool):
     """Install a skill into ~/.kimi-code/skills/."""
     print_header()
     config = KimiConfig()
@@ -107,6 +114,16 @@ def install_skill_cmd(skill_name: str):
         console.print(f"Available: {', '.join(SKILLS.keys())}")
         raise SystemExit(1)
     install_skill(skill_name, config)
+
+    if project:
+        project_root = _require_project_root()
+        pc = ProjectConfig(project_root)
+        pc.add_skill(skill_name)
+        console.print(
+            _("[dim]Recorded in {path} — 'kimi-mcp-hub sync' installs it for teammates.[/dim]").format(
+                path=pc.skills_json
+            )
+        )
 
 
 @main.command()

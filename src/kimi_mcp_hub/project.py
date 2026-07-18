@@ -63,6 +63,7 @@ class ProjectConfig:
         self.kimi_dir = self.root / ".kimi"
         self.mcp_json = self.kimi_dir / "mcp.json"
         self.env_file = self.kimi_dir / "mcp.env"
+        self.skills_json = self.kimi_dir / "skills.json"
 
     def exists(self) -> bool:
         return self.mcp_json.exists()
@@ -106,6 +107,34 @@ class ProjectConfig:
         data.setdefault("mcpServers", {})
         data["mcpServers"].pop(name, None)
         self.save_mcp(data)
+
+    # --- Project skills (.kimi/skills.json) ---
+
+    def load_skills(self) -> list[str]:
+        """Return the skills listed in ``.kimi/skills.json`` (if any)."""
+        if not self.skills_json.exists():
+            return []
+        try:
+            with open(self.skills_json, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            return []
+        skills = data.get("skills", [])
+        return [s for s in skills if isinstance(s, str)] if isinstance(skills, list) else []
+
+    def save_skills(self, skills: list[str]) -> None:
+        self.ensure_dir()
+        tmp = self.skills_json.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"skills": sorted(set(skills))}, f, indent=2)
+        tmp.replace(self.skills_json)
+
+    def add_skill(self, name: str) -> None:
+        """Record a skill in ``.kimi/skills.json``."""
+        skills = self.load_skills()
+        if name not in skills:
+            skills.append(name)
+        self.save_skills(skills)
 
     def load_env(self) -> dict[str, str]:
         """Return merged environment: shell env overridden by ``.kimi/mcp.env``."""

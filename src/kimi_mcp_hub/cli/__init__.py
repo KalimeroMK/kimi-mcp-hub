@@ -56,6 +56,7 @@ from . import memory_cmds  # noqa: F401,E402
 from . import misc_cmds  # noqa: F401,E402
 from . import obsidian_cmds  # noqa: F401,E402
 from . import plugins_cmds  # noqa: F401,E402
+from . import profiles_cmds  # noqa: F401,E402
 from . import self_cmds  # noqa: F401,E402
 from . import servers_cmds  # noqa: F401,E402
 from . import skills_cmds  # noqa: F401,E402

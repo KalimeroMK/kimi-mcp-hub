@@ -52,7 +52,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kimi_mcp_hub"]
-artifacts = ["src/kimi_mcp_hub/skills/**/*.md"]
+artifacts = ["src/kimi_mcp_hub/skills/**/*.md", "src/kimi_mcp_hub/locale/**/*.mo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

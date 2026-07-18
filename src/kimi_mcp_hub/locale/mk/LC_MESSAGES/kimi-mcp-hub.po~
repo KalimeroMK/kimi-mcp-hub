@@ -1,0 +1,374 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kimi-mcp-hub 0.3.0\n"
+"Report-Msgid-Bugs-To: https://github.com/KalimeroMK/kimi-mcp-hub/issues\n"
+"PO-Revision-Date: 2026-07-18 12:00+0200\n"
+"Last-Translator: KalimeroMK\n"
+"Language-Team: Macedonian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: mk\n"
+
+msgid "\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n"
+msgstr "\n[bold cyan]Фронтенд вештини (препорачани)[/bold cyan]\n"
+
+msgid "\n[bold cyan]Optional Skills[/bold cyan] (pick categories)\n"
+msgstr "\n[bold cyan]Опционални вештини[/bold cyan] (изберете категории)\n"
+
+msgid "\n[bold green]Kimi MCP Hub v{version} is ready![/bold green]"
+msgstr "\n[bold green]Kimi MCP Hub v{version} е подготвен![/bold green]"
+
+msgid "\n[bold green]Setup complete![/bold green]"
+msgstr "\n[bold green]Поставувањето заврши![/bold green]"
+
+msgid "\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n"
+msgstr "\n[bold green]Добредојдовте во Kimi MCP Hub![/bold green]\n"
+
+msgid "\n[bold]Configured MCP Servers:[/bold]"
+msgstr "\n[bold]Конфигурирани MCP сервери:[/bold]"
+
+msgid "\n[bold]Installed Skills ({n}):[/bold]"
+msgstr "\n[bold]Инсталирани вештини ({n}):[/bold]"
+
+msgid "\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n"
+msgstr "\n[bold]Чекор 2: Вештини[/bold] (шаблони за AI однесување)\n"
+
+msgid "\n[bold]Step 3: Persistent Memory[/bold]\n"
+msgstr "\n[bold]Чекор 3: Перзистентна меморија[/bold]\n"
+
+msgid "\n[dim]Auto-applying claude-compat patch...[/dim]"
+msgstr "\n[dim]Автоматски се применува claude-compat patch...[/dim]"
+
+msgid "\n[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for skills.[/dim]\n"
+msgstr "\n[dim]Во Kimi CLI напишете [bold]/mcp[/bold] за алатки, [bold]/skills[/bold] за вештини.[/dim]\n"
+
+msgid "\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]"
+msgstr "\n[dim]Меморијата не е овозможена. Извршете [bold]kimi-mcp-hub init[/bold] за да ја овозможите.[/dim]"
+
+msgid "\n[dim]Project:[/dim] {root}"
+msgstr "\n[dim]Проект:[/dim] {root}"
+
+msgid "\n[dim]Run [bold]kimi-mcp-hub init[/bold] to set up everything.[/dim]\n"
+msgstr "\n[dim]Извршете [bold]kimi-mcp-hub init[/bold] за да поставите сè.[/dim]\n"
+
+msgid "\n[dim]Saving MCP servers to project: {root}[/dim]\n"
+msgstr "\n[dim]MCP серверите се зачувуваат во проектот: {root}[/dim]\n"
+
+msgid "\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] for interactive setup,[/dim]"
+msgstr "\n[dim]Совет: Извршете [bold]kimi-mcp-hub init[/bold] за интерактивно поставување,[/dim]"
+
+msgid "\n[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] to set up your first MCP server.[/dim]\n"
+msgstr "\n[dim]Совет: Извршете [bold]kimi-mcp-hub init[/bold] за да го поставите првиот MCP сервер.[/dim]\n"
+
+msgid "\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n"
+msgstr "\n[dim]Напишете [bold]kimi-mcp-hub list[/bold] за да видите сè.[/dim]\n"
+
+msgid "\n[green]Memory enabled:[/green] {path}"
+msgstr "\n[green]Меморијата е овозможена:[/green] {path}"
+
+msgid "\n[green]Synced {n} project MCP server(s)[/green]"
+msgstr "\n[green]Синхронизирани се {n} проектни MCP сервери[/green]"
+
+msgid "\n[green]{n} MCP server(s) in ~/.kimi-code/mcp.json[/green]"
+msgstr "\n[green]{n} MCP сервери во ~/.kimi-code/mcp.json[/green]"
+
+msgid "\n[green]{n} skills installed:[/green]"
+msgstr "\n[green]{n} инсталирани вештини:[/green]"
+
+msgid "\n[yellow]Fixed permissions (chmod 600):[/yellow]"
+msgstr "\n[yellow]Поправени дозволи (chmod 600):[/yellow]"
+
+msgid "\n[yellow]No MCP servers configured yet[/yellow]"
+msgstr "\n[yellow]Сè уште нема конфигурирани MCP сервери[/yellow]"
+
+msgid "\n[yellow]No skills installed.[/yellow]"
+msgstr "\n[yellow]Нема инсталирани вештини.[/yellow]"
+
+msgid "\n[yellow]Project config exists but contains no servers.[/yellow]"
+msgstr "\n[yellow]Проектната конфигурација постои, но не содржи сервери.[/yellow]"
+
+msgid "  [bold]/mcp[/bold]    -- see your tools"
+msgstr "  [bold]/mcp[/bold]    -- видете ги вашите алатки"
+
+msgid "  [bold]/skills[/bold] -- see installed skills"
+msgstr "  [bold]/skills[/bold] -- видете ги инсталираните вештини"
+
+msgid "  {skill} -- Install?"
+msgstr "  {skill} -- Да се инсталира?"
+
+msgid "Available: {names}"
+msgstr "Достапни: {names}"
+
+msgid "Check"
+msgstr "Проверка"
+
+msgid "Configured MCP Servers"
+msgstr "Конфигурирани MCP сервери"
+
+msgid "Enable persistent memory across sessions?"
+msgstr "Да се овозможи перзистентна меморија низ сесиите?"
+
+msgid "Found"
+msgstr "Пронајдено"
+
+msgid "Install [bold]{category}[/bold] skills ({n} skills)?"
+msgstr "Да се инсталираат вештините [bold]{category}[/bold] ({n} вештини)?"
+
+msgid "Install recommended frontend stack ({n} skills)?"
+msgstr "Да се инсталира препорачаниот frontend стек ({n} вештини)?"
+
+msgid "Install {name}"
+msgstr "Инсталирајте {name}"
+
+msgid "Kimi CLI"
+msgstr "Kimi CLI"
+
+msgid "MCP Servers"
+msgstr "MCP сервери"
+
+msgid "Memory"
+msgstr "Меморија"
+
+msgid "Note"
+msgstr "Забелешка"
+
+msgid "Project"
+msgstr "Проект"
+
+msgid "Property"
+msgstr "Својство"
+
+msgid "Run [bold]kimi-mcp-hub add <server>[/bold] or [bold]kimi-mcp-hub init[/bold].\n"
+msgstr "Извршете [bold]kimi-mcp-hub add <server>[/bold] или [bold]kimi-mcp-hub init[/bold].\n"
+
+msgid "Run [bold]kimi[/bold] and type:"
+msgstr "Извршете [bold]kimi[/bold] и напишете:"
+
+msgid "Server"
+msgstr "Сервер"
+
+msgid "Skills"
+msgstr "Вештини"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "This wizard will set up MCP servers, skills, and optional memory.\n"
+msgstr "Овој волшебник ќе постави MCP сервери, вештини и опционална меморија.\n"
+
+msgid "Tools"
+msgstr "Алатки"
+
+msgid "Type"
+msgstr "Тип"
+
+msgid "Value"
+msgstr "Вредност"
+
+msgid "Version"
+msgstr "Верзија"
+
+msgid "[bold cyan]Core Skills (Recommended)[/bold cyan]\n"
+msgstr "[bold cyan]Основни вештини (препорачани)[/bold cyan]\n"
+
+msgid "[bold green]●[/bold green] [bold]{title} v{version}[/bold] [dim]plugin installed[/dim]"
+msgstr "[bold green]●[/bold green] [bold]{title} v{version}[/bold] [dim]приклучокот е инсталиран[/dim]"
+
+msgid "[bold]Kimi MCP Hub v{version}[/bold]"
+msgstr "[bold]Kimi MCP Hub v{version}[/bold]"
+
+msgid "[bold]Step 1: MCP Servers[/bold] (external tools)\n"
+msgstr "[bold]Чекор 1: MCP сервери[/bold] (надворешни алатки)\n"
+
+msgid "[bold]Testing {name}...[/bold]"
+msgstr "[bold]Се тестира {name}...[/bold]"
+
+msgid "[bold]{title} Status[/bold]"
+msgstr "[bold]Статус на {title}[/bold]"
+
+msgid "[dim]     or [bold]kimi-mcp-hub --help[/bold] to see all commands.[/dim]\n"
+msgstr "[dim]     или [bold]kimi-mcp-hub --help[/bold] за сите команди.[/dim]\n"
+
+msgid "[dim]   Use 'kimi mcp auth {name}' to complete OAuth.[/dim]"
+msgstr "[dim]   Користете 'kimi mcp auth {name}' за да ја завршите OAuth автентикацијата.[/dim]"
+
+msgid "[dim]0 configured[/dim]"
+msgstr "[dim]0 конфигурирани[/dim]"
+
+msgid "[dim]0 installed[/dim]"
+msgstr "[dim]0 инсталирани[/dim]"
+
+msgid "[dim]Adding to project: {root}[/dim]\n"
+msgstr "[dim]Се додава во проектот: {root}[/dim]\n"
+
+msgid "[dim]Global config updated:[/dim] {path}\n"
+msgstr "[dim]Глобалната конфигурација е ажурирана:[/dim] {path}\n"
+
+msgid "[dim]Memory not enabled[/dim]"
+msgstr "[dim]Меморијата не е овозможена[/dim]"
+
+msgid "[dim]One-click MCP server & skills manager for Kimi CLI[/dim]\n"
+msgstr "[dim]Менаџер за MCP сервери и вештини со еден клик за Kimi CLI[/dim]\n"
+
+msgid "[dim]Packing:[/dim] {root}"
+msgstr "[dim]Се пакува:[/dim] {root}"
+
+msgid "[dim]Project config detected: saving to {path} (use --global for the global config)[/dim]"
+msgstr "[dim]Откриена е проектна конфигурација: се зачувува во {path} (користете --global за глобалната конфигурација)[/dim]"
+
+msgid "[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]"
+msgstr "[dim]Извршете 'kimi-mcp-hub add --project <server>' за да креирате.[/dim]"
+
+msgid "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+msgstr "[dim]Извршете во git репозиториум или директориум со .kimi/ папка.[/dim]"
+
+msgid "[dim]Run: kimi-mcp-hub init[/dim]"
+msgstr "[dim]Извршете: kimi-mcp-hub init[/dim]"
+
+msgid "[dim]Skipping interactive server selection in --yes mode.[/dim]"
+msgstr "[dim]Се прескокнува интерактивниот избор на сервери во режим --yes.[/dim]"
+
+msgid "[dim]Start Kimi CLI with: [bold]kimi[/bold][/dim]\n"
+msgstr "[dim]Стартувајте го Kimi CLI со: [bold]kimi[/bold][/dim]\n"
+
+msgid "[dim]disabled[/dim]"
+msgstr "[dim]оневозможено[/dim]"
+
+msgid "[dim]{name} (no .kimi/mcp.json)[/dim]"
+msgstr "[dim]{name} (нема .kimi/mcp.json)[/dim]"
+
+msgid "[dim]{servers} MCP Servers  |  {skills} Skills  |  Persistent Memory[/dim]"
+msgstr "[dim]{servers} MCP сервери  |  {skills} вештини  |  Перзистентна меморија[/dim]"
+
+msgid "[green]Auto-installed:[/green] {names}\n"
+msgstr "[green]Автоматски инсталирани:[/green] {names}\n"
+
+msgid "[green]HTTP endpoint configured: {url}[/green]"
+msgstr "[green]HTTP endpoint е конфигуриран: {url}[/green]"
+
+msgid "[green]Memory database: {path}[/green]"
+msgstr "[green]Мемориска база: {path}[/green]"
+
+msgid "[green]Removed {name} from project config[/green]"
+msgstr "[green]{name} е отстранет од проектната конфигурација[/green]"
+
+msgid "[green]Removed {name}[/green]"
+msgstr "[green]{name} е отстранет[/green]"
+
+msgid "[green]Wrote pack to[/green] {output} [dim]({size} bytes)[/dim]"
+msgstr "[green]Пакетот е запишан во[/green] {output} [dim]({size} бајти)[/dim]"
+
+msgid "[green]enabled[/green]"
+msgstr "[green]овозможено[/green]"
+
+msgid "[green]{cmd} found at {path}[/green]"
+msgstr "[green]{cmd} е пронајден во {path}[/green]"
+
+msgid "[green]{n} configured[/green]"
+msgstr "[green]{n} конфигурирани[/green]"
+
+msgid "[green]{n} installed[/green]"
+msgstr "[green]{n} инсталирани[/green]"
+
+msgid "[green]{n} skills in ~/.kimi-code/skills/[/green]"
+msgstr "[green]{n} вештини во ~/.kimi-code/skills/[/green]"
+
+msgid "[red]--project and --global are mutually exclusive.[/red]"
+msgstr "[red]--project и --global се меѓусебно исклучиви.[/red]"
+
+msgid "[red]Error: could not write {output}: {exc}[/red]"
+msgstr "[red]Грешка: не може да се запише {output}: {exc}[/red]"
+
+msgid "[red]Error: {exc}[/red]"
+msgstr "[red]Грешка: {exc}[/red]"
+
+msgid "[red]Error[/red]"
+msgstr "[red]Грешка[/red]"
+
+msgid "[red]Fail[/red]"
+msgstr "[red]Неуспешно[/red]"
+
+msgid "[red]Missing[/red]"
+msgstr "[red]Недостасува[/red]"
+
+msgid "[red]No project root found.[/red]"
+msgstr "[red]Не е пронајден корен на проектот.[/red]"
+
+msgid "[red]Unknown server: {name}[/red]"
+msgstr "[red]Непознат сервер: {name}[/red]"
+
+msgid "[red]not installed[/red]"
+msgstr "[red]не е инсталиран[/red]"
+
+msgid "[red]{cmd} not found. Install with npm/npx.[/red]"
+msgstr "[red]{cmd} не е пронајден. Инсталирајте со npm/npx.[/red]"
+
+msgid "[red]{name} not configured[/red]"
+msgstr "[red]{name} не е конфигуриран[/red]"
+
+msgid "[yellow]No MCP servers configured.[/yellow]"
+msgstr "[yellow]Нема конфигурирани MCP сервери.[/yellow]"
+
+msgid "[yellow]No project root found.[/yellow]"
+msgstr "[yellow]Не е пронајден корен на проектот.[/yellow]"
+
+msgid "[yellow]No skills installed yet[/yellow]"
+msgstr "[yellow]Сè уште нема инсталирани вештини[/yellow]"
+
+msgid "[yellow]No {path} found.[/yellow]"
+msgstr "[yellow]{path} не е пронајден.[/yellow]"
+
+msgid "{configured} / {total} configured"
+msgstr "{configured} / {total} конфигурирани"
+
+msgid "{icon} Add [bold]{name}[/bold]?"
+msgstr "{icon} Да се додаде [bold]{name}[/bold]?"
+
+msgid "{installed} / {total} installed"
+msgstr "{installed} / {total} инсталирани"
+
+msgid "{memory}  Persistent memory"
+msgstr "{memory}  Перзистентна меморија"
+
+msgid "{n} tools"
+msgstr "{n} алатки"
+
+msgid "{servers} MCP Servers available  ({server_line})\n"
+msgstr "{servers} достапни MCP сервери  ({server_line})\n"
+
+msgid "{skills} Skills available       ({skill_line})\n"
+msgstr "{skills} достапни вештини        ({skill_line})\n"
+
+msgid "[bold green]{title} v{version} installed successfully![/bold green]\n\n"
+msgstr "[bold green]{title} v{version} е успешно инсталиран![/bold green]\n\n"
+
+msgid "{n} MCP servers available (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
+msgstr "{n} достапни MCP сервери (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
+
+msgid "{n} AI skills for better coding\n"
+msgstr "{n} AI вештини за подобро кодирање\n"
+
+msgid "{n}  Persistent memory system\n\n"
+msgstr "{n}  Систем за перзистентна меморија\n\n"
+
+msgid "[bold]Get started:[/bold]\n"
+msgstr "[bold]Започнете:[/bold]\n"
+
+msgid "  [bold]kimi-mcp-hub init[/bold]    -- interactive wizard\n"
+msgstr "  [bold]kimi-mcp-hub init[/bold]    -- интерактивен волшебник\n"
+
+msgid "  [bold]kimi-mcp-hub welcome[/bold] -- detailed overview\n"
+msgstr "  [bold]kimi-mcp-hub welcome[/bold] -- детален преглед\n"
+
+msgid "  [bold]kimi-mcp-hub status[/bold]  -- status check\n"
+msgstr "  [bold]kimi-mcp-hub status[/bold]  -- проверка на статусот\n"
+
+msgid "  [bold]kimi-mcp-hub doctor[/bold]  -- system health check"
+msgstr "  [bold]kimi-mcp-hub doctor[/bold]  -- проверка на здравјето на системот"
+
+msgid "[bold green]{title} upgraded from v{old} to v{new}![/bold green]\n\n"
+msgstr "[bold green]{title} е надграден од v{old} на v{new}![/bold green]\n\n"
+
+msgid "[dim]See what's new:[/dim] [bold]kimi-mcp-hub welcome[/bold]"
+msgstr "[dim]Видете што е ново:[/dim] [bold]kimi-mcp-hub welcome[/bold]"

@@ -9,6 +9,7 @@ from pathlib import Path
 import platformdirs
 
 from . import __version__, __title__, TOTAL_SERVERS, TOTAL_SKILLS
+from .i18n import _
 
 
 def _get_state_file() -> Path:
@@ -64,15 +65,19 @@ def _print_first_install_message():
 
         console = Console()
         message = (
-            f"[bold green]{__title__} v{__version__} installed successfully![/bold green]\n\n"
-            f"[cyan]{TOTAL_SERVERS}[/cyan] MCP servers available (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
-            f"[cyan]{TOTAL_SKILLS}[/cyan] AI skills for better coding\n"
-            f"[cyan]1[/cyan]  Persistent memory system\n\n"
-            f"[bold]Get started:[/bold]\n"
-            f"  [bold]kimi-mcp-hub init[/bold]    -- interactive wizard\n"
-            f"  [bold]kimi-mcp-hub welcome[/bold] -- detailed overview\n"
-            f"  [bold]kimi-mcp-hub status[/bold]  -- status check\n"
-            f"  [bold]kimi-mcp-hub doctor[/bold]  -- system health check"
+            _("[bold green]{title} v{version} installed successfully![/bold green]\n\n").format(
+                title=__title__, version=__version__
+            )
+            + _("{n} MCP servers available (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n").format(
+                n=f"[cyan]{TOTAL_SERVERS}[/cyan]"
+            )
+            + _("{n} AI skills for better coding\n").format(n=f"[cyan]{TOTAL_SKILLS}[/cyan]")
+            + _("{n}  Persistent memory system\n\n").format(n="[cyan]1[/cyan]")
+            + _("[bold]Get started:[/bold]\n")
+            + _("  [bold]kimi-mcp-hub init[/bold]    -- interactive wizard\n")
+            + _("  [bold]kimi-mcp-hub welcome[/bold] -- detailed overview\n")
+            + _("  [bold]kimi-mcp-hub status[/bold]  -- status check\n")
+            + _("  [bold]kimi-mcp-hub doctor[/bold]  -- system health check")
         )
         console.print("")
         console.print(Panel.fit(message, title="🎯 Kimi MCP Hub", border_style="green"))
@@ -98,8 +103,10 @@ def _print_upgrade_message(old_ver: str, new_ver: str):
 
         console = Console()
         message = (
-            f"[bold green]{__title__} upgraded from v{old_ver} to v{new_ver}![/bold green]\n\n"
-            f"[dim]See what's new:[/dim] [bold]kimi-mcp-hub welcome[/bold]"
+            _("[bold green]{title} upgraded from v{old} to v{new}![/bold green]\n\n").format(
+                title=__title__, old=old_ver, new=new_ver
+            )
+            + _("[dim]See what's new:[/dim] [bold]kimi-mcp-hub welcome[/bold]")
         )
         console.print("")
         console.print(Panel.fit(message, title="⬆️ Upgrade", border_style="blue"))

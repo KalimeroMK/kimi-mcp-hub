@@ -37,7 +37,13 @@ class KimiConfig:
         self._migrate_legacy_config()
 
     def _migrate_legacy_config(self) -> None:
-        """Copy old ~/.kimi/mcp.json to ~/.kimi-code/mcp.json if needed."""
+        """Copy old ~/.kimi/mcp.json to ~/.kimi-code/mcp.json if needed.
+
+        Skipped when $HOME is itself a project root (has .git): then
+        ~/.kimi/mcp.json is a project config, not a legacy global one.
+        """
+        if (Path.home() / ".git").exists():
+            return
         legacy = Path.home() / ".kimi" / "mcp.json"
         if legacy.exists() and not self.mcp_json.exists():
             try:

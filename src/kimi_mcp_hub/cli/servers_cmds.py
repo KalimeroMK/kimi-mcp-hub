@@ -13,6 +13,7 @@ from rich.table import Table
 
 from ..auth.providers import authenticate
 from ..config import KimiConfig
+from ..i18n import _
 from ..import_claude import import_claude_servers
 from ..project import (
     ProjectConfig,
@@ -37,7 +38,13 @@ from ..servers import (
     SlackServer,
     SupabaseServer,
 )
-from .base import _confirm, _require_project_root, main, print_header, print_welcome
+from .base import (
+    _confirm,
+    _resolve_project_root,
+    main,
+    print_header,
+    print_welcome,
+)
 from .common import console
 from .helpers import (
     add_server_interactive,
@@ -53,28 +60,39 @@ from .skills_cmds import apply_claude_compat_patch
 @click.option(
     "--project",
     is_flag=True,
-    help="Save servers to the current project config (.kimi/mcp.json) instead of global.",
+    help="Save servers to the current project config (.kimi/mcp.json) instead of global. Default when .kimi/ exists.",
+)
+@click.option(
+    "--global",
+    "global_",
+    is_flag=True,
+    help="Save servers to the global config (~/.kimi-code/mcp.json) even inside a project.",
 )
 @click.option(
     "--yes",
     is_flag=True,
     help="Non-interactive mode: accept defaults, auto-install core + frontend skills, enable memory, and apply claude-compat.",
 )
-def init(project: bool, yes: bool):
+def init(project: bool, global_: bool, yes: bool):
     """Interactive setup wizard for servers, skills, and memory."""
     config = KimiConfig()
     print_welcome()
 
-    project_root = None
-    if project:
-        project_root = _require_project_root()
-        console.print(f"\n[dim]Saving MCP servers to project: {project_root}[/dim]\n")
+    project_root = _resolve_project_root(project, global_)
+    if project_root:
+        console.print(
+            _("\n[dim]Saving MCP servers to project: {root}[/dim]\n").format(
+                root=project_root
+            )
+        )
 
-    console.print("\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n")
-    console.print("This wizard will set up MCP servers, skills, and optional memory.\n")
+    console.print(_("\n[bold green]Welcome to Kimi MCP Hub![/bold green]\n"))
+    console.print(
+        _("This wizard will set up MCP servers, skills, and optional memory.\n")
+    )
 
     # Step 1: MCP Servers
-    console.print("[bold]Step 1: MCP Servers[/bold] (external tools)\n")
+    console.print(_("[bold]Step 1: MCP Servers[/bold] (external tools)\n"))
 
     # Auto-install safe, no-key servers if npx is available
     npx_available = shutil.which("npx") is not None
@@ -93,7 +111,11 @@ def init(project: bool, yes: bool):
         add_server_with_preflight(key, cfg, config, project_root=project_root, assume_yes=yes)
         auto_installed.append(getattr(cls, "display_name", key.title()))
     if auto_installed:
-        console.print(f"[green]Auto-installed:[/green] {', '.join(auto_installed)}\n")
+        console.print(
+            _("[green]Auto-installed:[/green] {names}\n").format(
+                names=", ".join(auto_installed)
+            )
+        )
 
     # Prompt for remaining servers (skipped in non-interactive mode)
     if not yes:
@@ -102,25 +124,36 @@ def init(project: bool, yes: bool):
                 continue
             icon = getattr(cls, "icon", "")
             name = getattr(cls, "display_name", key.title())
-            if Confirm.ask(f"{icon} Add [bold]{name}[/bold]?", default=False):
+            if Confirm.ask(
+                _("{icon} Add [bold]{name}[/bold]?").format(icon=icon, name=name),
+                default=False,
+            ):
                 add_server_interactive(key, config, project_root=project_root)
     else:
-        console.print("[dim]Skipping interactive server selection in --yes mode.[/dim]")
+        console.print(
+            _("[dim]Skipping interactive server selection in --yes mode.[/dim]")
+        )
 
     # Step 2: Skills
-    console.print("\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n")
+    console.print(_("\n[bold]Step 2: Skills[/bold] (AI behavior patterns)\n"))
 
     # Core skills -- recommended, default=True
-    console.print("[bold cyan]Core Skills (Recommended)[/bold cyan]\n")
+    console.print(_("[bold cyan]Core Skills (Recommended)[/bold cyan]\n"))
     for key in CORE_SKILLS:
         if key in SKILLS:
-            if _confirm(f"  {SKILLS[key]} -- Install?", default=True, yes=yes):
+            if _confirm(
+                _("  {skill} -- Install?").format(skill=SKILLS[key]),
+                default=True,
+                yes=yes,
+            ):
                 install_skill(key, config, overwrite=False)
 
     # Frontend skills -- installed as a recommended stack, default=True
-    console.print("\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n")
+    console.print(_("\n[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n"))
     if _confirm(
-        f"Install recommended frontend stack ({len(FRONTEND_SKILLS)} skills)?",
+        _("Install recommended frontend stack ({n} skills)?").format(
+            n=len(FRONTEND_SKILLS)
+        ),
         default=True,
         yes=yes,
     ):
@@ -128,7 +161,7 @@ def init(project: bool, yes: bool):
             install_skill(key, config, overwrite=False)
 
     # Optional skills -- grouped by category, default=False
-    console.print("\n[bold cyan]Optional Skills[/bold cyan] (pick categories)\n")
+    console.print(_("\n[bold cyan]Optional Skills[/bold cyan] (pick categories)\n"))
     for category, keys in OPTIONAL_SKILL_GROUPS:
         available = [
             k
@@ -138,7 +171,9 @@ def init(project: bool, yes: bool):
         if not available:
             continue
         if _confirm(
-            f"Install [bold]{category}[/bold] skills ({len(available)} skills)?",
+            _("Install [bold]{category}[/bold] skills ({n} skills)?").format(
+                category=category, n=len(available)
+            ),
             default=False,
             yes=yes,
         ):
@@ -146,21 +181,23 @@ def init(project: bool, yes: bool):
                 install_skill(key, config, overwrite=False)
 
     # Step 3: Memory
-    console.print("\n[bold]Step 3: Persistent Memory[/bold]\n")
-    if _confirm("Enable persistent memory across sessions?", default=True, yes=yes):
+    console.print(_("\n[bold]Step 3: Persistent Memory[/bold]\n"))
+    if _confirm(
+        _("Enable persistent memory across sessions?"), default=True, yes=yes
+    ):
         enable_memory(config)
 
     # Auto-apply claude-compat patch in non-interactive mode
     if yes:
-        console.print("\n[dim]Auto-applying claude-compat patch...[/dim]")
+        console.print(_("\n[dim]Auto-applying claude-compat patch...[/dim]"))
         apply_claude_compat_patch(yes=True)
 
-    console.print("\n[bold green]Setup complete![/bold green]")
-    console.print("Run [bold]kimi[/bold] and type:")
-    console.print("  [bold]/mcp[/bold]    -- see your tools")
-    console.print("  [bold]/skills[/bold] -- see installed skills")
+    console.print(_("\n[bold green]Setup complete![/bold green]"))
+    console.print(_("Run [bold]kimi[/bold] and type:"))
+    console.print(_("  [bold]/mcp[/bold]    -- see your tools"))
+    console.print(_("  [bold]/skills[/bold] -- see installed skills"))
     console.print(
-        "\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n"
+        _("\n[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n")
     )
 
 
@@ -171,21 +208,26 @@ def init(project: bool, yes: bool):
 @click.option(
     "--project",
     is_flag=True,
-    help="Add to the current project config (.kimi/mcp.json) instead of global.",
+    help="Add to the current project config (.kimi/mcp.json) instead of global. Default when .kimi/ exists.",
 )
-def add(server_name: str, project: bool):
+@click.option(
+    "--global",
+    "global_",
+    is_flag=True,
+    help="Add to the global config (~/.kimi-code/mcp.json) even inside a project.",
+)
+def add(server_name: str, project: bool, global_: bool):
     """Add an MCP server."""
     print_header()
     config = KimiConfig()
     if server_name not in SERVERS:
-        console.print(f"[red]Unknown server: {server_name}[/red]")
-        console.print(f"Available: {', '.join(SERVERS.keys())}")
+        console.print(_("[red]Unknown server: {name}[/red]").format(name=server_name))
+        console.print(_("Available: {names}").format(names=", ".join(SERVERS.keys())))
         sys.exit(1)
 
-    project_root = None
-    if project:
-        project_root = _require_project_root()
-        console.print(f"[dim]Adding to project: {project_root}[/dim]\n")
+    project_root = _resolve_project_root(project, global_)
+    if project_root:
+        console.print(_("[dim]Adding to project: {root}[/dim]\n").format(root=project_root))
 
     add_server_interactive(server_name, config, project_root=project_root)
 
@@ -195,20 +237,30 @@ def add(server_name: str, project: bool):
 @click.option(
     "--project",
     is_flag=True,
-    help="Remove from the current project config (.kimi/mcp.json) instead of global.",
+    help="Remove from the current project config (.kimi/mcp.json) instead of global. Default when .kimi/ exists.",
 )
-def remove(server_name: str, project: bool):
+@click.option(
+    "--global",
+    "global_",
+    is_flag=True,
+    help="Remove from the global config (~/.kimi-code/mcp.json) even inside a project.",
+)
+def remove(server_name: str, project: bool, global_: bool):
     """Remove an MCP server."""
-    if project:
-        project_root = _require_project_root()
+    project_root = _resolve_project_root(project, global_)
+    if project_root:
         pc = ProjectConfig(project_root)
         pc.remove_server(server_name)
-        console.print(f"[green]Removed {server_name} from project config[/green]")
+        console.print(
+            _("[green]Removed {name} from project config[/green]").format(
+                name=server_name
+            )
+        )
         console.print(f"[dim]{pc.mcp_json}[/dim]")
     else:
         config = KimiConfig()
         config.remove_server(server_name)
-        console.print(f"[green]Removed {server_name}[/green]")
+        console.print(_("[green]Removed {name}[/green]").format(name=server_name))
 
 
 @main.command()
@@ -220,10 +272,10 @@ def list():
     # Servers
     servers = config.list_servers()
     if servers:
-        table = Table(title="Configured MCP Servers", box=box.ROUNDED)
-        table.add_column("Server", style="cyan", no_wrap=True)
-        table.add_column("Type", style="magenta")
-        table.add_column("Tools", style="green")
+        table = Table(title=_("Configured MCP Servers"), box=box.ROUNDED)
+        table.add_column(_("Server"), style="cyan", no_wrap=True)
+        table.add_column(_("Type"), style="magenta")
+        table.add_column(_("Tools"), style="green")
         for name, cfg in servers.items():
             transport = cfg.get("transport", "stdio")
             if "command" in cfg:
@@ -232,35 +284,39 @@ def list():
                 transport = f"http ({cfg['url'][:40]}...)"
             tool_count = "?"
             if name in SERVERS:
-                tool_count = f"{len(SERVERS[name].get_tools())} tools"
+                tool_count = _("{n} tools").format(n=len(SERVERS[name].get_tools()))
             table.add_row(name, transport, tool_count)
         console.print(table)
     else:
-        console.print("[yellow]No MCP servers configured.[/yellow]")
+        console.print(_("[yellow]No MCP servers configured.[/yellow]"))
         console.print(
-            "Run [bold]kimi-mcp-hub add <server>[/bold] or [bold]kimi-mcp-hub init[/bold].\n"
+            _("Run [bold]kimi-mcp-hub add <server>[/bold] or [bold]kimi-mcp-hub init[/bold].\n")
         )
 
     # Skills
     skills_installed = list_installed_skills(config)
     if skills_installed:
-        console.print(f"\n[green]{len(skills_installed)} skills installed:[/green]")
+        console.print(
+            _("\n[green]{n} skills installed:[/green]").format(n=len(skills_installed))
+        )
         for s in skills_installed:
             desc = SKILLS.get(s, "")
             console.print(f"  [cyan]{s}[/cyan] {desc}")
     else:
-        console.print("\n[yellow]No skills installed.[/yellow]")
+        console.print(_("\n[yellow]No skills installed.[/yellow]"))
 
     # Memory
     if config.memory_db.exists():
-        console.print(f"\n[green]Memory enabled:[/green] {config.memory_db}")
+        console.print(
+            _("\n[green]Memory enabled:[/green] {path}").format(path=config.memory_db)
+        )
     else:
         console.print(
-            "\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]"
+            _("\n[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]")
         )
 
     console.print(
-        "\n[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for skills.[/dim]\n"
+        _("\n[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for skills.[/dim]\n")
     )
 
 
@@ -269,16 +325,21 @@ def list():
 @click.option(
     "--project",
     is_flag=True,
-    help="Save to the current project config (.kimi/mcp.json) instead of global.",
+    help="Save to the current project config (.kimi/mcp.json) instead of global. Default when .kimi/ exists.",
 )
-def auth(server_name: str, project: bool):
+@click.option(
+    "--global",
+    "global_",
+    is_flag=True,
+    help="Save to the global config (~/.kimi-code/mcp.json) even inside a project.",
+)
+def auth(server_name: str, project: bool, global_: bool):
     """Authorize an MCP server with auto browser open (OAuth/Device Flow)."""
     print_header()
     config = KimiConfig()
 
-    project_root = None
-    if project:
-        project_root = _require_project_root()
+    project_root = _resolve_project_root(project, global_)
+    if project_root:
         console.print(f"[dim]Saving to project: {project_root}[/dim]\n")
 
     # Servers with new auto-browser OAuth
@@ -421,23 +482,29 @@ def test(server_name: str):
     config = KimiConfig()
     servers = config.list_servers()
     if server_name not in servers:
-        console.print(f"[red]{server_name} not configured[/red]")
+        console.print(_("[red]{name} not configured[/red]").format(name=server_name))
         sys.exit(1)
 
-    console.print(f"[bold]Testing {server_name}...[/bold]")
+    console.print(_("[bold]Testing {name}...[/bold]").format(name=server_name))
     cfg = servers[server_name]
     if "command" in cfg:
         cmd = [cfg["command"]] + cfg.get("args", [])
         found = shutil.which(cmd[0])
         if found:
-            console.print(f"[green]{cmd[0]} found at {found}[/green]")
+            console.print(_("[green]{cmd} found at {path}[/green]").format(cmd=cmd[0], path=found))
         else:
-            console.print(f"[red]{cmd[0]} not found. Install with npm/npx.[/red]")
+            console.print(
+                _("[red]{cmd} not found. Install with npm/npx.[/red]").format(cmd=cmd[0])
+            )
             sys.exit(1)
     elif "url" in cfg:
-        console.print(f"[green]HTTP endpoint configured: {cfg['url'][:60]}[/green]")
         console.print(
-            f"[dim]   Use 'kimi mcp auth {server_name}' to complete OAuth.[/dim]"
+            _("[green]HTTP endpoint configured: {url}[/green]").format(url=cfg["url"][:60])
+        )
+        console.print(
+            _("[dim]   Use 'kimi mcp auth {name}' to complete OAuth.[/dim]").format(
+                name=server_name
+            )
         )
 
 
@@ -570,17 +637,17 @@ def sync(project_path: Path | None):
     start_dir = project_path or Path.cwd()
     project_root = find_project_root(start_dir)
     if not project_root:
-        console.print("[yellow]No project root found.[/yellow]")
+        console.print(_("[yellow]No project root found.[/yellow]"))
         console.print(
-            "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+            _("[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]")
         )
         sys.exit(1)
 
     pc = ProjectConfig(project_root)
-    if not pc.exists():
-        console.print(f"[yellow]No {pc.mcp_json} found.[/yellow]")
+    if not pc.exists() and not pc.skills_json.exists():
+        console.print(_("[yellow]No {path} found.[/yellow]").format(path=pc.mcp_json))
         console.print(
-            "[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]"
+            _("[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]")
         )
         sys.exit(1)
 
@@ -594,14 +661,31 @@ def sync(project_path: Path | None):
     project_servers = resolved_cfg.get("mcpServers", {})
     if project_servers:
         console.print(
-            f"\n[green]Synced {len(project_servers)} project MCP server(s)[/green]"
+            _("\n[green]Synced {n} project MCP server(s)[/green]").format(
+                n=len(project_servers)
+            )
         )
         for name in project_servers:
             console.print(f"  [cyan]{name}[/cyan]")
-    else:
+    elif pc.exists():
         console.print(
-            "\n[yellow]Project config exists but contains no servers.[/yellow]"
+            _("\n[yellow]Project config exists but contains no servers.[/yellow]")
         )
 
-    console.print(f"\n[dim]Project:[/dim] {project_root}")
-    console.print(f"[dim]Global config updated:[/dim] {config.mcp_json}\n")
+    # Install skills declared in .kimi/skills.json
+    project_skills = [s for s in pc.load_skills() if s in SKILLS]
+    if project_skills:
+        installed_now = []
+        for skill_name in project_skills:
+            install_skill(skill_name, config, overwrite=False)
+            installed_now.append(skill_name)
+        console.print(
+            _("[green]Ensured {n} project skill(s) installed:[/green] {names}").format(
+                n=len(installed_now), names=", ".join(installed_now)
+            )
+        )
+
+    console.print(_("\n[dim]Project:[/dim] {root}").format(root=project_root))
+    console.print(
+        _("[dim]Global config updated:[/dim] {path}\n").format(path=config.mcp_json)
+    )

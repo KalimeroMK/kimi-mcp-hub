@@ -1,0 +1,646 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kimi-mcp-hub 0.3.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-18 11:29+0200\n"
+"PO-Revision-Date: 2026-07-18 12:00+0200\n"
+"Last-Translator: KalimeroMK\n"
+"Language-Team: Macedonian\n"
+"Language: mk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#, python-brace-format
+msgid "[green]{n} configured[/green]"
+msgstr "[green]{n} конфигурирани[/green]"
+
+msgid "[dim]0 configured[/dim]"
+msgstr "[dim]0 конфигурирани[/dim]"
+
+#, python-brace-format
+msgid "[green]{n} installed[/green]"
+msgstr "[green]{n} инсталирани[/green]"
+
+msgid "[dim]0 installed[/dim]"
+msgstr "[dim]0 инсталирани[/dim]"
+
+msgid "[dim]One-click MCP server & skills manager for Kimi CLI[/dim]\n"
+msgstr "[dim]Менаџер за MCP сервери и вештини со еден клик за Kimi CLI[/dim]\n"
+
+#, python-brace-format
+msgid "{servers} MCP Servers available  ({server_line})\n"
+msgstr "{servers} достапни MCP сервери  ({server_line})\n"
+
+#, python-brace-format
+msgid "{skills} Skills available       ({skill_line})\n"
+msgstr "{skills} достапни вештини        ({skill_line})\n"
+
+#, python-brace-format
+msgid "{memory}  Persistent memory"
+msgstr "{memory}  Перзистентна меморија"
+
+#, python-brace-format
+msgid "[bold]Kimi MCP Hub v{version}[/bold]"
+msgstr "[bold]Kimi MCP Hub v{version}[/bold]"
+
+msgid "[dim]Run: kimi-mcp-hub init[/dim]"
+msgstr "[dim]Извршете: kimi-mcp-hub init[/dim]"
+
+#, python-brace-format
+msgid ""
+"[dim]{servers} MCP Servers  |  {skills} Skills  |  Persistent Memory[/dim]"
+msgstr ""
+"[dim]{servers} MCP сервери  |  {skills} вештини  |  Перзистентна меморија[/"
+"dim]"
+
+msgid ""
+"\n"
+"[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] for interactive setup,[/dim]"
+msgstr ""
+"\n"
+"[dim]Совет: Извршете [bold]kimi-mcp-hub init[/bold] за интерактивно "
+"поставување,[/dim]"
+
+msgid ""
+"[dim]     or [bold]kimi-mcp-hub --help[/bold] to see all commands.[/dim]\n"
+msgstr ""
+"[dim]     или [bold]kimi-mcp-hub --help[/bold] за сите команди.[/dim]\n"
+
+msgid "[red]No project root found.[/red]"
+msgstr "[red]Не е пронајден корен на проектот.[/red]"
+
+msgid "[dim]Run inside a git repo or a directory with a .kimi/ folder.[/dim]"
+msgstr ""
+"[dim]Извршете во git репозиториум или директориум со .kimi/ папка.[/dim]"
+
+msgid "[red]--project and --global are mutually exclusive.[/red]"
+msgstr "[red]--project и --global се меѓусебно исклучиви.[/red]"
+
+#, python-brace-format
+msgid ""
+"[dim]Project config detected: saving to {path} (use --global for the global "
+"config)[/dim]"
+msgstr ""
+"[dim]Откриена е проектна конфигурација: се зачувува во {path} (користете --"
+"global за глобалната конфигурација)[/dim]"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[dim]Saving MCP servers to project: {root}[/dim]\n"
+msgstr ""
+"\n"
+"[dim]MCP серверите се зачувуваат во проектот: {root}[/dim]\n"
+
+msgid ""
+"\n"
+"[bold green]Welcome to Kimi MCP Hub![/bold green]\n"
+msgstr ""
+"\n"
+"[bold green]Добредојдовте во Kimi MCP Hub![/bold green]\n"
+
+msgid "This wizard will set up MCP servers, skills, and optional memory.\n"
+msgstr ""
+"Овој волшебник ќе постави MCP сервери, вештини и опционална меморија.\n"
+
+msgid "[bold]Step 1: MCP Servers[/bold] (external tools)\n"
+msgstr "[bold]Чекор 1: MCP сервери[/bold] (надворешни алатки)\n"
+
+#, python-brace-format
+msgid "[green]Auto-installed:[/green] {names}\n"
+msgstr "[green]Автоматски инсталирани:[/green] {names}\n"
+
+#, python-brace-format
+msgid "{icon} Add [bold]{name}[/bold]?"
+msgstr "{icon} Да се додаде [bold]{name}[/bold]?"
+
+msgid "[dim]Skipping interactive server selection in --yes mode.[/dim]"
+msgstr ""
+"[dim]Се прескокнува интерактивниот избор на сервери во режим --yes.[/dim]"
+
+msgid ""
+"\n"
+"[bold]Step 2: Skills[/bold] (AI behavior patterns)\n"
+msgstr ""
+"\n"
+"[bold]Чекор 2: Вештини[/bold] (шаблони за AI однесување)\n"
+
+msgid "[bold cyan]Core Skills (Recommended)[/bold cyan]\n"
+msgstr "[bold cyan]Основни вештини (препорачани)[/bold cyan]\n"
+
+#, python-brace-format
+msgid "  {skill} -- Install?"
+msgstr "  {skill} -- Да се инсталира?"
+
+msgid ""
+"\n"
+"[bold cyan]Frontend Skills (Recommended)[/bold cyan]\n"
+msgstr ""
+"\n"
+"[bold cyan]Фронтенд вештини (препорачани)[/bold cyan]\n"
+
+#, python-brace-format
+msgid "Install recommended frontend stack ({n} skills)?"
+msgstr "Да се инсталира препорачаниот frontend стек ({n} вештини)?"
+
+msgid ""
+"\n"
+"[bold cyan]Optional Skills[/bold cyan] (pick categories)\n"
+msgstr ""
+"\n"
+"[bold cyan]Опционални вештини[/bold cyan] (изберете категории)\n"
+
+#, python-brace-format
+msgid "Install [bold]{category}[/bold] skills ({n} skills)?"
+msgstr "Да се инсталираат вештините [bold]{category}[/bold] ({n} вештини)?"
+
+msgid ""
+"\n"
+"[bold]Step 3: Persistent Memory[/bold]\n"
+msgstr ""
+"\n"
+"[bold]Чекор 3: Перзистентна меморија[/bold]\n"
+
+msgid "Enable persistent memory across sessions?"
+msgstr "Да се овозможи перзистентна меморија низ сесиите?"
+
+msgid ""
+"\n"
+"[dim]Auto-applying claude-compat patch...[/dim]"
+msgstr ""
+"\n"
+"[dim]Автоматски се применува claude-compat patch...[/dim]"
+
+msgid ""
+"\n"
+"[bold green]Setup complete![/bold green]"
+msgstr ""
+"\n"
+"[bold green]Поставувањето заврши![/bold green]"
+
+msgid "Run [bold]kimi[/bold] and type:"
+msgstr "Извршете [bold]kimi[/bold] и напишете:"
+
+msgid "  [bold]/mcp[/bold]    -- see your tools"
+msgstr "  [bold]/mcp[/bold]    -- видете ги вашите алатки"
+
+msgid "  [bold]/skills[/bold] -- see installed skills"
+msgstr "  [bold]/skills[/bold] -- видете ги инсталираните вештини"
+
+msgid ""
+"\n"
+"[dim]Type [bold]kimi-mcp-hub list[/bold] to see everything.[/dim]\n"
+msgstr ""
+"\n"
+"[dim]Напишете [bold]kimi-mcp-hub list[/bold] за да видите сè.[/dim]\n"
+
+#, python-brace-format
+msgid "[red]Unknown server: {name}[/red]"
+msgstr "[red]Непознат сервер: {name}[/red]"
+
+#, python-brace-format
+msgid "Available: {names}"
+msgstr "Достапни: {names}"
+
+#, python-brace-format
+msgid "[dim]Adding to project: {root}[/dim]\n"
+msgstr "[dim]Се додава во проектот: {root}[/dim]\n"
+
+#, python-brace-format
+msgid "[green]Removed {name} from project config[/green]"
+msgstr "[green]{name} е отстранет од проектната конфигурација[/green]"
+
+#, python-brace-format
+msgid "[green]Removed {name}[/green]"
+msgstr "[green]{name} е отстранет[/green]"
+
+msgid "Configured MCP Servers"
+msgstr "Конфигурирани MCP сервери"
+
+msgid "Server"
+msgstr "Сервер"
+
+msgid "Type"
+msgstr "Тип"
+
+msgid "Tools"
+msgstr "Алатки"
+
+#, python-brace-format
+msgid "{n} tools"
+msgstr "{n} алатки"
+
+msgid "[yellow]No MCP servers configured.[/yellow]"
+msgstr "[yellow]Нема конфигурирани MCP сервери.[/yellow]"
+
+msgid ""
+"Run [bold]kimi-mcp-hub add <server>[/bold] or [bold]kimi-mcp-hub init[/"
+"bold].\n"
+msgstr ""
+"Извршете [bold]kimi-mcp-hub add <server>[/bold] или [bold]kimi-mcp-hub init[/"
+"bold].\n"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[green]{n} skills installed:[/green]"
+msgstr ""
+"\n"
+"[green]{n} инсталирани вештини:[/green]"
+
+msgid ""
+"\n"
+"[yellow]No skills installed.[/yellow]"
+msgstr ""
+"\n"
+"[yellow]Нема инсталирани вештини.[/yellow]"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[green]Memory enabled:[/green] {path}"
+msgstr ""
+"\n"
+"[green]Меморијата е овозможена:[/green] {path}"
+
+msgid ""
+"\n"
+"[dim]Memory not enabled. Run [bold]kimi-mcp-hub init[/bold] to enable.[/dim]"
+msgstr ""
+"\n"
+"[dim]Меморијата не е овозможена. Извршете [bold]kimi-mcp-hub init[/bold] за "
+"да ја овозможите.[/dim]"
+
+msgid ""
+"\n"
+"[dim]In Kimi CLI, type [bold]/mcp[/bold] for tools, [bold]/skills[/bold] for "
+"skills.[/dim]\n"
+msgstr ""
+"\n"
+"[dim]Во Kimi CLI напишете [bold]/mcp[/bold] за алатки, [bold]/skills[/bold] "
+"за вештини.[/dim]\n"
+
+#, python-brace-format
+msgid "[red]{name} not configured[/red]"
+msgstr "[red]{name} не е конфигуриран[/red]"
+
+#, python-brace-format
+msgid "[bold]Testing {name}...[/bold]"
+msgstr "[bold]Се тестира {name}...[/bold]"
+
+#, python-brace-format
+msgid "[green]{cmd} found at {path}[/green]"
+msgstr "[green]{cmd} е пронајден во {path}[/green]"
+
+#, python-brace-format
+msgid "[red]{cmd} not found. Install with npm/npx.[/red]"
+msgstr "[red]{cmd} не е пронајден. Инсталирајте со npm/npx.[/red]"
+
+#, python-brace-format
+msgid "[green]HTTP endpoint configured: {url}[/green]"
+msgstr "[green]HTTP endpoint е конфигуриран: {url}[/green]"
+
+#, python-brace-format
+msgid "[dim]   Use 'kimi mcp auth {name}' to complete OAuth.[/dim]"
+msgstr ""
+"[dim]   Користете 'kimi mcp auth {name}' за да ја завршите OAuth "
+"автентикацијата.[/dim]"
+
+msgid "[yellow]No project root found.[/yellow]"
+msgstr "[yellow]Не е пронајден корен на проектот.[/yellow]"
+
+#, python-brace-format
+msgid "[yellow]No {path} found.[/yellow]"
+msgstr "[yellow]{path} не е пронајден.[/yellow]"
+
+msgid "[dim]Run 'kimi-mcp-hub add --project <server>' to create one.[/dim]"
+msgstr ""
+"[dim]Извршете 'kimi-mcp-hub add --project <server>' за да креирате.[/dim]"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[green]Synced {n} project MCP server(s)[/green]"
+msgstr ""
+"\n"
+"[green]Синхронизирани се {n} проектни MCP сервери[/green]"
+
+msgid ""
+"\n"
+"[yellow]Project config exists but contains no servers.[/yellow]"
+msgstr ""
+"\n"
+"[yellow]Проектната конфигурација постои, но не содржи сервери.[/yellow]"
+
+msgid "[green]Ensured {n} project skill(s) installed:[/green] {names}"
+msgstr "[green]Обезбедени се {n} проектни вештини:[/green] {names}"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[dim]Project:[/dim] {root}"
+msgstr ""
+"\n"
+"[dim]Проект:[/dim] {root}"
+
+#, python-brace-format
+msgid "[dim]Global config updated:[/dim] {path}\n"
+msgstr "[dim]Глобалната конфигурација е ажурирана:[/dim] {path}\n"
+
+msgid "Property"
+msgstr "Својство"
+
+msgid "Value"
+msgstr "Вредност"
+
+msgid "Version"
+msgstr "Верзија"
+
+msgid "MCP Servers"
+msgstr "MCP сервери"
+
+#, python-brace-format
+msgid "{configured} / {total} configured"
+msgstr "{configured} / {total} конфигурирани"
+
+msgid "Skills"
+msgstr "Вештини"
+
+#, python-brace-format
+msgid "{installed} / {total} installed"
+msgstr "{installed} / {total} инсталирани"
+
+#, python-brace-format
+msgid "[dim]{name} (no .kimi/mcp.json)[/dim]"
+msgstr "[dim]{name} (нема .kimi/mcp.json)[/dim]"
+
+msgid "Project"
+msgstr "Проект"
+
+msgid "Memory"
+msgstr "Меморија"
+
+msgid "[green]enabled[/green]"
+msgstr "[green]овозможено[/green]"
+
+msgid "[dim]disabled[/dim]"
+msgstr "[dim]оневозможено[/dim]"
+
+msgid "[red]not installed[/red]"
+msgstr "[red]не е инсталиран[/red]"
+
+msgid "Kimi CLI"
+msgstr "Kimi CLI"
+
+#, python-brace-format
+msgid "[bold]{title} Status[/bold]"
+msgstr "[bold]Статус на {title}[/bold]"
+
+msgid ""
+"\n"
+"[dim]Tip: Run [bold]kimi-mcp-hub init[/bold] to set up your first MCP server."
+"[/dim]\n"
+msgstr ""
+"\n"
+"[dim]Совет: Извршете [bold]kimi-mcp-hub init[/bold] за да го поставите "
+"првиот MCP сервер.[/dim]\n"
+
+#, python-brace-format
+msgid ""
+"[bold green]●[/bold green] [bold]{title} v{version}[/bold] [dim]plugin "
+"installed[/dim]"
+msgstr ""
+"[bold green]●[/bold green] [bold]{title} v{version}[/bold] [dim]приклучокот "
+"е инсталиран[/dim]"
+
+msgid ""
+"\n"
+"[bold]Configured MCP Servers:[/bold]"
+msgstr ""
+"\n"
+"[bold]Конфигурирани MCP сервери:[/bold]"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[bold]Installed Skills ({n}):[/bold]"
+msgstr ""
+"\n"
+"[bold]Инсталирани вештини ({n}):[/bold]"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[bold green]Kimi MCP Hub v{version} is ready![/bold green]"
+msgstr ""
+"\n"
+"[bold green]Kimi MCP Hub v{version} е подготвен![/bold green]"
+
+msgid "[dim]Start Kimi CLI with: [bold]kimi[/bold][/dim]\n"
+msgstr "[dim]Стартувајте го Kimi CLI со: [bold]kimi[/bold][/dim]\n"
+
+msgid "Check"
+msgstr "Проверка"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Note"
+msgstr "Забелешка"
+
+msgid "Found"
+msgstr "Пронајдено"
+
+msgid "[red]Error[/red]"
+msgstr "[red]Грешка[/red]"
+
+msgid "[red]Missing[/red]"
+msgstr "[red]Недостасува[/red]"
+
+#, python-brace-format
+msgid "Install {name}"
+msgstr "Инсталирајте {name}"
+
+msgid "[red]Fail[/red]"
+msgstr "[red]Неуспешно[/red]"
+
+msgid ""
+"\n"
+"[yellow]Fixed permissions (chmod 600):[/yellow]"
+msgstr ""
+"\n"
+"[yellow]Поправени дозволи (chmod 600):[/yellow]"
+
+#, python-brace-format
+msgid ""
+"\n"
+"[green]{n} MCP server(s) in ~/.kimi-code/mcp.json[/green]"
+msgstr ""
+"\n"
+"[green]{n} MCP сервери во ~/.kimi-code/mcp.json[/green]"
+
+msgid ""
+"\n"
+"[yellow]No MCP servers configured yet[/yellow]"
+msgstr ""
+"\n"
+"[yellow]Сè уште нема конфигурирани MCP сервери[/yellow]"
+
+msgid "\n[yellow]Duplicate servers (provided by a Kimi plugin AND mcp.json):[/yellow]"
+msgstr "\n[yellow]Дупликат сервери (ги нуди и Kimi приклучокот и mcp.json):[/yellow]"
+
+#, python-brace-format
+msgid "  [yellow]{name}[/yellow] — remove the mcp.json entry: [bold]kimi-mcp-hub remove {name}[/bold]"
+msgstr "  [yellow]{name}[/yellow] — отстранете го записот од mcp.json: [bold]kimi-mcp-hub remove {name}[/bold]"
+
+#, python-brace-format
+msgid "[green]{n} skills in ~/.kimi-code/skills/[/green]"
+msgstr "[green]{n} вештини во ~/.kimi-code/skills/[/green]"
+
+msgid "[yellow]No skills installed yet[/yellow]"
+msgstr "[yellow]Сè уште нема инсталирани вештини[/yellow]"
+
+#, python-brace-format
+msgid "[green]Memory database: {path}[/green]"
+msgstr "[green]Мемориска база: {path}[/green]"
+
+msgid "[dim]Memory not enabled[/dim]"
+msgstr "[dim]Меморијата не е овозможена[/dim]"
+
+msgid ""
+"\n"
+"[dim]Run [bold]kimi-mcp-hub init[/bold] to set up everything.[/dim]\n"
+msgstr ""
+"\n"
+"[dim]Извршете [bold]kimi-mcp-hub init[/bold] за да поставите сè.[/dim]\n"
+
+#, python-brace-format
+msgid "[dim]Packing:[/dim] {root}"
+msgstr "[dim]Се пакува:[/dim] {root}"
+
+#, python-brace-format
+msgid "[red]Error: {exc}[/red]"
+msgstr "[red]Грешка: {exc}[/red]"
+
+#, python-brace-format
+msgid "[red]Error: could not write {output}: {exc}[/red]"
+msgstr "[red]Грешка: не може да се запише {output}: {exc}[/red]"
+
+#, python-brace-format
+msgid "[green]Wrote pack to[/green] {output} [dim]({size} bytes)[/dim]"
+msgstr "[green]Пакетот е запишан во[/green] {output} [dim]({size} бајти)[/dim]"
+
+msgid "\n[dim]Add this to your ~/.zshrc or ~/.bashrc (or run [bold]kimi-mcp-hub shell-init --install[/bold]), then use [bold]k[/bold] instead of [bold]kimi[/bold].[/dim]\n"
+msgstr "\n[dim]Додадете го ова во ~/.zshrc или ~/.bashrc (или извршете [bold]kimi-mcp-hub shell-init --install[/bold]), па користете [bold]k[/bold] наместо [bold]kimi[/bold].[/dim]\n"
+
+msgid "[red]Unsupported shell: {shell}[/red]"
+msgstr "[red]Неподдржана конзола: {shell}[/red]"
+
+msgid "[dim]Only zsh and bash are supported. Add the snippet manually.[/dim]"
+msgstr "[dim]Поддржани се само zsh и bash. Додадете го snippet-от рачно.[/dim]"
+
+msgid "[green]Already installed in {path}[/green]"
+msgstr "[green]Веќе е инсталирано во {path}[/green]"
+
+msgid "[green]Installed in {path}[/green]"
+msgstr "[green]Инсталирано во {path}[/green]"
+
+#, python-brace-format
+msgid "[dim]Restart your shell (or run: source {path}), then use [bold]k[/bold] instead of [bold]kimi[/bold].[/dim]"
+msgstr "[dim]Рестартирајте ја конзолата (или извршете: source {path}), па користете [bold]k[/bold] наместо [bold]kimi[/bold].[/dim]"
+
+#, python-brace-format
+msgid "[dim]Recorded in {path} — 'kimi-mcp-hub sync' installs it for teammates.[/dim]"
+msgstr "[dim]Запишано во {path} — 'kimi-mcp-hub sync' го инсталира и за колегите.[/dim]"
+
+msgid "[red]{exc}[/red]"
+msgstr "[red]{exc}[/red]"
+
+msgid "[green]Saved profile [bold]{name}[/bold] ({n} servers)[/green]"
+msgstr "[green]Зачуван профилот [bold]{name}[/bold] ({n} сервери)[/green]"
+
+msgid "[red]Profile not found: {name}[/red]"
+msgstr "[red]Профилот не е пронајден: {name}[/red]"
+
+msgid "[dim]Available profiles: {names}[/dim]"
+msgstr "[dim]Достапни профили: {names}[/dim]"
+
+#, python-brace-format
+msgid "Replace global config with profile [bold]{name}[/bold] ({n} servers)?"
+msgstr "Да се замени глобалната конфигурација со профилот [bold]{name}[/bold] ({n} сервери)?"
+
+msgid "[dim]Cancelled.[/dim]"
+msgstr "[dim]Откажано.[/dim]"
+
+#, python-brace-format
+msgid "[green]Loaded profile [bold]{name}[/bold] ({n} servers)[/green]"
+msgstr "[green]Вчитан профилот [bold]{name}[/bold] ({n} сервери)[/green]"
+
+msgid "[yellow]No profiles saved.[/yellow] Use [bold]kimi-mcp-hub profile save <name>[/bold]."
+msgstr "[yellow]Нема зачувани профили.[/yellow] Користете [bold]kimi-mcp-hub profile save <name>[/bold]."
+
+msgid "Profiles"
+msgstr "Профили"
+
+msgid "Profile"
+msgstr "Профил"
+
+msgid "Servers"
+msgstr "Сервери"
+
+msgid "[green]Removed profile {name}[/green]"
+msgstr "[green]Отстранет профилот {name}[/green]"
+
+#, python-brace-format
+msgid ""
+"[bold green]{title} v{version} installed successfully![/bold green]\n"
+"\n"
+msgstr ""
+"[bold green]{title} v{version} е успешно инсталиран![/bold green]\n"
+"\n"
+
+#, python-brace-format
+msgid ""
+"{n} MCP servers available (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
+msgstr ""
+"{n} достапни MCP сервери (Jira, GitHub, Slack, Datadog, Perplexity, ...)\n"
+
+#, python-brace-format
+msgid "{n} AI skills for better coding\n"
+msgstr "{n} AI вештини за подобро кодирање\n"
+
+#, python-brace-format
+msgid ""
+"{n}  Persistent memory system\n"
+"\n"
+msgstr ""
+"{n}  Систем за перзистентна меморија\n"
+"\n"
+
+msgid "[bold]Get started:[/bold]\n"
+msgstr "[bold]Започнете:[/bold]\n"
+
+msgid "  [bold]kimi-mcp-hub init[/bold]    -- interactive wizard\n"
+msgstr "  [bold]kimi-mcp-hub init[/bold]    -- интерактивен волшебник\n"
+
+msgid "  [bold]kimi-mcp-hub welcome[/bold] -- detailed overview\n"
+msgstr "  [bold]kimi-mcp-hub welcome[/bold] -- детален преглед\n"
+
+msgid "  [bold]kimi-mcp-hub status[/bold]  -- status check\n"
+msgstr "  [bold]kimi-mcp-hub status[/bold]  -- проверка на статусот\n"
+
+msgid "  [bold]kimi-mcp-hub doctor[/bold]  -- system health check"
+msgstr ""
+"  [bold]kimi-mcp-hub doctor[/bold]  -- проверка на здравјето на системот"
+
+#, python-brace-format
+msgid ""
+"[bold green]{title} upgraded from v{old} to v{new}![/bold green]\n"
+"\n"
+msgstr ""
+"[bold green]{title} е надграден од v{old} на v{new}![/bold green]\n"
+"\n"
+
+msgid "[dim]See what's new:[/dim] [bold]kimi-mcp-hub welcome[/bold]"
+msgstr "[dim]Видете што е ново:[/dim] [bold]kimi-mcp-hub welcome[/bold]"
