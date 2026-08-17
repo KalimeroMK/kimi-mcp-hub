@@ -1,6 +1,6 @@
 {
   "name": "kimi-mcp-hub",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "MCP servers, skills, and persistent memory for Kimi Code CLI",
   "keywords": [
     "mcp",
