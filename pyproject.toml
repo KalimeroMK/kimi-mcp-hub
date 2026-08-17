@@ -61,3 +61,8 @@ pythonpath = ["src"]
 [tool.ruff]
 target-version = "py310"
 src = ["src"]
+
+[tool.ruff.lint]
+# Pinned explicitly: ruff's default rule set grows between releases, so an
+# unpinned CI install would start failing on untouched code.
+select = ["E4", "E7", "E9", "F"]
