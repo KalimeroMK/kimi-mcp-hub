@@ -52,6 +52,42 @@ class Summarizer:
             base_url=cfg.get_memory_summary_base_url(),
         )
 
+    def check(self) -> tuple[bool, str]:
+        """Verify the configured credentials with one minimal request.
+
+        Summarization runs inside the Stop hook, where a failure can only be
+        logged to a stream nobody reads -- a bad key therefore stays invisible
+        while every session silently loses its summary. This makes the failure
+        answerable on demand.
+        """
+        if not self.api_key:
+            return False, "no API key configured"
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "max_tokens": 1,
+                },
+                timeout=20,
+            )
+        except requests.RequestException as exc:
+            return False, f"could not reach {self.base_url}: {exc}"
+
+        if response.status_code == 401:
+            return False, f"the API key was rejected (401) by {self.base_url}"
+        if response.status_code == 404:
+            return False, f"model {self.model!r} not found at {self.base_url}"
+        if not response.ok:
+            detail = response.text[:200].replace("\n", " ")
+            return False, f"HTTP {response.status_code}: {detail}"
+        return True, f"{self.model} responded at {self.base_url}"
+
     def _build_prompt(self, observations: list[dict[str, Any]]) -> str:
         """Build a markdown prompt from the given observations.
 
@@ -66,8 +102,12 @@ class Summarizer:
             if summary and content:
                 lines.append(f"- [{obs.get('type', 'unknown')}] {summary}: {content}")
             else:
-                lines.append(f"- [{obs.get('type', 'unknown')}] {summary or content or 'No details'}")
-        return PROMPT_TEMPLATE.format(observations="\n".join(lines) if lines else "- No observations.")
+                lines.append(
+                    f"- [{obs.get('type', 'unknown')}] {summary or content or 'No details'}"
+                )
+        return PROMPT_TEMPLATE.format(
+            observations="\n".join(lines) if lines else "- No observations."
+        )
 
     def summarize_session(self, observations: list[dict[str, Any]]) -> str | None:
         if not self.api_key:
@@ -85,7 +125,10 @@ class Summarizer:
                 json={
                     "model": self.model,
                     "messages": [
-                        {"role": "system", "content": "You are a helpful coding session summarizer."},
+                        {
+                            "role": "system",
+                            "content": "You are a helpful coding session summarizer.",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.3,

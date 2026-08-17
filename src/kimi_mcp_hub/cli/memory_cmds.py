@@ -51,10 +51,35 @@ def memory():
     help="OpenAI-compatible base URL.",
 )
 @click.option("--enabled/--disabled", default=True, help="Enable or disable summaries.")
-def config_summary(api_key: str | None, model: str, base_url: str, enabled: bool):
+@click.option(
+    "--test",
+    "test_only",
+    is_flag=True,
+    help="Check the saved configuration against the provider and exit.",
+)
+def config_summary(
+    api_key: str | None, model: str, base_url: str, enabled: bool, test_only: bool
+):
     """Configure the LLM used for session summaries."""
+    from ..memory.summarizer import Summarizer
+
     print_header("Memory Summary Configuration")
     config = KimiConfig()
+
+    if test_only:
+        if not config.is_memory_summary_enabled():
+            console.print("[yellow]Session summaries are disabled.[/yellow]")
+            sys.exit(1)
+        ok, detail = Summarizer.from_config(config).check()
+        if ok:
+            console.print(f"[green]Summarization works:[/green] {detail}")
+            return
+        console.print(f"[red]Summarization is broken: {detail}[/red]")
+        console.print(
+            "[dim]Sessions are being saved without a summary. Re-run "
+            "`kimi-mcp-hub memory config-summary` with a valid key.[/dim]"
+        )
+        sys.exit(1)
 
     if not api_key:
         api_key = os.environ.get("KIMI_MEMORY_SUMMARY_API_KEY")
@@ -76,6 +101,20 @@ def config_summary(api_key: str | None, model: str, base_url: str, enabled: bool
     console.print(f"[dim]API key:[/dim] {masked}")
     console.print(f"[dim]Model:[/dim] {model}")
     console.print(f"[dim]Base URL:[/dim] {base_url}")
+
+    if not enabled:
+        return
+
+    # Verify now rather than let every session fail quietly inside the Stop hook.
+    ok, detail = Summarizer(api_key, model, base_url).check()
+    if ok:
+        console.print(f"[green]Verified:[/green] {detail}")
+    else:
+        console.print(f"\n[red]This configuration does not work: {detail}[/red]")
+        console.print(
+            "[dim]Sessions will be saved without a summary until it is fixed. "
+            "Re-check anytime with: kimi-mcp-hub memory config-summary --test[/dim]"
+        )
 
 
 @memory.command(name="add")
