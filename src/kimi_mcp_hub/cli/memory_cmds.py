@@ -8,7 +8,9 @@ import urllib.parse
 from pathlib import Path
 
 import click
+from rich import box
 from rich.prompt import Prompt
+from rich.table import Table
 
 from ..config import KimiConfig
 from ..memory.db import MemoryDB
@@ -375,6 +377,101 @@ def _print_viewer_status(viewer_module, config: KimiConfig) -> None:
             "[yellow]   Access token: disabled (open to local accounts)[/yellow]"
         )
     console.print(f"[dim]   Database: {config.memory_db}[/dim]")
+
+
+@memory.command(name="backfill-projects")
+@click.option(
+    "--vault",
+    type=click.Path(path_type=Path, exists=True, file_okay=False),
+    help="Obsidian vault to read session notes from. [default: the configured memory vault]",
+)
+@click.option("--dry-run", is_flag=True, help="Report what would change and stop.")
+@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+def backfill_projects_cmd(vault: Path | None, dry_run: bool, yes: bool):
+    """Recover project attribution for older observations.
+
+    Observations captured before project tracking existed have no project, so
+    project-scoped recall cannot see them. The session notes in your Obsidian
+    vault record which project each session ran in; this reads them back.
+
+    Only rows that still lack a project are touched, so it is safe to re-run.
+    """
+    from ..memory.backfill import apply_plan, build_plan, parse_session_notes
+
+    print_header("Backfill Project Attribution")
+    config = KimiConfig()
+
+    vault_path = vault or (
+        Path(config.get_default_memory_vault()).expanduser()
+        if config.get_default_memory_vault()
+        else None
+    )
+    if vault_path is None:
+        console.print("[red]No memory vault configured.[/red]")
+        console.print(
+            "[dim]Pass one with --vault, or set one with: kimi-mcp-hub obsidian set-default[/dim]"
+        )
+        sys.exit(1)
+
+    db = MemoryDB(db_path=config.memory_db)
+    unattributed = db.count_unattributed()
+    if unattributed == 0:
+        console.print("[green]Every observation already has a project.[/green]")
+        return
+
+    mapping, plan = parse_session_notes(vault_path)
+    plan = build_plan(db, mapping, plan)
+
+    console.print(f"[dim]Vault:[/dim] {vault_path}")
+    console.print(f"[dim]Notes scanned:[/dim] {plan.notes_scanned}")
+    console.print(f"[dim]Sessions with a project:[/dim] {plan.sessions_mapped}")
+    if plan.notes_without_project:
+        console.print(
+            f"[dim]Notes with no project recorded:[/dim] {plan.notes_without_project}"
+        )
+    if plan.conflicts:
+        console.print(
+            f"[yellow]Skipped {len(plan.conflicts)} session(s) whose notes disagree on the project.[/yellow]"
+        )
+    console.print()
+
+    if plan.is_empty:
+        console.print(
+            f"[yellow]Nothing to backfill.[/yellow] "
+            f"{unattributed} observation(s) lack a project, but none belong to a session these notes cover."
+        )
+        return
+
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold")
+    table.add_column("Project")
+    table.add_column("Observations", justify="right")
+    for project, count in sorted(
+        plan.per_project.items(), key=lambda item: item[1], reverse=True
+    ):
+        table.add_row(project, str(count))
+    console.print(table)
+
+    remaining = unattributed - plan.observations_to_update
+    console.print(
+        f"[bold]{plan.observations_to_update}[/bold] of {unattributed} unattributed "
+        f"observation(s) would be updated across {plan.sessions_matched} session(s)."
+    )
+    if remaining:
+        console.print(
+            f"[dim]{remaining} would stay unattributed — no note records their session.[/dim]"
+        )
+
+    if dry_run:
+        console.print("\n[dim]Dry run: nothing was written.[/dim]")
+        return
+
+    if not yes and not click.confirm("\nApply these changes?", default=False):
+        console.print("[dim]Cancelled.[/dim]")
+        return
+
+    updated = apply_plan(db, mapping)
+    console.print(f"\n[green]Updated {updated} observation(s).[/green]")
+    console.print(f"[dim]Still unattributed: {db.count_unattributed()}[/dim]")
 
 
 @memory.command(name="serve-mcp")

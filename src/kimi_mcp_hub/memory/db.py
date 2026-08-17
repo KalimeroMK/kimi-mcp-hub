@@ -41,6 +41,12 @@ def _default_memory_db() -> Path:
     )
 
 
+def _chunks(items: list[str], size: int):
+    """Yield slices of ``items`` small enough for SQLite's variable limit."""
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
 def content_hash(*parts: str) -> str:
     """Return a short stable hash used to deduplicate observations."""
     digest = hashlib.sha256("\x00".join(parts).encode("utf-8", "replace"))
@@ -393,6 +399,57 @@ class MemoryDB:
                 [*params, limit, offset],
             ).fetchall()
             return [dict(row) for row in rows], total
+
+    def count_unattributed(self) -> int:
+        """Return how many observations still have no project recorded."""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT COUNT(*) FROM observations "
+                "WHERE project_path IS NULL OR project_path = ''"
+            ).fetchone()[0]
+
+    def count_unattributed_by_session(self, session_ids: list[str]) -> dict[str, int]:
+        """Count observations lacking a project, grouped by session id."""
+        if not session_ids:
+            return {}
+        counts: dict[str, int] = {}
+        with self._connect() as conn:
+            # Chunked so a large session list cannot exceed SQLite's variable limit.
+            for chunk in _chunks(session_ids, 500):
+                placeholders = ",".join("?" for _ in chunk)
+                rows = conn.execute(
+                    f"""SELECT session_id, COUNT(*) FROM observations
+                        WHERE (project_path IS NULL OR project_path = '')
+                          AND session_id IN ({placeholders})
+                        GROUP BY session_id""",
+                    chunk,
+                ).fetchall()
+                counts.update({row[0]: row[1] for row in rows})
+        return counts
+
+    def attribute_sessions_to_projects(
+        self, sessions_by_project: dict[str, list[str]]
+    ) -> int:
+        """Set project_path on observations that do not have one yet.
+
+        Rows that already carry a project are left alone, which makes the
+        operation idempotent and keeps recovered values from overwriting the
+        attribution newer observations recorded directly.
+        """
+        updated = 0
+        with self._connect() as conn:
+            for project, session_ids in sessions_by_project.items():
+                for chunk in _chunks(session_ids, 500):
+                    placeholders = ",".join("?" for _ in chunk)
+                    cursor = conn.execute(
+                        f"""UPDATE observations SET project_path = ?
+                            WHERE (project_path IS NULL OR project_path = '')
+                              AND session_id IN ({placeholders})""",
+                        [project, *chunk],
+                    )
+                    updated += cursor.rowcount
+            conn.commit()
+        return updated
 
     def list_projects(self) -> list[dict]:
         """Return distinct project paths with their observation counts."""
