@@ -274,7 +274,9 @@ class TestMemoryHooksObsidian:
         notes = list((vault / "Sessions").glob("*.md"))
         assert len(notes) == 1
         text = notes[0].read_text(encoding="utf-8")
-        assert "`/tmp/project`" in text
+        # The path is resolved so notes and project-scoped recall agree on one
+        # canonical form (on macOS /tmp is a symlink to /private/tmp).
+        assert f"`{Path('/tmp/project').resolve()}`" in text
 
     def test_stop_note_includes_content_not_only_generic_summary(
         self, tmp_path, monkeypatch
@@ -360,6 +362,7 @@ class TestMemoryHooksObsidian:
             content="output content",
             summary="Used bash",
             tags=["bash"],
+            project_path="/tmp/project",
         )
 
         hooks = MemoryHooks(db=db)
@@ -429,15 +432,15 @@ class TestMemoryHooksObsidian:
         hooks.post_tool_use(
             {
                 "session_id": "sess-tool",
-                "name": "Read",
-                "tool_input": {"file_path": "foo.txt"},
+                "name": "Bash",
+                "tool_input": {"command": "cat foo.txt"},
                 "tool_response": "line 1\nline 2\n",
             }
         )
 
         recent = db.get_recent()
         assert len(recent) == 1
-        assert recent[0]["summary"] == "Used Read"
+        assert recent[0]["summary"] == "Used Bash"
         assert "line 1" in recent[0]["content"]
 
     def test_session_end_writes_no_notes(self, tmp_path, monkeypatch):

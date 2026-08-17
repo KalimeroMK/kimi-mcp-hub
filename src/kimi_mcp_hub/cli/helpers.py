@@ -29,6 +29,7 @@ from ..servers import (
     GrainServer,
     HubSpotServer,
     JiraServer,
+    KimiMemoryServer,
     LinearServer,
     MobileMCPServer,
     ObsidianServer,
@@ -409,6 +410,12 @@ def add_server_interactive(
         add_server_with_preflight(name, cfg, config, project_root=project_root)
         console.print(f"[green]Added {display}[/green]")
 
+    elif name == "kimi-memory":
+        cfg = KimiMemoryServer.get_stdio_config()
+        add_server_with_preflight(name, cfg, config, project_root=project_root)
+        console.print(f"[green]Added {display}[/green]")
+        console.print(f"[dim]   Database: {config.memory_db}[/dim]")
+
     elif name == "obsidian":
         default_vault = str(Path.home() / "Documents" / "Kimi-Memory")
         vault = Prompt.ask("Obsidian vault path", default=default_vault)
@@ -506,6 +513,7 @@ def _install_memory_hooks(config: KimiConfig) -> None:
     # SessionStart/PostToolUse hooks.
     hook_events = {
         "session_start": ("SessionStart", 5),
+        "user_prompt_submit": ("UserPromptSubmit", 10),
         "post_tool_use": ("PostToolUse", 5),
         "stop": ("Stop", 60),
         "session_end": ("SessionEnd", 60),
@@ -531,5 +539,16 @@ def enable_memory(config: KimiConfig):
 
     _install_memory_hooks(config)
 
+    # Register the bundled MCP server so the model can query its own memory
+    # mid-session instead of only receiving the fixed session-start injection.
+    config.add_server("kimi-memory", KimiMemoryServer.get_stdio_config())
+
     console.print(f"[green]Memory database initialized: {config.memory_db}[/green]")
     console.print("[dim]   Memory will persist across sessions.[/dim]")
+    console.print(
+        "[dim]   MCP server 'kimi-memory' registered (search/timeline/get/save).[/dim]"
+    )
+    console.print("[dim]   Browse it with: kimi-mcp-hub memory viewer[/dim]")
+    console.print(
+        "[dim]   Keep it always up: kimi-mcp-hub memory viewer --autostart[/dim]"
+    )

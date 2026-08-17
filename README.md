@@ -4,7 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 24 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (7 core + 7 frontend + 43 optional), persistent memory, and Claude Desktop import.
+One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` but for connecting 25 MCP servers (Jira, GitHub, Slack, Obsidian, Datadog, Perplexity, Stripe, GitLab, DBHub, etc.), 57 AI skills (7 core + 7 frontend + 43 optional), persistent memory, and Claude Desktop import.
 
 ---
 
@@ -153,7 +153,7 @@ On first run you'll see:
 ```
 Kimi MCP Hub v0.4.0 installed successfully!
 
-24 MCP servers available
+25 MCP servers available
 57 AI skills for better coding
 1  Persistent memory system
 
@@ -440,6 +440,146 @@ kimi-mcp-hub memory forget 3
 ```
 
 Project memories (`--category project`) are injected into the session context whenever you start Kimi in the matching project directory. This is useful for base URLs, coding conventions, or reminders that should apply to a specific codebase.
+
+### Memory as an MCP server
+
+Session-start injection can only tell the model what was *recent*. The bundled
+`kimi-memory` MCP server lets it search the whole history mid-session. It is
+registered automatically when memory is enabled, runs locally against the same
+SQLite file, and needs no API key or network access.
+
+| Tool | Purpose |
+|------|---------|
+| `memory_search` | Full-text search, returns a compact index (id, time, type, title) |
+| `memory_timeline` | Show what happened immediately before and after one hit |
+| `memory_get` | Fetch the full text of specific ids |
+| `memory_save` | Store a durable project note from inside the session |
+
+The three read tools are a deliberate funnel: search returns titles only, so the
+model narrows down cheaply and pulls full bodies just for the handful of ids it
+actually needs, instead of paying for every match.
+
+Results are scoped to the current project by default; pass `all_projects: true`
+to search everything.
+
+```bash
+# Registered automatically by `init`, or add it explicitly:
+kimi-mcp-hub add kimi-memory
+```
+
+### Browsing memory in the browser
+
+A read-only web UI over the same database: search, filter by project and type,
+page through observations, and read full entries side by side.
+
+```bash
+kimi-mcp-hub memory viewer
+```
+
+The default address is **`http://127.0.0.1:8765`** and the browser opens by
+itself. That form runs in the foreground until you press Ctrl+C.
+
+**Open the URL the command prints, not the bare address.** The link carries an
+access token:
+
+```
+Memory viewer: http://127.0.0.1:8765/?token=Xk7pQ2mR9vL4nT8wZ1cY3hB6
+   Database: ~/.config/kimi-mcp-hub/memory.db
+   Local only. Press Ctrl+C to stop.
+```
+
+Visiting `http://127.0.0.1:8765` without the token loads the page but no data;
+it tells you to use the printed link. The token is stored once in
+`viewer-token` (mode `0600`) and stays the same across restarts, so the URL is
+worth bookmarking. `--rotate-token` replaces it and invalidates every link you
+have shared.
+
+#### Keeping it always on
+
+Turn on autostart and the viewer comes up with every Kimi session and stays up
+after it — the same model `claude-mem` uses:
+
+```bash
+kimi-mcp-hub memory viewer --autostart
+```
+
+From then on the URL is always live; nothing opens a browser tab, so it stays
+out of your way. Autostart is **off until you ask for it**, so installing the
+package never leaves an HTTP server running behind your back.
+
+Manage it directly at any time:
+
+```bash
+kimi-mcp-hub memory viewer --daemon     # start in the background now
+kimi-mcp-hub memory viewer --status     # running? which pid? what URL?
+kimi-mcp-hub memory viewer --stop       # stop it
+kimi-mcp-hub memory viewer --no-autostart
+```
+
+```
+$ kimi-mcp-hub memory viewer --status
+running  pid 25318  (responding)
+   http://127.0.0.1:8765/?token=4oNeh0V3ZAkvFP021TETUeqjq6T1YLSt
+   Autostart with Kimi sessions: on
+   Database: ~/.config/kimi-mcp-hub/memory.db
+```
+
+The session hook only checks a pidfile when the viewer is already up, which
+costs no measurable time; when it is down it spawns the process and returns
+without waiting. A viewer that fails to start never fails a Kimi session.
+
+Change the port with `--port` (remembered when combined with `--autostart`).
+If the port belongs to another process the command says so instead of claiming
+it, and a pidfile left behind by a crash or a reboot is detected as stale and
+cleaned up on the next start.
+
+#### Headless machines, SSH, and WSL
+
+On a server, a container, or an SSH session there is no browser to open. The
+command detects this, prints the reason, and tells you how to reach it:
+
+```
+Memory viewer: http://127.0.0.1:8765/?token=pbHgoD8eyt59nNTf8_KXt2gKWyjXed2x
+   Database: ~/.config/kimi-mcp-hub/memory.db
+   Local only. Press Ctrl+C to stop.
+Could not open a browser (no graphical display detected).
+   Open the URL above yourself, or forward the port:
+   ssh -L 8765:127.0.0.1:8765 <user>@<host>
+```
+
+Auto-open is attempted when `DISPLAY` or `WAYLAND_DISPLAY` is set, or when
+`BROWSER` names a launcher — which is what makes it work under WSL
+(`BROWSER=wslview`). On macOS and Windows it just works.
+
+Run the SSH command from your laptop, then open the printed URL there: the port
+is forwarded through the tunnel, so the viewer still only ever listens on the
+server's loopback interface.
+
+#### Why it is locked down
+
+The database holds raw tool output, which can contain secrets, so the viewer
+binds to loopback only, requires the per-run token, rejects requests whose
+`Host` header is not localhost (which blocks DNS rebinding), and sends no CORS
+headers, so no other site can read it. There is deliberately no flag to expose
+it on the network — SSH forwarding is the supported way to reach it remotely.
+
+### What gets captured
+
+Hooks record tool calls as observations, with three rules that keep the store
+useful rather than merely large:
+
+- **Project attribution** — every observation is tagged with the resolved
+  working directory, so recall never mixes repositories.
+- **Deduplication** — an identical result from the same tool in the same session
+  is stored once.
+- **Noise filtering** — read-only navigation tools (`Read`, `Glob`, `Grep`,
+  `LS`, `WebFetch`, …) stay on the timeline but their output body is dropped.
+  Set `KIMI_MEMORY_CAPTURE_ALL=1` to keep everything, or extend the list with
+  `KIMI_MEMORY_SKIP_TOOLS=Bash,MyTool`.
+
+At the end of a session the LLM summary is stored as a searchable observation,
+which is what later sessions retrieve — both at session start and, per prompt,
+through the `UserPromptSubmit` hook.
 
 ### LLM-powered session summaries
 
@@ -812,12 +952,15 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub memory config-summary [--api-key ...] [--model ...] [--base-url ...]` | Configure LLM for session summaries |
 | `kimi-mcp-hub memory add "<content>" [--category user\|project\|general] [--tags tag1,tag2]` | Save a long-term memory |
 | `kimi-mcp-hub memory search "<query>" [--limit N] [--category ...]` | Search saved memories |
+| `kimi-mcp-hub memory viewer [--port N] [--no-open]` | Browse memory in a local web UI |
+| `kimi-mcp-hub memory viewer --autostart` | Keep the viewer up with every Kimi session |
+| `kimi-mcp-hub memory viewer --daemon\|--status\|--stop` | Manage the background viewer |
 | `kimi-mcp-hub memory list [--limit N] [--category ...]` | List recent memories |
 | `kimi-mcp-hub memory forget <id>` | Delete a memory by ID |
 
 ---
 
-## 24 MCP Servers
+## 25 MCP Servers
 
 | Server | Auth | Tools | Best for |
 |--------|------|:-----:|----------|
@@ -845,6 +988,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **Context7** | STDIO (npx) | 4 | Live library docs, version-aware API lookup |
 | **Supabase** | Official remote OAuth or access-token stdio | 6 | Database, auth, storage, realtime, edge functions |
 | **Perplexity** | **API key (paid, $5 trial credit)** | **3** | **Real-time web search with AI summaries + citations** |
+| **Kimi Memory** | None — bundled, local SQLite | 4 | Searching your own cross-session memory from inside a session |
 
 ---
 

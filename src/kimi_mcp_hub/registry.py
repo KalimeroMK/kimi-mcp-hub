@@ -22,6 +22,7 @@ from .servers import (
     GrainServer,
     HubSpotServer,
     JiraServer,
+    KimiMemoryServer,
     LinearServer,
     MobileMCPServer,
     ObsidianServer,
@@ -59,6 +60,7 @@ SERVERS = {
     "dbhub": DBHubServer,
     "mobile": MobileMCPServer,
     "obsidian": ObsidianServer,
+    "kimi-memory": KimiMemoryServer,
 }
 
 # Core skills are installed by default

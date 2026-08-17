@@ -13,6 +13,7 @@ from kimi_mcp_hub.memory.hooks import MemoryHooks
 
 EVENT_MAP = {
     "session_start": "session_start",
+    "user_prompt_submit": "user_prompt_submit",
     "post_tool_use": "post_tool_use",
     "stop": "stop",
     "session_end": "session_end",

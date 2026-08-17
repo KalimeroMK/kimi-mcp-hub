@@ -163,12 +163,18 @@ class KimiConfig:
 
     def get_memory_summary_model(self) -> str:
         """Return the memory summary model from config.toml."""
-        return self.load_toml_config().get("memory", {}).get("summary_model", "gpt-4o-mini")
+        return (
+            self.load_toml_config()
+            .get("memory", {})
+            .get("summary_model", "gpt-4o-mini")
+        )
 
     def get_memory_summary_base_url(self) -> str:
         """Return the memory summary base URL from config.toml."""
-        return self.load_toml_config().get("memory", {}).get(
-            "summary_base_url", "https://api.openai.com/v1"
+        return (
+            self.load_toml_config()
+            .get("memory", {})
+            .get("summary_base_url", "https://api.openai.com/v1")
         )
 
     def is_memory_summary_enabled(self) -> bool:
@@ -200,6 +206,33 @@ class KimiConfig:
         memory["summary_model"] = model
         memory["summary_base_url"] = base_url
         memory["summary_enabled"] = enabled
+        self.save_toml_config(data)
+
+    def is_viewer_autostart_enabled(self) -> bool:
+        """Return whether the memory viewer should start with a Kimi session.
+
+        Off unless explicitly enabled, so installing the package never leaves a
+        long-running HTTP server behind without the user asking for one.
+        """
+        return bool(
+            self.load_toml_config().get("memory", {}).get("viewer_autostart", False)
+        )
+
+    def get_viewer_port(self) -> int:
+        """Return the port the memory viewer should use."""
+        raw = self.load_toml_config().get("memory", {}).get("viewer_port", 8765)
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return 8765
+
+    def set_viewer_autostart(self, enabled: bool, port: int | None = None) -> None:
+        """Enable or disable starting the memory viewer on session start."""
+        data = self.load_toml_config()
+        memory = data.setdefault("memory", {})
+        memory["viewer_autostart"] = bool(enabled)
+        if port is not None:
+            memory["viewer_port"] = int(port)
         self.save_toml_config(data)
 
     def _load_tokens(self) -> dict:

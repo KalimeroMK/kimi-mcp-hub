@@ -121,15 +121,20 @@ class TestMemoryDB:
         assert db.search("") == []
         assert db.search("   ") == []
 
-    def test_search_with_malformed_fts_query_returns_empty(self, tmp_path):
+    def test_search_with_fts_syntax_in_query_still_matches(self, tmp_path):
+        """Raw FTS syntax used to raise inside MATCH and be swallowed as 'no results'."""
         db = MemoryDB(db_path=tmp_path / "memory.db")
         db.add_observation("sess-1", "note", "observable content")
-        assert db.search('"unmatched quote') == []
+        assert len(db.search('"unmatched quote')) == 0
+        assert len(db.search('"observable')) == 1
+        assert len(db.search("observable AND content")) == 1
+        assert len(db.search("observable (content")) == 1
 
-    def test_search_memories_with_malformed_fts_query_returns_empty(self, tmp_path):
+    def test_search_memories_with_fts_syntax_in_query_still_matches(self, tmp_path):
         db = MemoryDB(db_path=tmp_path / "memory.db")
         db.add_memory("observable content", category="general")
-        assert db.search_memories('"unmatched quote') == []
+        assert len(db.search_memories('"observable')) == 1
+        assert len(db.search_memories("observable OR NOT content")) == 1
 
     def test_negative_limit_raises_value_error(self, tmp_path):
         db = MemoryDB(db_path=tmp_path / "memory.db")

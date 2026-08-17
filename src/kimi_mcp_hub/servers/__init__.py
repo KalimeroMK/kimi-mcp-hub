@@ -24,6 +24,7 @@ from .desktop_commander import DesktopCommanderServer
 from .dbhub import DBHubServer
 from .mobile_mcp import MobileMCPServer
 from .obsidian import ObsidianServer
+from .kimi_memory import KimiMemoryServer
 
 __all__ = [
     "JiraServer", "LinearServer", "ConfluenceServer", "GitHubServer",
@@ -32,5 +33,5 @@ __all__ = [
     "ChromeDevToolsServer", "PostgreSQLServer", "PlaywrightServer",
     "SentryServer", "Context7Server", "SupabaseServer", "PerplexityServer",
     "StripeServer", "DesktopCommanderServer", "DBHubServer", "MobileMCPServer",
-    "ObsidianServer",
+    "ObsidianServer", "KimiMemoryServer",
 ]

@@ -39,9 +39,7 @@ def memory():
 
 
 @memory.command(name="config-summary")
-@click.option(
-    "--api-key", required=False, help="API key for the summary LLM provider."
-)
+@click.option("--api-key", required=False, help="API key for the summary LLM provider.")
 @click.option("--model", default="gpt-4o-mini", show_default=True, help="Model name.")
 @click.option(
     "--base-url",
@@ -71,11 +69,7 @@ def config_summary(api_key: str | None, model: str, base_url: str, enabled: bool
         base_url=base_url,
         enabled=enabled,
     )
-    masked = (
-        f"{api_key[:3]}...{api_key[-4:]}"
-        if len(api_key) > 7
-        else "..."
-    )
+    masked = f"{api_key[:3]}...{api_key[-4:]}" if len(api_key) > 7 else "..."
     console.print("[green]Memory summary configuration saved.[/green]")
     console.print(f"[dim]API key:[/dim] {masked}")
     console.print(f"[dim]Model:[/dim] {model}")
@@ -118,7 +112,11 @@ def add_memory_cmd(
 @memory.command(name="search")
 @click.argument("query")
 @click.option(
-    "--limit", default=10, show_default=True, type=click.IntRange(min=1), help="Max results."
+    "--limit",
+    default=10,
+    show_default=True,
+    type=click.IntRange(min=1),
+    help="Max results.",
 )
 @click.option("--category", help="Filter by category.")
 @click.option(
@@ -145,14 +143,16 @@ def search_memory_cmd(
         console.print("[dim]No memories found.[/dim]")
         return
     for mem in results:
-        console.print(
-            f"[cyan]{mem['id']}[/cyan] [{mem['category']}] {mem['content']}"
-        )
+        console.print(f"[cyan]{mem['id']}[/cyan] [{mem['category']}] {mem['content']}")
 
 
 @memory.command(name="list")
 @click.option(
-    "--limit", default=20, show_default=True, type=click.IntRange(min=1), help="Max results."
+    "--limit",
+    default=20,
+    show_default=True,
+    type=click.IntRange(min=1),
+    help="Max results.",
 )
 @click.option("--category", help="Filter by category.")
 @click.option(
@@ -177,9 +177,7 @@ def list_memory_cmd(
         console.print("[dim]No memories found.[/dim]")
         return
     for mem in results:
-        console.print(
-            f"[cyan]{mem['id']}[/cyan] [{mem['category']}] {mem['content']}"
-        )
+        console.print(f"[cyan]{mem['id']}[/cyan] [{mem['category']}] {mem['content']}")
 
 
 @memory.command(name="forget")
@@ -192,3 +190,166 @@ def forget_memory_cmd(memory_id: int):
     else:
         console.print(f"[red]Memory {memory_id} not found.[/red]")
         sys.exit(1)
+
+
+@memory.command(name="viewer")
+@click.option(
+    "--port", default=None, type=int, help="Port to listen on. [default: 8765]"
+)
+@click.option("--no-open", is_flag=True, help="Do not open a browser automatically.")
+@click.option("--daemon", is_flag=True, help="Start in the background and return.")
+@click.option("--stop", is_flag=True, help="Stop the background viewer.")
+@click.option("--status", is_flag=True, help="Show whether the viewer is running.")
+@click.option(
+    "--autostart/--no-autostart",
+    default=None,
+    help="Start the viewer automatically with every Kimi session.",
+)
+@click.option(
+    "--rotate-token", is_flag=True, help="Invalidate previously shared links."
+)
+def memory_viewer_cmd(
+    port: int | None,
+    no_open: bool,
+    daemon: bool,
+    stop: bool,
+    status: bool,
+    autostart: bool | None,
+    rotate_token: bool,
+):
+    """Browse memory in your web browser.
+
+    Serves a read-only viewer on localhost. The database holds raw tool output,
+    so the server never binds to a public interface and every API call requires
+    an access token.
+    """
+    from ..memory import viewer as viewer_module
+    from ..memory.viewer import serve
+
+    config = KimiConfig()
+    port = port if port is not None else config.get_viewer_port()
+
+    if rotate_token:
+        viewer_module.rotate_token()
+        console.print(
+            "[green]New token generated. Previous links no longer work.[/green]"
+        )
+        if viewer_module.viewer_status()["state"] == "running":
+            console.print("[dim]Restart the viewer to serve the new token.[/dim]")
+
+    if autostart is not None:
+        config.set_viewer_autostart(autostart, port=port)
+        if autostart:
+            console.print(
+                f"[green]Autostart enabled — the viewer will come up with each Kimi session on port {port}.[/green]"
+            )
+        else:
+            console.print("[green]Autostart disabled.[/green]")
+
+    if status:
+        _print_viewer_status(viewer_module, config)
+        return
+
+    if stop:
+        result = viewer_module.stop_daemon()
+        if result.get("stopped"):
+            console.print(f"[green]Viewer stopped (pid {result['pid']}).[/green]")
+        elif result.get("cleaned_stale"):
+            console.print(
+                "[yellow]Viewer was not running; cleared a stale pidfile.[/yellow]"
+            )
+        else:
+            console.print("[dim]Viewer was not running.[/dim]")
+        return
+
+    if daemon:
+        result = viewer_module.start_daemon(port=port)
+        if result["state"] == "running" and result.get("started"):
+            console.print(f"[green]Memory viewer:[/green] {result['url']}")
+            console.print(
+                f"[dim]   Running in the background, pid {result['pid']}.[/dim]"
+            )
+            console.print(
+                "[dim]   Stop it with: kimi-mcp-hub memory viewer --stop[/dim]"
+            )
+        elif result["state"] == "running":
+            console.print(
+                f"[dim]Already running (pid {result['pid']}): {result['url']}[/dim]"
+            )
+        elif result["state"] == "port_busy":
+            console.print(
+                f"[red]Port {port} is already in use by another process.[/red]"
+            )
+            console.print("[dim]Pick another with --port.[/dim]")
+            sys.exit(1)
+        else:
+            console.print(
+                f"[red]Could not start the viewer: {result.get('reason', 'unknown error')}[/red]"
+            )
+            sys.exit(1)
+        return
+
+    if autostart is not None or rotate_token:
+        # Those were configuration-only invocations; do not also block on a server.
+        return
+
+    def announce(url: str) -> None:
+        console.print(f"[green]Memory viewer:[/green] {url}")
+        console.print(f"[dim]   Database: {config.memory_db}[/dim]")
+        console.print("[dim]   Local only. Press Ctrl+C to stop.[/dim]")
+
+    def browser_failed(reason: str) -> None:
+        # Headless Linux and SSH sessions land here. Say so, otherwise the user
+        # is left waiting for a window that is never going to open.
+        console.print(f"[yellow]Could not open a browser ({reason}).[/yellow]")
+        console.print("[dim]   Open the URL above yourself, or forward the port:[/dim]")
+        console.print(f"[dim]   ssh -L {port}:127.0.0.1:{port} <user>@<host>[/dim]")
+
+    try:
+        serve(
+            db_path=config.memory_db,
+            port=port,
+            open_browser=not no_open,
+            on_ready=announce,
+            on_open_failed=browser_failed,
+        )
+    except OSError as exc:
+        console.print(f"[red]Could not start viewer on port {port}: {exc}[/red]")
+        console.print("[dim]Try a different port with --port.[/dim]")
+        sys.exit(1)
+    console.print("[dim]Viewer stopped.[/dim]")
+
+
+def _print_viewer_status(viewer_module, config: KimiConfig) -> None:
+    """Print whether the background viewer is up, and how it is configured."""
+    state = viewer_module.viewer_status()
+    autostart = config.is_viewer_autostart_enabled()
+
+    if state["state"] == "running":
+        health = "responding" if state.get("responding") else "not responding"
+        colour = "green" if state.get("responding") else "yellow"
+        console.print(f"[{colour}]running[/{colour}]  pid {state['pid']}  ({health})")
+        console.print(f"   {state['url']}")
+    elif state["state"] == "stale":
+        console.print(
+            f"[yellow]not running[/yellow]  (stale pidfile for pid {state['pid']})"
+        )
+        console.print("[dim]   It will be cleaned up on the next start.[/dim]")
+    else:
+        console.print("[dim]not running[/dim]")
+        console.print(
+            "[dim]   Start it with: kimi-mcp-hub memory viewer --daemon[/dim]"
+        )
+
+    console.print(
+        f"[dim]   Autostart with Kimi sessions: {'on' if autostart else 'off'}[/dim]"
+    )
+    console.print(f"[dim]   Database: {config.memory_db}[/dim]")
+
+
+@memory.command(name="serve-mcp")
+def memory_serve_mcp_cmd():
+    """Run the memory MCP server on stdio (used by Kimi, not by humans)."""
+    from ..memory.mcp_server import serve
+
+    sys.exit(serve())

@@ -12,10 +12,63 @@ from typing import Any
 
 from ..config import KimiConfig
 from ..servers.obsidian import ObsidianServer
-from .db import MemoryDB
+from .db import MemoryDB, content_hash
 from .summarizer import Summarizer
 
 _logger = logging.getLogger(__name__)
+
+# Read-only navigation tools whose *output* is bulk noise. The call is still
+# recorded (so the timeline stays complete) but the body is dropped, which
+# keeps the observations table from filling up with file dumps and grep hits.
+_NOISY_TOOLS = frozenset(
+    {
+        "Read",
+        "Glob",
+        "Grep",
+        "LS",
+        "NotebookRead",
+        "TodoRead",
+        "TodoWrite",
+        "WebFetch",
+        "WebSearch",
+    }
+)
+
+
+def _resolve_project_path(payload: dict) -> str:
+    """Return the absolute project path for a hook payload.
+
+    Kimi CLI sends the working directory as ``cwd``; ``project_path`` is kept
+    as a fallback for tests and alternative callers. Falling back to the
+    process working directory guarantees observations are always attributable
+    to a project, which is what makes project-scoped recall possible.
+    """
+    raw = payload.get("cwd") or payload.get("project_path") or str(Path.cwd())
+    try:
+        return str(Path(raw).resolve())
+    except OSError:
+        return str(raw)
+
+
+def _first_line(text: str | None, limit: int = 160) -> str:
+    """Return the first non-empty line of ``text``, trimmed to ``limit``."""
+    if not text:
+        return ""
+    for line in text.splitlines():
+        stripped = line.strip().lstrip("#").strip()
+        if stripped:
+            return stripped[:limit]
+    return ""
+
+
+def _noisy_tools() -> frozenset[str]:
+    """Return the set of tools whose output body is not stored."""
+    if os.environ.get("KIMI_MEMORY_CAPTURE_ALL"):
+        return frozenset()
+    extra = os.environ.get("KIMI_MEMORY_SKIP_TOOLS", "")
+    if not extra:
+        return _NOISY_TOOLS
+    return _NOISY_TOOLS | {name.strip() for name in extra.split(",") if name.strip()}
 
 
 def _debug_log_payload(payload: dict, source: str) -> None:
@@ -180,16 +233,36 @@ class MemoryHooks:
     def __init__(self, db: MemoryDB | None = None):
         self.db = db or MemoryDB()
 
+    def _maybe_start_viewer(self) -> None:
+        """Bring the background viewer up if the user opted into autostart.
+
+        Deliberately silent and best-effort: this runs on every session start
+        under a short hook timeout, so it must not slow the session down and
+        must never let a viewer problem break one. The URL is stable, so there
+        is nothing to announce each time -- ``memory viewer --status`` prints it.
+        """
+        try:
+            config = KimiConfig()
+            if not config.is_viewer_autostart_enabled():
+                return
+            from .viewer import start_daemon
+
+            start_daemon(port=config.get_viewer_port())
+        except Exception:
+            _logger.debug("Failed to autostart the memory viewer", exc_info=True)
+
     def session_start(self, payload: dict) -> str:
         """Called on SessionStart. Injects relevant context."""
-        # Kimi CLI sends the working directory as ``cwd``; keep ``project_path``
-        # as a fallback for tests and alternative callers.
+        self._maybe_start_viewer()
         project_path = payload.get("cwd") or payload.get("project_path", "")
         if project_path:
             project_path = str(Path(project_path).resolve())
         parts: list[str] = []
 
-        recent = self.db.get_recent(limit=5)
+        # Scope recent context to this project. Without the filter a session
+        # opened in one repository was primed with tool noise from every other
+        # repository the user had touched.
+        recent = self.db.get_recent(limit=5, project_path=project_path or None)
         if recent:
             parts.append("\n[Memory] Recent context:")
             for obs in recent:
@@ -209,6 +282,57 @@ class MemoryHooks:
                         content = content[:200] + "... [truncated]"
                     parts.append(f"- {content}")
 
+        if parts:
+            parts.append(
+                "\n[Memory] Use the kimi-memory MCP tools "
+                "(memory_search / memory_timeline / memory_get) to look further back."
+            )
+
+        return "\n".join(parts)
+
+    def user_prompt_submit(self, payload: dict) -> str:
+        """Called on UserPromptSubmit. Injects memory relevant to this prompt.
+
+        SessionStart can only inject what was recent; this hook retrieves by
+        relevance to what the user just asked, which is where cross-session
+        memory actually pays off.
+        """
+        prompt = (
+            payload.get("prompt")
+            or payload.get("user_prompt")
+            or payload.get("message")
+            or ""
+        )
+        if not isinstance(prompt, str) or len(prompt.strip()) < 8:
+            return ""
+
+        project_path = _resolve_project_path(payload)
+        # match_any: the prompt is a sentence, so requiring every word to be
+        # present would retrieve nothing.
+        memories = self.db.search_memories(
+            prompt, limit=3, project_path=project_path, match_any=True
+        )
+        observations = self.db.search_index(
+            prompt,
+            limit=5,
+            project_path=project_path,
+            obs_type="session",
+            match_any=True,
+        )
+        if not memories and not observations:
+            return ""
+
+        parts = ["\n[Memory] Possibly relevant to this request:"]
+        for mem in memories:
+            content = mem["content"]
+            if len(content) > 200:
+                content = content[:200] + "... [truncated]"
+            parts.append(f"- (note) {content}")
+        for obs in observations:
+            summary = obs.get("summary") or ""
+            parts.append(f"- (#{obs['id']}) {summary}")
+        if observations:
+            parts.append("[Memory] Fetch details with memory_get([ids]).")
         return "\n".join(parts)
 
     def post_tool_use(self, payload: dict) -> None:
@@ -229,12 +353,23 @@ class MemoryHooks:
             or ""
         )
 
+        project_path = _resolve_project_path(payload)
+
         if _is_image_output(raw_output):
             content = self._persist_image_output(raw_output, session_id, tool_name)
+        elif tool_name in _noisy_tools():
+            # Keep the call in the timeline, drop the payload. A file dump or a
+            # page of grep hits is bulk that crowds out the useful signal.
+            content = f"[{tool_name} output omitted]"
         else:
             content = _extract_text_output(raw_output)
             if len(content) > 1000:
                 content = content[:1000] + "... [truncated]"
+
+        digest = content_hash(tool_name, content)
+        if self.db.has_observation(session_id, digest):
+            # Same tool, same result, same session -- nothing new to remember.
+            return
 
         _debug_log_payload(
             {
@@ -256,6 +391,8 @@ class MemoryHooks:
             content=content,
             summary=f"Used {tool_name}" if tool_name else "Used tool",
             tags=[tool_name] if tool_name else ["tool"],
+            project_path=project_path,
+            content_hash_value=digest,
         )
 
     def _persist_image_output(
@@ -294,16 +431,34 @@ class MemoryHooks:
         return f"![{tool_name}]({rel_path})"
 
     def stop(self, payload: dict) -> None:
-        """Called on Stop. Summarizes session."""
+        """Called on Stop. Summarizes the session and stores it as memory."""
         session_id = payload.get("session_id", "unknown")
+        project_path = _resolve_project_path(payload)
+        observations = self.db.get_recent(session_id=session_id, limit=50)
+
+        summary_text = self._summarize(observations)
+
+        # Store the summary itself so past sessions are searchable. The old
+        # placeholder ("Session ended") carried no retrievable signal.
         self.db.add_observation(
             session_id=session_id,
             obs_type="session",
-            content="Session ended",
-            summary="Session completed",
+            content=summary_text or "Session ended",
+            summary=_first_line(summary_text) or "Session completed",
             tags=["session"],
+            project_path=project_path,
         )
-        self._write_session_notes(payload)
+        self._write_session_notes(
+            payload, observations=observations, summary=summary_text
+        )
+
+    def _summarize(self, observations: list[dict]) -> str | None:
+        """Return an LLM summary of the session, or None if unavailable."""
+        try:
+            return Summarizer.from_config().summarize_session(observations) or None
+        except Exception:
+            _logger.debug("Failed to generate session summary", exc_info=True)
+            return None
 
     def session_end(self, payload: dict) -> None:
         """Called on SessionEnd. No-op; finalization is handled in stop()."""
@@ -316,7 +471,12 @@ class MemoryHooks:
             return Path(path).expanduser().resolve()
         return None
 
-    def _write_session_notes(self, payload: dict) -> None:
+    def _write_session_notes(
+        self,
+        payload: dict,
+        observations: list[dict] | None = None,
+        summary: str | None = None,
+    ) -> None:
         """Persist raw observations and an LLM summary to the default Obsidian vault."""
         vault_path = self._default_vault_path()
         if not vault_path:
@@ -327,12 +487,7 @@ class MemoryHooks:
 
         session_id = payload.get("session_id", "unknown")
         safe_session_id = _sanitize_session_id(session_id)
-        # Kimi CLI sends the working directory as ``cwd``; keep ``project_path``
-        # as a fallback for tests and alternative callers. If neither is present,
-        # fall back to the process working directory so the note still has context.
-        project_path = (
-            payload.get("cwd") or payload.get("project_path") or str(Path.cwd())
-        )
+        project_path = _resolve_project_path(payload)
         _debug_log_payload(
             {
                 "session_id": session_id,
@@ -342,15 +497,16 @@ class MemoryHooks:
                 "cwd": payload.get("cwd"),
                 "project_path": payload.get("project_path"),
                 "resolved_project_path": project_path,
-                "observation_count": len(
-                    self.db.get_recent(session_id=session_id, limit=50)
-                ),
+                "observation_count": len(observations or []),
             },
             "stop",
         )
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
 
-        recent = self.db.get_recent(session_id=session_id, limit=50)
+        if observations is None:
+            observations = self.db.get_recent(session_id=session_id, limit=50)
+        if summary is None:
+            summary = self._summarize(observations)
 
         try:
             note_dir = vault_path / "Sessions"
@@ -358,25 +514,20 @@ class MemoryHooks:
 
             raw_path = note_dir / f"{timestamp}-{safe_session_id}.md"
             raw_path.write_text(
-                self._format_raw_note(timestamp, session_id, project_path, recent),
+                self._format_raw_note(
+                    timestamp, session_id, project_path, observations
+                ),
                 encoding="utf-8",
             )
 
-            try:
-                summarizer = Summarizer.from_config()
-                summary = summarizer.summarize_session(recent)
-                if summary:
-                    summary_path = (
-                        note_dir / f"{timestamp}-{safe_session_id}-summary.md"
-                    )
-                    summary_path.write_text(
-                        self._format_summary_note(
-                            timestamp, session_id, project_path, summary
-                        ),
-                        encoding="utf-8",
-                    )
-            except Exception:
-                _logger.debug("Failed to generate session summary", exc_info=True)
+            if summary:
+                summary_path = note_dir / f"{timestamp}-{safe_session_id}-summary.md"
+                summary_path.write_text(
+                    self._format_summary_note(
+                        timestamp, session_id, project_path, summary
+                    ),
+                    encoding="utf-8",
+                )
         except OSError:
             _logger.debug("Failed to write Obsidian session notes", exc_info=True)
             return
