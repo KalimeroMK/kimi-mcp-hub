@@ -370,7 +370,7 @@ class TestMemoryHooksObsidian:
             {"session_id": "sess-start", "project_path": "/tmp/project"}
         )
 
-        assert "[Memory] Recent context:" in context
+        assert "## Recent activity" in context
         assert "Used bash" in context
 
     def test_post_tool_use_adds_observation(self, tmp_path):
@@ -494,7 +494,7 @@ class TestMemoryHooksProjectMemory:
         result = hooks.session_start(
             {"session_id": "s1", "project_path": str(tmp_path)}
         )
-        assert "[Memory] Project notes:" in result
+        assert "## Project notes" in result
         assert "Always run tests before push" in result
 
     def test_session_start_uses_cwd_as_project_path(self, tmp_path):
@@ -506,7 +506,7 @@ class TestMemoryHooksProjectMemory:
             project_path=str(tmp_path),
         )
         result = hooks.session_start({"session_id": "s1", "cwd": str(tmp_path)})
-        assert "[Memory] Project notes:" in result
+        assert "## Project notes" in result
         assert "Always run tests before push" in result
 
     def test_session_start_excludes_non_matching_project_path(self, tmp_path):
@@ -520,7 +520,7 @@ class TestMemoryHooksProjectMemory:
         result = hooks.session_start(
             {"session_id": "s1", "project_path": str(tmp_path)}
         )
-        assert "[Memory] Project notes:" not in result
+        assert "## Project notes" not in result
         assert "Other project note" not in result
 
     def test_session_start_trailing_slash_matches_same_project(self, tmp_path):
@@ -534,7 +534,7 @@ class TestMemoryHooksProjectMemory:
         result = hooks.session_start(
             {"session_id": "s1", "project_path": str(tmp_path) + "/"}
         )
-        assert "[Memory] Project notes:" in result
+        assert "## Project notes" in result
         assert "Trailing slash note" in result
 
     def test_session_start_excludes_non_project_category(self, tmp_path):
@@ -548,7 +548,7 @@ class TestMemoryHooksProjectMemory:
         result = hooks.session_start(
             {"session_id": "s1", "project_path": str(tmp_path)}
         )
-        assert "[Memory] Project notes:" not in result
+        assert "## Project notes" not in result
         assert "General note" not in result
 
     def test_session_start_no_project_path_no_project_notes(self, tmp_path):
@@ -562,7 +562,7 @@ class TestMemoryHooksProjectMemory:
             tags=["bash"],
         )
         result = hooks.session_start({"session_id": "s1", "project_path": ""})
-        assert "[Memory] Project notes:" not in result
+        assert "## Project notes" not in result
 
     def test_session_start_truncates_long_memory(self, tmp_path):
         db = MemoryDB(db_path=tmp_path / "memory.db")
@@ -576,7 +576,7 @@ class TestMemoryHooksProjectMemory:
         result = hooks.session_start(
             {"session_id": "s1", "project_path": str(tmp_path)}
         )
-        assert "[Memory] Project notes:" in result
-        assert "x" * 200 in result
-        assert "... [truncated]" in result
+        assert "## Project notes" in result
+        assert "x" * 150 in result
+        assert "…" in result
         assert len(result) < len(long_content)

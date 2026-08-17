@@ -979,6 +979,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub memory viewer --autostart` | Keep the viewer up with every Kimi session |
 | `kimi-mcp-hub memory viewer --daemon\|--status\|--stop` | Manage the background viewer |
 | `kimi-mcp-hub memory backfill-projects [--dry-run]` | Recover project attribution from Obsidian notes |
+| `kimi-mcp-hub memory context` | Preview the memory block injected at session start |
 | `kimi-mcp-hub memory list [--limit N] [--category ...]` | List recent memories |
 | `kimi-mcp-hub memory forget <id>` | Delete a memory by ID |
 

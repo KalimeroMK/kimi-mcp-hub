@@ -418,6 +418,56 @@ def _print_viewer_status(viewer_module, config: KimiConfig) -> None:
     console.print(f"[dim]   Database: {config.memory_db}[/dim]")
 
 
+@memory.command(name="context")
+@click.option(
+    "--project-path",
+    type=click.Path(path_type=Path),
+    help="Project to render for. [default: the current project]",
+)
+@click.option("--sessions", type=int, help="How many past sessions to show.")
+@click.option("--notes", type=int, help="How many project notes to show.")
+@click.option("--all-projects", is_flag=True, help="Render without a project scope.")
+def memory_context_cmd(
+    project_path: Path | None,
+    sessions: int | None,
+    notes: int | None,
+    all_projects: bool,
+):
+    """Show the memory block that gets injected at session start.
+
+    Useful for tuning the limits: whatever this prints is spent from every
+    session's context window.
+    """
+    from ..memory.context import build_context
+
+    config = KimiConfig()
+    scope = (
+        None
+        if all_projects
+        else _resolve_memory_project_path(str(project_path) if project_path else None)
+    )
+
+    block = build_context(
+        MemoryDB(db_path=config.memory_db),
+        scope,
+        max_sessions=sessions
+        if sessions is not None
+        else config.get_context_sessions(),
+        max_notes=notes if notes is not None else config.get_context_notes(),
+    )
+    if not block.strip():
+        console.print("[dim]Nothing to inject yet for this project.[/dim]")
+        return
+
+    # markup=False: the block contains literal brackets like memory_get([id]),
+    # which rich would otherwise swallow as a style tag and misrepresent what
+    # actually gets injected.
+    console.print(block, markup=False, highlight=False)
+    console.print(
+        f"\n[dim]{len(block)} characters, roughly {len(block) // 4} tokens per session.[/dim]"
+    )
+
+
 @memory.command(name="backfill-projects")
 @click.option(
     "--vault",

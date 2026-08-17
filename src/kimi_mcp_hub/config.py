@@ -240,6 +240,22 @@ class KimiConfig:
         except (TypeError, ValueError):
             return 8765
 
+    def get_context_sessions(self) -> int:
+        """How many past sessions to inject at session start."""
+        return self._positive_int("context_sessions", 8)
+
+    def get_context_notes(self) -> int:
+        """How many project notes to inject at session start."""
+        return self._positive_int("context_notes", 5)
+
+    def _positive_int(self, key: str, default: int) -> int:
+        raw = self.load_toml_config().get("memory", {}).get(key, default)
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return default
+        return value if value >= 0 else default
+
     def is_viewer_token_required(self) -> bool:
         """Return whether the memory viewer demands an access token.
 

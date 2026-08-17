@@ -12,6 +12,7 @@ from typing import Any
 
 from ..config import KimiConfig
 from ..servers.obsidian import ObsidianServer
+from .context import build_context
 from .db import MemoryDB, content_hash
 from .summarizer import Summarizer
 
@@ -302,38 +303,14 @@ class MemoryHooks:
         project_path = payload.get("cwd") or payload.get("project_path", "")
         if project_path:
             project_path = str(Path(project_path).resolve())
-        parts: list[str] = []
 
-        # Scope recent context to this project. Without the filter a session
-        # opened in one repository was primed with tool noise from every other
-        # repository the user had touched.
-        recent = self.db.get_recent(limit=5, project_path=project_path or None)
-        if recent:
-            parts.append("\n[Memory] Recent context:")
-            for obs in recent:
-                parts.append(
-                    f"- [{obs['type']}] {obs['summary'] or obs['content'][:100]}"
-                )
-
-        if project_path:
-            memories = self.db.get_memories(
-                limit=10, category="project", project_path=project_path
-            )
-            if memories:
-                parts.append("\n[Memory] Project notes:")
-                for mem in memories:
-                    content = mem["content"]
-                    if len(content) > 200:
-                        content = content[:200] + "... [truncated]"
-                    parts.append(f"- {content}")
-
-        if parts:
-            parts.append(
-                "\n[Memory] Use the kimi-memory MCP tools "
-                "(memory_search / memory_timeline / memory_get) to look further back."
-            )
-
-        return "\n".join(parts)
+        config = KimiConfig()
+        return build_context(
+            self.db,
+            project_path or None,
+            max_sessions=config.get_context_sessions(),
+            max_notes=config.get_context_notes(),
+        )
 
     def user_prompt_submit(self, payload: dict) -> str:
         """Called on UserPromptSubmit. Injects memory relevant to this prompt.
