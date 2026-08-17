@@ -12,18 +12,28 @@ _logger = logging.getLogger(__name__)
 _CONTENT_PREVIEW_LEN = 200
 
 PROMPT_TEMPLATE = """You are summarizing a coding session. Given the following observations,
-write a concise markdown summary with these sections:
+write a summary in exactly this shape:
+
+Title: one specific sentence, at most 90 characters, naming what was actually
+done. Write it so someone scanning a list of past sessions months later knows
+whether this one is relevant. No generic words like "summary", "session" or
+"various changes".
+
+Then a markdown body with these sections:
 
 - Goal: what the user was trying to accomplish
 - Key decisions: important choices made during the session
 - Files and tools touched: relevant files, commands, MCP tools
 - Open questions / TODOs: anything unresolved or left to do
 
-Keep it under 300 words. Use bullet points. Do not include raw output dumps.
+Keep the body under 300 words. Use bullet points. Do not include raw output dumps.
 
 Observations:
 {observations}
 """
+
+
+SYSTEM_PROMPT = "You are a helpful coding session summarizer."
 
 
 class Summarizer:
@@ -32,10 +42,16 @@ class Summarizer:
         api_key: str,
         model: str = "gpt-4o-mini",
         base_url: str = "https://api.openai.com/v1",
+        temperature: float | None = None,
     ):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
+        # Omitted from the request unless configured. Reasoning models reject
+        # anything but their own default -- Kimi's coding endpoint answers
+        # "only 1 is allowed for this model" -- so sending one unasked turns
+        # every summary into a 400.
+        self.temperature = temperature
 
     @classmethod
     def from_config(cls, config: Any | None = None) -> "Summarizer":
@@ -50,6 +66,33 @@ class Summarizer:
             api_key=cfg.get_memory_summary_api_key(),
             model=cfg.get_memory_summary_model(),
             base_url=cfg.get_memory_summary_base_url(),
+            temperature=cfg.get_memory_summary_temperature(),
+        )
+
+    def _request(self, prompt: str, max_tokens: int | None = None):
+        """Send one chat completion. Shared so a check cannot drift from the
+        real call and report success for a request shape never actually used.
+        """
+        body: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+        }
+        if self.temperature is not None:
+            body["temperature"] = self.temperature
+        if max_tokens is not None:
+            body["max_tokens"] = max_tokens
+
+        return requests.post(
+            f"{self.base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+            timeout=30,
         )
 
     def check(self) -> tuple[bool, str]:
@@ -63,19 +106,7 @@ class Summarizer:
         if not self.api_key:
             return False, "no API key configured"
         try:
-            response = requests.post(
-                f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": "ping"}],
-                    "max_tokens": 1,
-                },
-                timeout=20,
-            )
+            response = self._request("Reply with the word: ok", max_tokens=16)
         except requests.RequestException as exc:
             return False, f"could not reach {self.base_url}: {exc}"
 
@@ -116,25 +147,7 @@ class Summarizer:
 
         prompt = self._build_prompt(observations)
         try:
-            response = requests.post(
-                f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.model,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a helpful coding session summarizer.",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.3,
-                },
-                timeout=30,
-            )
+            response = self._request(prompt)
             response.raise_for_status()
             data = response.json()
             if (

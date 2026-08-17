@@ -50,15 +50,60 @@ def _resolve_project_path(payload: dict) -> str:
         return str(raw)
 
 
+_TITLE_PREFIX_RE = re.compile(r"^(?:#+\s*)?(?:\*\*)?title(?:\*\*)?\s*[:\-]\s*", re.I)
+# Headings the model may emit before the real title, plus the section names of
+# the summary template itself. None of them identify a session.
+_GENERIC_TITLES = frozenset(
+    {
+        "summary",
+        "session summary",
+        "coding session summary",
+        "session",
+        "overview",
+        "goal",
+        "goals",
+        "key decisions",
+        "decisions",
+        "files and tools touched",
+        "files touched",
+        "tools touched",
+        "open questions",
+        "open questions / todos",
+        "todos",
+        "todo",
+        "next steps",
+        "notes",
+    }
+)
+
+
 def _first_line(text: str | None, limit: int = 160) -> str:
-    """Return the first non-empty line of ``text``, trimmed to ``limit``."""
+    """Return a usable title for a session summary.
+
+    The summary prompt asks for a leading ``Title:`` line, but models still
+    sometimes lead with a generic heading. Those are skipped so the session
+    list shows what actually happened instead of a column of "Summary".
+    """
     if not text:
         return ""
+    fallback = ""
     for line in text.splitlines():
-        stripped = line.strip().lstrip("#").strip()
-        if stripped:
-            return stripped[:limit]
-    return ""
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _TITLE_PREFIX_RE.match(stripped):
+            titled = _TITLE_PREFIX_RE.sub("", stripped).strip(" *#")
+            if titled:
+                return titled[:limit]
+            continue
+        cleaned = stripped.lstrip("#").strip(" *-")
+        if not cleaned:
+            continue
+        if cleaned.lower().rstrip(".:") in _GENERIC_TITLES:
+            continue
+        if not fallback:
+            fallback = cleaned
+    return fallback[:limit]
 
 
 def _noisy_tools() -> frozenset[str]:

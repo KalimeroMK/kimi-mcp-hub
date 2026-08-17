@@ -261,3 +261,59 @@ class TestBrowseAndTimeline:
         row = db.search_index("summary", project_path=PROJECT)[0]
         assert "content" not in row
         assert row["summary"] == "summary 0"
+
+
+class TestSessionTitles:
+    """The session list is only useful if titles say what happened."""
+
+    def test_explicit_title_line_wins(self):
+        from kimi_mcp_hub.memory.hooks import _first_line
+
+        assert (
+            _first_line("Title: Added the memory MCP server\n\n## Goal\n- x")
+            == "Added the memory MCP server"
+        )
+
+    def test_bold_title_line(self):
+        from kimi_mcp_hub.memory.hooks import _first_line
+
+        assert (
+            _first_line("**Title:** Fixed FTS5 escaping\n\nbody")
+            == "Fixed FTS5 escaping"
+        )
+
+    def test_generic_headings_are_skipped(self):
+        from kimi_mcp_hub.memory.hooks import _first_line
+
+        text = "## Coding Session Summary\n\n### Goal\n\nMigrated billing to UUID keys"
+        assert _first_line(text) == "Migrated billing to UUID keys"
+
+    def test_section_names_are_not_titles(self):
+        from kimi_mcp_hub.memory.hooks import _first_line
+
+        assert _first_line("# Summary\n\n## Goal:\n\nReworked the importer") == (
+            "Reworked the importer"
+        )
+
+    def test_empty_summary_yields_no_title(self):
+        from kimi_mcp_hub.memory.hooks import _first_line
+
+        assert _first_line("") == ""
+        assert _first_line(None) == ""
+
+    def test_title_is_trimmed(self):
+        from kimi_mcp_hub.memory.hooks import _first_line
+
+        assert len(_first_line("Title: " + "x" * 500)) == 160
+
+    def test_stop_stores_the_generated_title(self, hooks, db, monkeypatch):
+        monkeypatch.setattr(
+            MemoryHooks,
+            "_summarize",
+            lambda self, obs: (
+                "Title: Recovered project paths from vault notes\n\n## Goal\n- x"
+            ),
+        )
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+        row = db.get_recent(session_id="s1", obs_type="session", limit=1)[0]
+        assert row["summary"] == "Recovered project paths from vault notes"

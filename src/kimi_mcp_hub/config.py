@@ -177,6 +177,20 @@ class KimiConfig:
             .get("summary_base_url", "https://api.openai.com/v1")
         )
 
+    def get_memory_summary_temperature(self) -> float | None:
+        """Return the sampling temperature for summaries, or None to omit it.
+
+        Left unset by default: several reasoning models reject any explicit
+        temperature, so sending one unasked breaks summarization outright.
+        """
+        raw = self.load_toml_config().get("memory", {}).get("summary_temperature")
+        if raw is None or raw == "":
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
     def is_memory_summary_enabled(self) -> bool:
         """Return whether memory summarization is enabled.
 
