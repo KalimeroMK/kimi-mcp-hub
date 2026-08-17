@@ -1,6 +1,6 @@
 {
   "name": "kimi-mcp-hub",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "One-click MCP server and skills manager for Kimi CLI",
   "main": "install/npm-wrapper.js",
   "bin": {

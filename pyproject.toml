@@ -1,6 +1,6 @@
 [project]
 name = "kimi-mcp-hub"
-version = "0.5.0"
+version = "0.6.0"
 description = "One-click MCP server and skills manager for Kimi CLI -- 25 MCP servers, 57 AI skills, persistent memory"
 readme = "README.md"
 requires-python = ">=3.10"
