@@ -208,6 +208,12 @@ def forget_memory_cmd(memory_id: int):
 @click.option(
     "--rotate-token", is_flag=True, help="Invalidate previously shared links."
 )
+@click.option(
+    "--token/--no-token",
+    "require_token",
+    default=None,
+    help="Require an access token. On by default; --no-token opens the viewer to every local account.",
+)
 def memory_viewer_cmd(
     port: int | None,
     no_open: bool,
@@ -216,18 +222,33 @@ def memory_viewer_cmd(
     status: bool,
     autostart: bool | None,
     rotate_token: bool,
+    require_token: bool | None,
 ):
     """Browse memory in your web browser.
 
     Serves a read-only viewer on localhost. The database holds raw tool output,
-    so the server never binds to a public interface and every API call requires
-    an access token.
+    so the server never binds to a public interface. The first visit through
+    the printed link leaves a session cookie, after which the bare address
+    works on its own.
     """
     from ..memory import viewer as viewer_module
     from ..memory.viewer import serve
 
     config = KimiConfig()
     port = port if port is not None else config.get_viewer_port()
+
+    if require_token is not None:
+        config.set_viewer_token_required(require_token)
+        if require_token:
+            console.print("[green]Access token required.[/green]")
+        else:
+            console.print("[yellow]Access token disabled.[/yellow]")
+            console.print(
+                "[dim]   Any account on this machine can now read the database over HTTP.[/dim]"
+            )
+        if viewer_module.viewer_status()["state"] == "running":
+            console.print("[dim]   Restart the viewer to apply.[/dim]")
+    token_required = config.is_viewer_token_required()
 
     if rotate_token:
         viewer_module.rotate_token()
@@ -289,13 +310,17 @@ def memory_viewer_cmd(
             sys.exit(1)
         return
 
-    if autostart is not None or rotate_token:
+    if autostart is not None or rotate_token or require_token is not None:
         # Those were configuration-only invocations; do not also block on a server.
         return
 
     def announce(url: str) -> None:
         console.print(f"[green]Memory viewer:[/green] {url}")
         console.print(f"[dim]   Database: {config.memory_db}[/dim]")
+        if token_required:
+            console.print(
+                "[dim]   Opening this link authorizes this browser for good.[/dim]"
+            )
         console.print("[dim]   Local only. Press Ctrl+C to stop.[/dim]")
 
     def browser_failed(reason: str) -> None:
@@ -312,6 +337,7 @@ def memory_viewer_cmd(
             open_browser=not no_open,
             on_ready=announce,
             on_open_failed=browser_failed,
+            require_token=token_required,
         )
     except OSError as exc:
         console.print(f"[red]Could not start viewer on port {port}: {exc}[/red]")
@@ -344,6 +370,10 @@ def _print_viewer_status(viewer_module, config: KimiConfig) -> None:
     console.print(
         f"[dim]   Autostart with Kimi sessions: {'on' if autostart else 'off'}[/dim]"
     )
+    if not config.is_viewer_token_required():
+        console.print(
+            "[yellow]   Access token: disabled (open to local accounts)[/yellow]"
+        )
     console.print(f"[dim]   Database: {config.memory_db}[/dim]")
 
 

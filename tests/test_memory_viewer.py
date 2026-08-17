@@ -160,11 +160,11 @@ class TestViewerSecurity:
         assert status == 200
         assert "Kimi Memory" in body
 
-    def test_index_page_explains_a_missing_token(self, viewer):
-        """Opening the bare address should guide the user, not just fail."""
+    def test_index_page_explains_an_unauthorized_browser(self, viewer):
+        """An unauthorized browser should be guided, not just refused."""
         base, _ = viewer
         _, body = fetch(f"{base}/")
-        assert "No access token in this URL" in body
+        assert "not authorized yet" in body
         assert "kimi-mcp-hub memory viewer" in body
 
     def test_index_page_carries_no_token(self, viewer):
@@ -172,6 +172,88 @@ class TestViewerSecurity:
         base, token = viewer
         _, body = fetch(f"{base}/")
         assert token not in body
+
+
+class TestSessionCookie:
+    """The first visit through the printed link authorizes the browser."""
+
+    def test_index_sets_a_cookie_when_the_token_is_valid(self, viewer):
+        base, token = viewer
+        request = urllib.request.Request(f"{base}/?token={token}")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            cookie = response.headers.get("Set-Cookie")
+        assert cookie is not None
+        assert f"kimi_viewer={token}" in cookie
+        # Another site's requests must never carry it, and page scripts must
+        # not be able to read it.
+        assert "HttpOnly" in cookie
+        assert "SameSite=Strict" in cookie
+
+    def test_index_sets_no_cookie_without_a_valid_token(self, viewer):
+        base, _ = viewer
+        request = urllib.request.Request(f"{base}/?token=wrong")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.headers.get("Set-Cookie") is None
+
+    def test_cookie_authorizes_api_calls(self, viewer):
+        """This is what lets the bare address work on later visits."""
+        base, token = viewer
+        status, body = fetch(f"{base}/api/stats", {"Cookie": f"kimi_viewer={token}"})
+        assert status == 200
+        assert json.loads(body)["observations"]["total_observations"] == 2
+
+    def test_wrong_cookie_is_rejected(self, viewer):
+        base, _ = viewer
+        status, _ = fetch(f"{base}/api/stats", {"Cookie": "kimi_viewer=guess"})
+        assert status == 401
+
+    def test_malformed_cookie_header_is_rejected(self, viewer):
+        base, _ = viewer
+        status, _ = fetch(f"{base}/api/stats", {"Cookie": "=====;;;"})
+        assert status == 401
+
+    def test_unrelated_cookies_do_not_authorize(self, viewer):
+        base, token = viewer
+        status, _ = fetch(f"{base}/api/stats", {"Cookie": f"other={token}"})
+        assert status == 401
+
+
+class TestTokenDisabled:
+    """`--no-token` trades the local-account protection for convenience."""
+
+    @pytest.fixture
+    def open_viewer(self, tmp_path):
+        db_path = tmp_path / "memory.db"
+        MemoryDB(db_path=db_path).add_observation("s1", "tool", "x", "Used Bash")
+        server, _ = build_server(db_path=db_path, port=0, require_token=False)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            yield f"http://127.0.0.1:{server.server_address[1]}"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_api_needs_no_token(self, open_viewer):
+        status, body = fetch(f"{open_viewer}/api/stats")
+        assert status == 200
+        assert json.loads(body)["observations"]["total_observations"] == 1
+
+    def test_host_header_check_still_applies(self, open_viewer):
+        """Dropping the token must not drop the DNS-rebinding defence."""
+        status, _ = fetch(f"{open_viewer}/api/stats", {"Host": "evil.example"})
+        assert status == 403
+
+    def test_no_cors_header_is_still_sent(self, open_viewer):
+        request = urllib.request.Request(f"{open_viewer}/api/stats")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.headers.get("Access-Control-Allow-Origin") is None
+
+    def test_no_cookie_is_set(self, open_viewer):
+        request = urllib.request.Request(f"{open_viewer}/")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.headers.get("Set-Cookie") is None
 
 
 class TestViewerApi:

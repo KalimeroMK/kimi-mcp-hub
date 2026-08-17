@@ -226,6 +226,22 @@ class KimiConfig:
         except (TypeError, ValueError):
             return 8765
 
+    def is_viewer_token_required(self) -> bool:
+        """Return whether the memory viewer demands an access token.
+
+        On by default. Turning it off is reasonable on a single-user machine
+        but exposes the database over HTTP to every other account on the host.
+        """
+        return bool(
+            self.load_toml_config().get("memory", {}).get("viewer_require_token", True)
+        )
+
+    def set_viewer_token_required(self, required: bool) -> None:
+        """Enable or disable the viewer's access token."""
+        data = self.load_toml_config()
+        data.setdefault("memory", {})["viewer_require_token"] = bool(required)
+        self.save_toml_config(data)
+
     def set_viewer_autostart(self, enabled: bool, port: int | None = None) -> None:
         """Enable or disable starting the memory viewer on session start."""
         data = self.load_toml_config()

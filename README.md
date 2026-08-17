@@ -479,20 +479,23 @@ kimi-mcp-hub memory viewer
 The default address is **`http://127.0.0.1:8765`** and the browser opens by
 itself. That form runs in the foreground until you press Ctrl+C.
 
-**Open the URL the command prints, not the bare address.** The link carries an
-access token:
+**Open the printed link once.** It carries an access token:
 
 ```
 Memory viewer: http://127.0.0.1:8765/?token=Xk7pQ2mR9vL4nT8wZ1cY3hB6
    Database: ~/.config/kimi-mcp-hub/memory.db
+   Opening this link authorizes this browser for good.
    Local only. Press Ctrl+C to stop.
 ```
 
-Visiting `http://127.0.0.1:8765` without the token loads the page but no data;
-it tells you to use the printed link. The token is stored once in
-`viewer-token` (mode `0600`) and stays the same across restarts, so the URL is
-worth bookmarking. `--rotate-token` replaces it and invalidates every link you
-have shared.
+That visit leaves a session cookie (`HttpOnly`, `SameSite=Strict`) and strips
+the token back out of the address bar. **From then on plain
+`http://127.0.0.1:8765` works** — bookmark that. A browser that has never seen
+the link gets the page but no data, and is told how to authorize itself.
+
+The token lives in `viewer-token` (mode `0600`) and survives restarts, so the
+cookie stays valid. `--rotate-token` replaces it and locks out every browser
+and link that had the old one.
 
 #### Keeping it always on
 
@@ -557,11 +560,31 @@ server's loopback interface.
 
 #### Why it is locked down
 
-The database holds raw tool output, which can contain secrets, so the viewer
-binds to loopback only, requires the per-run token, rejects requests whose
-`Host` header is not localhost (which blocks DNS rebinding), and sends no CORS
-headers, so no other site can read it. There is deliberately no flag to expose
-it on the network — SSH forwarding is the supported way to reach it remotely.
+The database holds raw tool output, which can contain secrets. Four things
+guard it, and they cover different attacks:
+
+| Control | Stops |
+|---|---|
+| Loopback bind | Anything off this machine |
+| No CORS headers | A web page you visit reading the responses |
+| `Host` header check | The same, via DNS rebinding, which defeats origin checks |
+| Access token | **Other user accounts on this machine** |
+
+The first three need no cooperation from you. The token is the one that costs
+convenience, and it buys exactly one thing: a shared host is a host where every
+other account can reach `127.0.0.1:8765` and read your whole history. The
+session cookie removes the friction without giving that up.
+
+On a machine only you can log into, that last row may not be worth anything:
+
+```bash
+kimi-mcp-hub memory viewer --no-token     # plain http://127.0.0.1:8765, no cookie
+kimi-mcp-hub memory viewer --token        # back on
+```
+
+The other three controls stay in force either way. There is deliberately no
+flag to expose the viewer on the network — SSH forwarding is the supported way
+to reach it remotely.
 
 ### What gets captured
 

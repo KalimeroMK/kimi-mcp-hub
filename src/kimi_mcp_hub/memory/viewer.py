@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import webbrowser
+from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -35,6 +36,8 @@ from .db import MemoryDB
 _ALLOWED_HOSTS = {"localhost", "127.0.0.1", "[::1]", "::1"}
 MAX_PAGE_SIZE = 200
 DEFAULT_PORT = 8765
+COOKIE_NAME = "kimi_viewer"
+COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 
 def state_dir() -> Path:
@@ -104,6 +107,7 @@ class MemoryViewerHandler(http.server.BaseHTTPRequestHandler):
     server_version = "KimiMemoryViewer/1.0"
     db: MemoryDB
     token: str
+    require_token: bool = True
     quiet: bool = True
 
     # ---- plumbing ----------------------------------------------------
@@ -112,10 +116,18 @@ class MemoryViewerHandler(http.server.BaseHTTPRequestHandler):
         if not self.quiet:
             super().log_message(fmt, *args)
 
-    def _send(self, status: int, body: bytes, content_type: str) -> None:
+    def _send(
+        self,
+        status: int,
+        body: bytes,
+        content_type: str,
+        extra_headers: list[tuple[str, str]] | None = None,
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        for name, value in extra_headers or []:
+            self.send_header(name, value)
         # Memory content must never be embedded or read by another origin.
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
@@ -132,6 +144,28 @@ class MemoryViewerHandler(http.server.BaseHTTPRequestHandler):
 
     # ---- routing -----------------------------------------------------
 
+    def _cookie_token(self) -> str:
+        """Return the access token carried by the session cookie, if any."""
+        raw = self.headers.get("Cookie")
+        if not raw:
+            return ""
+        jar = SimpleCookie()
+        try:
+            jar.load(raw)
+        except CookieError:
+            return ""
+        morsel = jar.get(COOKIE_NAME)
+        return morsel.value if morsel else ""
+
+    def _authorized(self, params: dict[str, list[str]]) -> bool:
+        """Accept the token from the query string or from the session cookie."""
+        if not self.require_token:
+            return True
+        for supplied in (_first(params, "token"), self._cookie_token()):
+            if supplied and secrets.compare_digest(supplied, self.token):
+                return True
+        return False
+
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         if not _is_local_host_header(self.headers.get("Host", "")):
             self._error(403, "non-local Host header rejected")
@@ -142,14 +176,34 @@ class MemoryViewerHandler(http.server.BaseHTTPRequestHandler):
         route = parsed.path.rstrip("/") or "/"
 
         if route == "/":
-            self._send(200, INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
+            # Remember the token so the bare address works from now on. The
+            # cookie is HttpOnly (page scripts cannot read it) and SameSite
+            # strict (another site's requests never carry it), so this costs
+            # nothing that the query parameter was protecting.
+            headers = []
+            if self.require_token and secrets.compare_digest(
+                _first(params, "token"), self.token
+            ):
+                headers.append(
+                    (
+                        "Set-Cookie",
+                        f"{COOKIE_NAME}={self.token}; Path=/; Max-Age={COOKIE_MAX_AGE}; "
+                        "HttpOnly; SameSite=Strict",
+                    )
+                )
+            self._send(
+                200,
+                INDEX_HTML.encode("utf-8"),
+                "text/html; charset=utf-8",
+                extra_headers=headers,
+            )
             return
 
         if not route.startswith("/api/"):
             self._error(404, "not found")
             return
 
-        if not secrets.compare_digest(_first(params, "token"), self.token):
+        if not self._authorized(params):
             self._error(401, "missing or invalid token")
             return
 
@@ -244,14 +298,25 @@ def build_server(
     db_path: Path | None = None,
     port: int = DEFAULT_PORT,
     token: str | None = None,
+    require_token: bool = True,
 ) -> tuple[http.server.ThreadingHTTPServer, str]:
-    """Create the viewer server bound to loopback. Returns (server, token)."""
+    """Create the viewer server bound to loopback. Returns (server, token).
+
+    ``require_token`` may be turned off on a single-user machine. Loopback
+    binding, the Host-header check and the absence of CORS headers still
+    apply; what is given up is protection from other user accounts on the
+    same host, which can otherwise read the whole database over HTTP.
+    """
     access_token = token or load_or_create_token()
 
     handler = type(
         "BoundMemoryViewerHandler",
         (MemoryViewerHandler,),
-        {"db": MemoryDB(db_path=db_path), "token": access_token},
+        {
+            "db": MemoryDB(db_path=db_path),
+            "token": access_token,
+            "require_token": require_token,
+        },
     )
     server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
     return server, access_token
@@ -459,11 +524,18 @@ def serve(
     open_browser: bool = True,
     on_ready=None,
     on_open_failed=None,
+    require_token: bool = True,
 ) -> None:
     """Run the viewer until interrupted."""
-    server, token = build_server(db_path=db_path, port=port)
+    server, token = build_server(
+        db_path=db_path, port=port, require_token=require_token
+    )
     actual_port = server.server_address[1]
-    url = f"http://127.0.0.1:{actual_port}/?token={token}"
+    url = (
+        f"http://127.0.0.1:{actual_port}/?token={token}"
+        if require_token
+        else f"http://127.0.0.1:{actual_port}/"
+    )
 
     if on_ready is not None:
         on_ready(url)
@@ -584,11 +656,15 @@ let rows = [];
 let selected = null;
 
 const api = async (path, params = {}) => {
-  const qs = new URLSearchParams({ ...params, token });
+  // The token rides in the query only on the first visit; afterwards the
+  // session cookie is sent automatically with these same-origin requests.
+  const qs = new URLSearchParams(token ? { ...params, token } : params);
   const res = await fetch(`${path}?${qs}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || res.statusText);
+    const err = new Error(body.error || res.statusText);
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 };
@@ -678,22 +754,32 @@ async function load() {
 }
 
 async function boot() {
-  if (!token) {
-    // Opening the bare address is the likely mistake; say so instead of
-    // letting the first API call fail with a bare 401.
-    el('list').innerHTML = `<div class="empty">
-      <strong>No access token in this URL.</strong><br><br>
-      Memory can hold secrets, so the viewer only serves data to the link the
-      CLI prints. Run <code>kimi-mcp-hub memory viewer</code> and open the URL
-      it shows — it looks like <code>${esc(location.origin)}/?token=…</code>.
-    </div>`;
-    el('detail').innerHTML = '';
-    return;
-  }
+  // The first visit through the CLI's link leaves a session cookie behind, so
+  // the bare address works from then on. Try the API before assuming anything
+  // is wrong, and only explain the token once a request actually comes back
+  // unauthorized.
   try {
     await refreshStats();
-  } catch (err) { showError(err); return; }
+  } catch (err) {
+    if (err.status === 401) { showTokenHelp(); } else { showError(err); }
+    return;
+  }
+  if (token) {
+    // Drop the secret from the address bar now that the cookie holds it.
+    history.replaceState(null, '', location.pathname);
+  }
   load();
+}
+
+function showTokenHelp() {
+  el('list').innerHTML = `<div class="empty">
+    <strong>This browser is not authorized yet.</strong><br><br>
+    Memory can hold secrets, so the viewer answers only a browser that has
+    visited its link once. Run <code>kimi-mcp-hub memory viewer --status</code>
+    and open the URL it prints — after that
+    <code>${esc(location.origin)}</code> works on its own.
+  </div>`;
+  el('detail').innerHTML = '';
 }
 
 // Counts and filter options come from the database, so they go stale as new
