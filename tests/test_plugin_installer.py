@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from unittest import mock
 
@@ -559,6 +560,10 @@ class TestInstallPlugin:
         assert "scripts/guard.sh" in command
         assert str(config.plugins_dir) not in command.split("&&", 1)[1]
 
+    @pytest.mark.skipif(
+        sys.platform != "darwin",
+        reason="reproduces the macOS /tmp -> /private/tmp symlink; /private does not exist elsewhere",
+    )
     def test_local_plugin_path_rewrite_symlink_source(self, monkeypatch, tmp_path):
         """Regression test for macOS /tmp -> /private/tmp symlink bug.
 
