@@ -193,9 +193,14 @@ This vault is used by Kimi CLI as local memory.
         }
     }
     if (-not $data.ContainsKey("mcpServers")) { $data["mcpServers"] = @{} }
+    # obsidian-mcp@2 registers each vault under a slug id (must start with a letter)
+    $vaultSlug = (Split-Path $ObsidianVault -Leaf).ToLower() -replace '[^a-z0-9]+', '-' -replace '^-+|-+$', ''
+    if (-not $vaultSlug) { $vaultSlug = "vault" }
+    if ($vaultSlug -notmatch '^[a-z]') { $vaultSlug = "v-$vaultSlug" }
+
     $data["mcpServers"]["obsidian"] = @{
         command = "npx"
-        args = @("-y", "obsidian-mcp", $ObsidianVault)
+        args = @("-y", "obsidian-mcp@2", "serve", "--vault", "$vaultSlug=$ObsidianVault")
         env = @{}
     }
     $data | ConvertTo-Json -Depth 10 | Set-Content -Path $mcpJson -Encoding UTF8

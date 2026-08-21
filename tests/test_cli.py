@@ -68,8 +68,8 @@ class TestServerDefinitions:
     def test_obsidian_server_config(self):
         cfg = ObsidianServer.get_stdio_config("/path/to/vault")
         assert cfg["command"] == "npx"
-        assert "obsidian-mcp" in cfg["args"]
-        assert "/path/to/vault" in cfg["args"]
+        assert "obsidian-mcp@2" in cfg["args"]
+        assert "vault=/path/to/vault" in cfg["args"]
 
     def test_linear_has_oauth_and_api_key_modes(self):
         assert LinearServer.get_official_config()["url"] == "https://mcp.linear.app/mcp"
@@ -467,6 +467,26 @@ class TestObsidianCLI:
     def test_remove_unknown_slug_errors(self, home):
         runner = CliRunner()
         result = runner.invoke(main, ["obsidian", "remove", "missing"])
+        assert result.exit_code == 1
+        assert "No vault with slug 'missing'" in result.output
+
+    def test_set_default_by_slug(self, home):
+        vault1 = home / "First"
+        vault2 = home / "Second"
+        runner = CliRunner()
+        runner.invoke(main, ["obsidian", "add", str(vault1)])
+        runner.invoke(main, ["obsidian", "add", str(vault2)])
+
+        result = runner.invoke(main, ["obsidian", "set-default", "second"])
+        assert result.exit_code == 0, result.output
+        assert "Default memory vault set to 'second'" in result.output
+
+        config = KimiConfig()
+        assert config.get_default_memory_vault() == str(vault2.resolve())
+
+    def test_set_default_unknown_slug_errors(self, home):
+        runner = CliRunner()
+        result = runner.invoke(main, ["obsidian", "set-default", "missing"])
         assert result.exit_code == 1
         assert "No vault with slug 'missing'" in result.output
 

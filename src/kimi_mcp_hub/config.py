@@ -116,23 +116,32 @@ class KimiConfig:
     # --- Obsidian helpers ---
 
     def get_obsidian_vaults(self) -> list[str]:
-        """Return configured Obsidian vault paths from mcp.json."""
+        """Return configured Obsidian vault paths from mcp.json.
+
+        Understands both the current ``obsidian-mcp@2 serve --vault id=path``
+        layout and the legacy positional-path layout.
+        """
         obsidian = self.load_mcp().get("mcpServers", {}).get("obsidian", {})
         args = obsidian.get("args", [])
-        if len(args) >= 2 and args[0] == "-y" and args[1] == "obsidian-mcp":
-            return list(args[2:])
-        return []
+        if len(args) < 2 or args[0] != "-y" or not args[1].startswith("obsidian-mcp"):
+            return []
+        rest = args[2:]
+        if rest and rest[0] == "serve":
+            vaults = []
+            for i, arg in enumerate(rest):
+                if arg == "--vault" and i + 1 < len(rest):
+                    vaults.append(rest[i + 1].split("=", 1)[-1])
+            return vaults
+        return list(rest)
 
     def set_obsidian_vaults(self, vaults: list[str]) -> None:
         """Update or remove the obsidian server entry in mcp.json."""
+        from .servers.obsidian import ObsidianServer
+
         data = self.load_mcp()
         data.setdefault("mcpServers", {})
         if vaults:
-            data["mcpServers"]["obsidian"] = {
-                "command": "npx",
-                "args": ["-y", "obsidian-mcp", *vaults],
-                "env": {},
-            }
+            data["mcpServers"]["obsidian"] = ObsidianServer.get_stdio_config(vaults)
         else:
             data["mcpServers"].pop("obsidian", None)
         self.save_mcp(data)

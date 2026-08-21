@@ -10,13 +10,13 @@ from typing import Any
 class ObsidianServer:
     """Obsidian vault MCP server -- local memory as markdown files.
 
-    Uses obsidian-mcp (file-based, no Obsidian plugin required).
+    Uses obsidian-mcp v2 (file-based, no Obsidian plugin required).
     Obsidian itself is only needed if you want to view/edit the vault
     through the desktop app.
 
-    Supports a single vault or multiple vaults. When multiple vault paths are
-    passed to obsidian-mcp, each vault is registered with a slug and tools
-    take a ``vault`` parameter.
+    Supports a single vault or multiple vaults. Each vault is registered
+    under a slug id (``--vault slug=/abs/path``) and obsidian-mcp tools
+    take that id as their ``vault`` parameter.
     """
 
     name = "obsidian"
@@ -28,23 +28,35 @@ class ObsidianServer:
     def get_stdio_config(cls, vault_path: str | list[str]) -> dict[str, Any]:
         """Return stdio config for one or more vault paths.
 
-        Backward-compatible: passing a single string produces the original
-        single-vault config.
+        obsidian-mcp v2 requires the explicit ``serve`` subcommand and one
+        ``--vault <slug>=<path>`` flag per vault.
         """
         paths = [vault_path] if isinstance(vault_path, str) else vault_path
+        args = ["-y", "obsidian-mcp@2", "serve"]
+        for path in paths:
+            args += ["--vault", f"{cls.slug_from_vault_path(path)}={path}"]
         return {
             "command": "npx",
-            "args": ["-y", "obsidian-mcp", *paths],
+            "args": args,
             "env": {},
         }
 
     @classmethod
     def get_tools(cls) -> list[dict[str, str]]:
+        # Tool names verified against obsidian-mcp@2 `tools/list`.
         return [
-            {"name": "obsidian_read", "desc": "Read a note from the vault"},
-            {"name": "obsidian_search", "desc": "Search notes by filename/content"},
-            {"name": "obsidian_write", "desc": "Create or update a note"},
-            {"name": "obsidian_list", "desc": "List notes in the vault"},
+            {"name": "obsidian_list_vaults", "desc": "List configured vault ids"},
+            {"name": "obsidian_read_note", "desc": "Read a note (paginated, with etag)"},
+            {"name": "obsidian_create_note", "desc": "Create a note without overwriting"},
+            {"name": "obsidian_edit_note", "desc": "Append, prepend, or replace note content"},
+            {"name": "obsidian_delete_note", "desc": "Move a note to trash or delete it"},
+            {"name": "obsidian_move_note", "desc": "Move or rename a note and update backlinks"},
+            {"name": "obsidian_create_directory", "desc": "Create a directory inside a vault"},
+            {"name": "obsidian_search_vault", "desc": "Search content, filenames, or tags"},
+            {"name": "obsidian_add_tags", "desc": "Add tags to one or more notes"},
+            {"name": "obsidian_remove_tags", "desc": "Remove tags from notes"},
+            {"name": "obsidian_rename_tag", "desc": "Rename a tag across the vault"},
+            {"name": "obsidian_manage_tags", "desc": "Unified add/remove tag workflow"},
         ]
 
     @classmethod
@@ -52,11 +64,17 @@ class ObsidianServer:
         """Generate a safe slug from a vault path.
 
         The slug is derived from the directory name, lower-cased, and stripped
-        of characters that are risky in MCP args or identifiers.
+        of characters that are risky in MCP args or identifiers. obsidian-mcp
+        vault ids must begin with a letter, so a leading digit or dash gets a
+        ``v-`` prefix.
         """
         name = Path(vault_path).name
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-        return slug or "vault"
+        if not slug:
+            return "vault"
+        if not slug[0].isalpha():
+            slug = f"v-{slug}"
+        return slug
 
     @classmethod
     def validate_vault(cls, vault_path: str | Path, fix: bool = False) -> bool:

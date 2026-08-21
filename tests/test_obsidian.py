@@ -15,14 +15,49 @@ class TestObsidianStdioConfig:
     def test_single_vault_backward_compatible(self):
         cfg = ObsidianServer.get_stdio_config("/path/to/vault")
         assert cfg["command"] == "npx"
-        assert cfg["args"] == ["-y", "obsidian-mcp", "/path/to/vault"]
+        assert cfg["args"] == [
+            "-y",
+            "obsidian-mcp@2",
+            "serve",
+            "--vault",
+            "vault=/path/to/vault",
+        ]
         assert cfg["env"] == {}
 
     def test_multi_vault_config(self):
         cfg = ObsidianServer.get_stdio_config(["/path/vault1", "/path/vault2"])
         assert cfg["command"] == "npx"
-        assert cfg["args"] == ["-y", "obsidian-mcp", "/path/vault1", "/path/vault2"]
+        assert cfg["args"] == [
+            "-y",
+            "obsidian-mcp@2",
+            "serve",
+            "--vault",
+            "vault1=/path/vault1",
+            "--vault",
+            "vault2=/path/vault2",
+        ]
         assert cfg["env"] == {}
+
+
+class TestObsidianConfigRoundtrip:
+    def test_set_and_get_vaults(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        config.set_obsidian_vaults(["/data/My Vault", "/data/other"])
+        assert config.get_obsidian_vaults() == ["/data/My Vault", "/data/other"]
+
+    def test_get_vaults_reads_legacy_positional_format(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        config.add_server(
+            "obsidian",
+            {
+                "command": "npx",
+                "args": ["-y", "obsidian-mcp", "/old/vault", "/old/other"],
+                "env": {},
+            },
+        )
+        assert config.get_obsidian_vaults() == ["/old/vault", "/old/other"]
 
 
 class TestObsidianSlug:
@@ -37,6 +72,10 @@ class TestObsidianSlug:
 
     def test_slug_falls_back_to_vault(self):
         assert ObsidianServer.slug_from_vault_path("...") == "vault"
+
+    def test_slug_prefixes_leading_digit(self):
+        # obsidian-mcp vault ids must begin with a letter
+        assert ObsidianServer.slug_from_vault_path("/home/user/3d Notes") == "v-3d-notes"
 
     def test_slug_accepts_path_input(self, tmp_path):
         assert (

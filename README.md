@@ -282,7 +282,7 @@ kimi-mcp-hub obsidian add ~/Documents/MyVault
 kimi-mcp-hub obsidian auto
 kimi-mcp-hub obsidian list
 kimi-mcp-hub obsidian remove myvault
-kimi-mcp-hub obsidian sync-templates myvault
+kimi-mcp-hub obsidian set-default myvault
 kimi-mcp-hub obsidian sync-templates --templates-dir ./templates myvault
 ```
 
@@ -394,10 +394,10 @@ kimi-mcp-hub obsidian list
 # Remove a vault from the config by slug (files are kept)
 kimi-mcp-hub obsidian remove myvault
 
-# Copy built-in templates into a vault
-kimi-mcp-hub obsidian sync-templates myvault
+# Change the default memory vault
+kimi-mcp-hub obsidian set-default myvault
 
-# Copy custom templates into a vault
+# Copy templates into a vault (no templates are bundled; pass your own directory)
 kimi-mcp-hub obsidian sync-templates --templates-dir ./templates myvault
 ```
 
@@ -968,6 +968,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub obsidian auto` | Create/switch to project vault in current git repo |
 | `kimi-mcp-hub obsidian list` | List configured Obsidian vaults |
 | `kimi-mcp-hub obsidian remove <slug>` | Remove an Obsidian vault from config |
+| `kimi-mcp-hub obsidian set-default <slug>` | Set the default memory vault |
 | `kimi-mcp-hub obsidian sync-templates [--templates-dir PATH] <vault-slug>` | Copy templates into a vault |
 | `kimi-mcp-hub pack [ROOT]` | Pack a repository into an AI-friendly markdown file |
 | `kimi-mcp-hub pack -e '<pattern>'` | Exclude glob patterns (can be repeated) |
@@ -994,7 +995,7 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | **Confluence** | OAuth or API token | 5 | Docs, wiki, pages |
 | **GitHub** | Device Flow / PAT | 6 | Repos, PRs, issues, code |
 | **Slack** | Bot/User token (`slack-mcp-server`) | 5 | Channels, DMs, search |
-| **Obsidian** | STDIO (npx) — vault path | 4 | Local memory, notes, knowledge base |
+| **Obsidian** | STDIO (npx) — vault path | 12 | Local memory, notes, knowledge base |
 | **Datadog** | Official remote MCP (API + App keys) | 12 | Metrics, logs, monitors, APM |
 | **Figma** | Official OAuth 2.1, PAT or custom OAuth | 9 | Designs, tokens, components |
 | **Figma Context** | Figma API access token | 3 | Design-to-code implementation |

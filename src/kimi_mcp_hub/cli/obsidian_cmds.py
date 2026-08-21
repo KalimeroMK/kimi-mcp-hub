@@ -278,6 +278,23 @@ def obsidian_remove(slug: str):
     console.print("[dim]Vault files were not deleted.[/dim]")
 
 
+@obsidian.command(name="set-default")
+@click.argument("slug")
+def obsidian_set_default(slug: str):
+    """Set the default memory vault by slug."""
+    config = KimiConfig()
+    slug_map = _obsidian_slug_map(config.get_obsidian_vaults())
+
+    if slug not in slug_map:
+        console.print(f"[red]No vault with slug '{slug}' configured.[/red]")
+        available = ", ".join(sorted(slug_map)) or "none"
+        console.print(f"[dim]Configured slugs: {available}[/dim]")
+        sys.exit(1)
+
+    config.set_default_memory_vault(slug_map[slug])
+    console.print(f"[green]Default memory vault set to '{slug}'.[/green]")
+
+
 def _default_obsidian_templates_dir() -> Path:
     """Default package location for Obsidian templates."""
     return Path(__file__).parent.parent / "templates" / "obsidian"
@@ -301,12 +318,17 @@ def obsidian_sync_templates(vault_slug: str, templates_dir: Path | None):
         sys.exit(1)
 
     vault_path = Path(slug_map[vault_slug])
+    custom_dir = templates_dir is not None
     templates_dir = templates_dir or _default_obsidian_templates_dir()
 
     if not templates_dir.exists():
         console.print(
             f"[yellow]Templates directory not found: {templates_dir}[/yellow]"
         )
+        if not custom_dir:
+            console.print(
+                "[dim]No templates are bundled; pass a directory with --templates-dir.[/dim]"
+            )
         return
 
     copied = ObsidianServer.sync_templates(templates_dir, vault_path)

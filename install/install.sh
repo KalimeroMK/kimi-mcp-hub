@@ -210,6 +210,11 @@ setup_obsidian_mcp() {
     vault_path="$(eval echo "$vault_path")"
     mkdir -p "$vault_path/.obsidian"
 
+    # obsidian-mcp@2 registers each vault under a slug id (must start with a letter)
+    vault_slug="$(basename "$vault_path" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
+    [ -z "$vault_slug" ] && vault_slug="vault"
+    case "$vault_slug" in [a-z]*) ;; *) vault_slug="v-$vault_slug";; esac
+
     # obsidian-mcp requires at least app.json to consider this a valid vault
     if [ ! -f "$vault_path/.obsidian/app.json" ]; then
         echo '{}' > "$vault_path/.obsidian/app.json"
@@ -243,7 +248,7 @@ if mcp_json.exists():
 data.setdefault("mcpServers", {})
 data["mcpServers"]["obsidian"] = {
     "command": "npx",
-    "args": ["-y", "obsidian-mcp", "$vault_path"],
+    "args": ["-y", "obsidian-mcp@2", "serve", "--vault", "$vault_slug=$vault_path"],
     "env": {}
 }
 mcp_json.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
