@@ -4,7 +4,9 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 
+from kimi_mcp_hub.cli import main
 from kimi_mcp_hub.config import KimiConfig
 from kimi_mcp_hub.memory.db import MemoryDB
 from kimi_mcp_hub.memory.hooks import MemoryHooks
@@ -58,6 +60,45 @@ class TestObsidianConfigRoundtrip:
             },
         )
         assert config.get_obsidian_vaults() == ["/old/vault", "/old/other"]
+
+
+class TestObsidianRepair:
+    """`repair` must migrate configs written before the v2 switch.
+
+    The v1 positional form makes obsidian-mcp@2 hang instead of failing, which
+    the client reports as a request timeout rather than a config error.
+    """
+
+    def test_migrates_legacy_positional_config(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        KimiConfig().add_server(
+            "obsidian",
+            {
+                "command": "npx",
+                "args": ["-y", "obsidian-mcp", "/old/vault"],
+                "env": {},
+            },
+        )
+
+        result = CliRunner().invoke(main, ["repair"])
+
+        assert result.exit_code == 0, result.output
+        assert KimiConfig().list_servers()["obsidian"] == (
+            ObsidianServer.get_stdio_config(["/old/vault"])
+        )
+        assert "obsidian" in result.output
+
+    def test_leaves_a_current_config_alone(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config = KimiConfig()
+        config.set_obsidian_vaults(["/data/vault"])
+        before = config.list_servers()["obsidian"]
+
+        result = CliRunner().invoke(main, ["repair"])
+
+        assert result.exit_code == 0, result.output
+        assert KimiConfig().list_servers()["obsidian"] == before
+        assert "No broken configs found" in result.output
 
 
 class TestObsidianSlug:

@@ -34,6 +34,7 @@ from ..servers import (
     GrainServer,
     HubSpotServer,
     LinearServer,
+    ObsidianServer,
     PerplexityServer,
     SlackServer,
     SupabaseServer,
@@ -263,8 +264,8 @@ def remove(server_name: str, project: bool, global_: bool):
         console.print(_("[green]Removed {name}[/green]").format(name=server_name))
 
 
-@main.command()
-def list():
+@main.command(name="list")
+def list_servers():
     """List all configured MCP servers, skills, and memory status."""
     print_header()
     config = KimiConfig()
@@ -610,6 +611,19 @@ def repair():
                     )
                 add_server_with_preflight(name, new_cfg, config)
                 fixed.append("supabase")
+
+        # Fix Obsidian: unpinned obsidian-mcp with v1 positional vault paths.
+        # v2 needs `serve --vault slug=path` and hangs without it, which the
+        # client reports as a request timeout rather than a config error.
+        elif name == "obsidian":
+            vaults = config.get_obsidian_vaults()
+            if vaults and cfg != ObsidianServer.get_stdio_config(vaults):
+                console.print(
+                    "[yellow]Fixing Obsidian config to the obsidian-mcp@2 "
+                    "serve/--vault form...[/yellow]"
+                )
+                config.set_obsidian_vaults(vaults)
+                fixed.append("obsidian")
 
     if fixed:
         console.print(f"\n[green]Fixed: {', '.join(fixed)}[/green]")
