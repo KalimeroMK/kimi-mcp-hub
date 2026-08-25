@@ -102,6 +102,19 @@ def _ensure_gitignored(git_root: Path, vault_path: Path) -> bool:
     return True
 
 
+def _adopt_default_vault(config: KimiConfig, vault_path: str) -> bool:
+    """Make ``vault_path`` the default memory vault if none is set yet.
+
+    Session notes are dropped silently while no default exists, so the first
+    vault a machine registers should become it. An existing choice is never
+    overridden -- use ``obsidian set-default`` to change it.
+    """
+    if config.get_default_memory_vault() is not None:
+        return False
+    config.set_default_memory_vault(vault_path)
+    return True
+
+
 @obsidian.command(name="auto")
 @click.option(
     "--path",
@@ -222,6 +235,8 @@ def obsidian_add(path: Path):
     existing_resolved = {Path(p).expanduser().resolve() for p in vaults}
     if vault_path in existing_resolved:
         console.print(f"[yellow]Vault {vault_path} is already configured.[/yellow]")
+        if _adopt_default_vault(config, str(vault_path)):
+            console.print("[dim]Set as default memory vault.[/dim]")
         return
 
     slug_map = _obsidian_slug_map(vaults)
@@ -243,8 +258,7 @@ def obsidian_add(path: Path):
         f"[dim]({ObsidianServer.slug_from_vault_path(vault_path)})[/dim]"
     )
 
-    if config.get_default_memory_vault() is None:
-        config.set_default_memory_vault(path_str)
+    if _adopt_default_vault(config, path_str):
         console.print("[dim]Set as default memory vault.[/dim]")
 
 

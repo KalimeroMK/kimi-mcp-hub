@@ -163,48 +163,17 @@ function Setup-ObsidianMcp {
         if ($inputVault) { $ObsidianVault = $inputVault }
     }
     
-    New-Item -ItemType Directory -Force -Path "$ObsidianVault\.obsidian" | Out-Null
-
-    # obsidian-mcp requires at least app.json to consider this a valid vault
-    if (-not (Test-Path "$ObsidianVault\.obsidian\app.json")) {
-        '{}' | Set-Content -Path "$ObsidianVault\.obsidian\app.json" -Encoding UTF8
+    # Delegate to the CLI. It scaffolds the vault, writes the mcp.json entry in
+    # whatever shape obsidian-mcp currently needs, and registers the vault as
+    # the default memory vault when none is set yet -- without that last step
+    # session notes are written nowhere. Hand-rolling any of it here is what
+    # let this installer drift to the obsolete v1 config shape.
+    & "$VENV_DIR\Scripts\kimi-mcp-hub.exe" obsidian add "$ObsidianVault"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  Could not configure the Obsidian vault at $ObsidianVault" -ForegroundColor Red
+        return
     }
 
-    if (-not (Test-Path "$ObsidianVault\README.md")) {
-        @"
-# Kimi Memory Vault
-
-This vault is used by Kimi CLI as local memory.
-
-- Notes created by Kimi are stored here.
-- Open this folder in Obsidian to browse and edit.
-- Source: https://obsidian.md
-"@ | Set-Content -Path "$ObsidianVault\README.md" -Encoding UTF8
-    }
-    
-    $mcpJson = "$env:USERPROFILE\.kimi-code\mcp.json"
-    New-Item -ItemType Directory -Force -Path (Split-Path $mcpJson) | Out-Null
-    $data = @{ mcpServers = @{} }
-    if (Test-Path $mcpJson) {
-        try {
-            $data = Get-Content $mcpJson -Raw | ConvertFrom-Json -AsHashtable
-        } catch {
-            $data = @{ mcpServers = @{} }
-        }
-    }
-    if (-not $data.ContainsKey("mcpServers")) { $data["mcpServers"] = @{} }
-    # obsidian-mcp@2 registers each vault under a slug id (must start with a letter)
-    $vaultSlug = (Split-Path $ObsidianVault -Leaf).ToLower() -replace '[^a-z0-9]+', '-' -replace '^-+|-+$', ''
-    if (-not $vaultSlug) { $vaultSlug = "vault" }
-    if ($vaultSlug -notmatch '^[a-z]') { $vaultSlug = "v-$vaultSlug" }
-
-    $data["mcpServers"]["obsidian"] = @{
-        command = "npx"
-        args = @("-y", "obsidian-mcp@2", "serve", "--vault", "$vaultSlug=$ObsidianVault")
-        env = @{}
-    }
-    $data | ConvertTo-Json -Depth 10 | Set-Content -Path $mcpJson -Encoding UTF8
-    
     Write-Host "  Obsidian vault ready: $ObsidianVault" -ForegroundColor Green
     Write-Host "  Install Obsidian from https://obsidian.md and open this vault." -ForegroundColor Gray
 }

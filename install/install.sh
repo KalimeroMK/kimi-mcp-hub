@@ -208,53 +208,17 @@ setup_obsidian_mcp() {
     fi
     
     vault_path="$(eval echo "$vault_path")"
-    mkdir -p "$vault_path/.obsidian"
 
-    # obsidian-mcp@2 registers each vault under a slug id (must start with a letter)
-    vault_slug="$(basename "$vault_path" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
-    [ -z "$vault_slug" ] && vault_slug="vault"
-    case "$vault_slug" in [a-z]*) ;; *) vault_slug="v-$vault_slug";; esac
-
-    # obsidian-mcp requires at least app.json to consider this a valid vault
-    if [ ! -f "$vault_path/.obsidian/app.json" ]; then
-        echo '{}' > "$vault_path/.obsidian/app.json"
+    # Delegate to the CLI. It scaffolds the vault, writes the mcp.json entry in
+    # whatever shape obsidian-mcp currently needs, and registers the vault as
+    # the default memory vault when none is set yet -- without that last step
+    # session notes are written nowhere. Hand-rolling any of it here is what
+    # let this installer drift to the obsolete v1 config shape.
+    if ! "$VENV_DIR/bin/kimi-mcp-hub" obsidian add "$vault_path"; then
+        print_error "Could not configure the Obsidian vault at $vault_path"
+        return 1
     fi
 
-    if [ ! -f "$vault_path/README.md" ]; then
-        cat > "$vault_path/README.md" << 'EOF'
-# Kimi Memory Vault
-
-This vault is used by Kimi CLI as local memory.
-
-- Notes created by Kimi are stored here.
-- Open this folder in Obsidian to browse and edit.
-- Source: https://obsidian.md
-EOF
-    fi
-    
-    # Add Obsidian MCP server to mcp.json via Python
-    "$VENV_DIR/bin/python" - << PY
-import json
-from pathlib import Path
-
-mcp_json = Path.home() / ".kimi-code" / "mcp.json"
-mcp_json.parent.mkdir(parents=True, exist_ok=True)
-data = {"mcpServers": {}}
-if mcp_json.exists():
-    try:
-        data = json.loads(mcp_json.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        pass
-data.setdefault("mcpServers", {})
-data["mcpServers"]["obsidian"] = {
-    "command": "npx",
-    "args": ["-y", "obsidian-mcp@2", "serve", "--vault", "$vault_slug=$vault_path"],
-    "env": {}
-}
-mcp_json.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-print("Obsidian MCP server configured")
-PY
-    
     print_success "Obsidian vault ready: $vault_path"
     print_info "Install Obsidian from https://obsidian.md and open this vault."
 }

@@ -62,6 +62,68 @@ class TestObsidianConfigRoundtrip:
         assert config.get_obsidian_vaults() == ["/old/vault", "/old/other"]
 
 
+class TestObsidianDefaultVault:
+    """A machine needs a default memory vault, or session notes go nowhere."""
+
+    def test_first_vault_becomes_the_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Kimi-Memory"
+
+        result = CliRunner().invoke(main, ["obsidian", "add", str(vault)])
+
+        assert result.exit_code == 0, result.output
+        assert KimiConfig().get_default_memory_vault() == str(vault.resolve())
+
+    def test_existing_default_is_not_overridden(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        KimiConfig().set_default_memory_vault("/somewhere/else")
+
+        result = CliRunner().invoke(
+            main, ["obsidian", "add", str(tmp_path / "Second-Memory")]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert KimiConfig().get_default_memory_vault() == "/somewhere/else"
+
+    def test_readding_a_configured_vault_backfills_the_default(
+        self, tmp_path, monkeypatch
+    ):
+        """Re-running the installer over an existing vault must still set one."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        vault = tmp_path / "Kimi-Memory"
+        config = KimiConfig()
+        config.set_obsidian_vaults([str(vault)])
+        assert config.get_default_memory_vault() is None
+
+        result = CliRunner().invoke(main, ["obsidian", "add", str(vault)])
+
+        assert result.exit_code == 0, result.output
+        assert KimiConfig().get_default_memory_vault() == str(vault.resolve())
+
+
+class TestInstallersDelegateObsidian:
+    """The installers must not hand-write the obsidian server entry.
+
+    Duplicating the config shape in shell and PowerShell is what let both
+    installers keep emitting the v1 positional form for months after the
+    generator moved to obsidian-mcp@2, and it also skipped registering a
+    default memory vault.
+    """
+
+    @pytest.mark.parametrize("script", ["install.sh", "install.ps1"])
+    def test_installer_calls_the_cli(self, script):
+        text = (Path(__file__).parent.parent / "install" / script).read_text(
+            encoding="utf-8"
+        )
+        assert "obsidian add" in text, f"{script} should delegate to the CLI"
+        # The package spec and the --vault flag are the shape markers; the CLI
+        # is the only place that should know them.
+        for marker in ("obsidian-mcp@", "--vault"):
+            assert marker not in text, (
+                f"{script} still hand-writes the obsidian config shape ({marker})"
+            )
+
+
 class TestObsidianRepair:
     """`repair` must migrate configs written before the v2 switch.
 
