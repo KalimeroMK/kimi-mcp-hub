@@ -470,6 +470,12 @@ The standard location is `<Documents>/Kimi-Memory`, where `<Documents>` is resol
 Documents folder rather than a second English one. On a machine with no Documents folder at all
 (headless Linux, WSL, containers) the vault goes to `~/Kimi-Memory` instead.
 
+**If Obsidian tool calls time out** (`MCP error -32001: Request timed out`), the server entry was
+written before the switch to `obsidian-mcp@2`: the old positional vault form makes v2 hang rather
+than fail, so the client reports a timeout instead of a config error. Run `kimi-mcp-hub repair` to
+rewrite it. The v2 tool names also differ -- there is no `list-available-vaults`, it is
+`obsidian_list_vaults`, one of 12 `obsidian_*` tools.
+
 ### Project-specific memory
 
 When working across multiple repositories, `kimi-mcp-hub obsidian auto` detects the current git repo and creates/switches to a project-specific vault at `<repo-root>/<RepoName>-Memory`. If the vault lives inside the repo, the command also adds it to `.gitignore` so it is never committed. To make this automatic whenever you start Kimi, add a shell wrapper to your `~/.zshrc`:
@@ -482,6 +488,11 @@ k() {
 ```
 
 Then use `k` instead of `kimi`. Each project gets its own memory vault automatically.
+
+Note that `obsidian auto` also makes that project vault the default memory vault, so with this
+wrapper the default follows whichever repo you are in rather than staying on the one the installer
+created. That is the point of the wrapper -- but if you would rather keep a single vault, do not
+use it, and set the vault once with `kimi-mcp-hub obsidian set-default <slug>`.
 
 ---
 
