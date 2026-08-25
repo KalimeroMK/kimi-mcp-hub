@@ -24,6 +24,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 - [Update](#update)
 - [Managing MCP Servers and Skills](#managing-mcp-servers-and-skills)
 - [Repository Packing](#repository-packing)
+- [Pre-PR Code Review](#pre-pr-code-review)
 - [Obsidian Local Memory](#obsidian-local-memory)
 - [Advanced Memory Layer](#advanced-memory-layer)
 - [Install Claude/Codex Plugins](#install-claudecodex-plugins)
@@ -72,6 +73,10 @@ hubspot, postgres, gmail, ...) can be added in-session too:
 The agent asks for the credential, writes `~/.kimi-code/mcp.json`, and tells you
 when to `/reload`. Run `/kimi-mcp-hub:setup` anytime for a guided overview of
 what is ready, what needs a login, and what needs credentials.
+
+Before opening a pull request, `/kimi-mcp-hub:pre-pr-review` reviews the current
+branch against its base branch and ends with a go/no-go verdict — see
+[Pre-PR Code Review](#pre-pr-code-review).
 
 **Migrating from the classic install:** plugin MCP servers are namespaced
 (`mcp__plugin-kimi-mcp-hub_<server>__*`), so they coexist with older entries in
@@ -371,6 +376,57 @@ kimi-mcp-hub pack --max-size 1048576 -o repo.md
 - Binary files appear in the generated file tree but are omitted from code blocks.
 - Files that would push the output over the size budget are listed in a warning and skipped.
 - Use `-` as the output path to force stdout (`-o -`).
+
+---
+
+## Pre-PR Code Review
+
+Review the current branch the way a reviewer would, before the PR exists.
+
+Inside a Kimi session:
+
+```text
+/kimi-mcp-hub:pre-pr-review
+/kimi-mcp-hub:pre-pr-review quick          # one pass, no sub-agents
+/kimi-mcp-hub:pre-pr-review deep           # every sub-agent
+/kimi-mcp-hub:pre-pr-review focus src/auth # one path only
+/kimi-mcp-hub:pre-pr-review develop        # compare against another base
+```
+
+The command collects the diff, dispatches `explore` / `coder` / `plan` sub-agents over it, runs the
+project's fast linter on the changed files only, and finishes with a verdict: ready to open, open
+with follow-ups, or fix first. It never edits, stages, commits, pushes, or opens the PR.
+
+The diff collection is a separate command, so it is deterministic rather than re-derived by an agent
+each time:
+
+```bash
+# What the PR would contain: merge-base..HEAD, the same set GitHub shows
+kimi-mcp-hub review-context
+
+# Compare against an explicit base
+kimi-mcp-hub review-context --base develop
+
+# Summary without the diff body, or machine-readable
+kimi-mcp-hub review-context --no-diff
+kimi-mcp-hub review-context --json
+
+# Include work that is not committed yet
+kimi-mcp-hub review-context --include-uncommitted
+```
+
+- The base branch is resolved from an open PR (`gh`), then `origin/HEAD`, then `origin/main`,
+  `origin/master`, `origin/develop`, `origin/trunk`, then a local branch. The source is reported, so
+  you can tell a detected base from one you asked for.
+- Uncommitted files are listed but kept out of the diff by default -- they are not part of the PR.
+  When nothing is committed against the base, the working tree is reviewed instead, including the
+  content of untracked files (`git diff` alone never shows those).
+- Warnings call out the ways a review can silently look at the wrong thing: a shallow clone with no
+  merge base, a suspiciously long commit range, a criss-cross history with several merge bases, a
+  stale local base branch, or a fork PR.
+- The diff body is truncated at a file boundary rather than mid-hunk, so a truncated diff never
+  describes a change that was not made. The file list stays complete either way.
+- Everything is read-only: no fetch, no checkout, no config writes.
 
 ---
 
@@ -973,6 +1029,10 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub pack [ROOT]` | Pack a repository into an AI-friendly markdown file |
 | `kimi-mcp-hub pack -e '<pattern>'` | Exclude glob patterns (can be repeated) |
 | `kimi-mcp-hub pack --max-size <bytes> -o <path>` | Set output size budget and write to file |
+| `kimi-mcp-hub review-context` | Collect the pre-PR diff context for the current branch |
+| `kimi-mcp-hub review-context --base <ref>` | Compare against an explicit base branch |
+| `kimi-mcp-hub review-context --json` | Same, as machine-readable JSON |
+| `kimi-mcp-hub review-context --include-uncommitted` | Include work that is not committed yet |
 | `kimi-mcp-hub memory config-summary [--api-key ...] [--model ...] [--base-url ...]` | Configure LLM for session summaries |
 | `kimi-mcp-hub memory add "<content>" [--category user\|project\|general] [--tags tag1,tag2]` | Save a long-term memory |
 | `kimi-mcp-hub memory search "<query>" [--limit N] [--category ...]` | Search saved memories |

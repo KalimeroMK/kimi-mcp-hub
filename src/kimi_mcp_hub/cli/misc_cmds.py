@@ -1,4 +1,4 @@
-"""Status/info/utility commands: status, notify, welcome, doctor, pack, shell-init."""
+"""Status/info/utility commands: status, notify, welcome, doctor, pack, review-context, shell-init."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import os
 import stat
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import click
@@ -20,6 +21,7 @@ from ..i18n import _
 from ..pack import RepoPacker
 from ..project import ProjectConfig, find_project_root
 from ..registry import SKILLS
+from ..review import DEFAULT_MAX_DIFF_LINES, collect_context, render_text
 from .base import _get_installed_count, main, print_header, print_welcome
 from .common import console
 from .helpers import list_installed_skills
@@ -396,3 +398,75 @@ def shell_init(install: bool):
             path=rc_file
         )
     )
+
+
+@main.command(name="review-context")
+@click.option("--base", help="Base ref to compare against. [default: auto-detected]")
+@click.option(
+    "--max-diff-lines",
+    default=DEFAULT_MAX_DIFF_LINES,
+    show_default=True,
+    help="Line budget for the diff body. 0 disables truncation.",
+)
+@click.option(
+    "--include-uncommitted",
+    is_flag=True,
+    help="Diff the working tree, not only what is committed.",
+)
+@click.option(
+    "--no-diff",
+    is_flag=True,
+    help="Print the summary without the diff body.",
+)
+@click.option(
+    "--no-gh",
+    is_flag=True,
+    help="Skip the `gh` lookup for an open PR (offline or hermetic runs).",
+)
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    help="Emit machine-readable JSON instead of the markdown block.",
+)
+def review_context(
+    base: str | None,
+    max_diff_lines: int,
+    include_uncommitted: bool,
+    no_diff: bool,
+    no_gh: bool,
+    as_json: bool,
+):
+    """Collect the diff context for a pre-PR code review.
+
+    Reports which base branch the current branch is measured against, which
+    files changed, and the diff itself. This is the deterministic input the
+    /pre-pr-review slash command feeds to its review agents, and it is
+    read-only -- nothing here mutates the repository.
+    """
+    if not as_json:
+        print_header("Pre-PR Review Context")
+
+    try:
+        ctx = collect_context(
+            base=base,
+            max_diff_lines=max_diff_lines,
+            include_uncommitted=include_uncommitted,
+            use_gh=not no_gh,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        sys.exit(1)
+
+    if no_diff:
+        ctx.diff = ""
+
+    if as_json:
+        click.echo(json.dumps(asdict(ctx), indent=2))
+        return
+
+    # markup=False: a diff is full of literal brackets that rich would
+    # otherwise swallow as style tags and silently drop from the output.
+    # soft_wrap=True: long paths and diff lines must not be re-wrapped, or the
+    # aligned columns break and the diff stops matching the file on disk.
+    console.print(render_text(ctx), markup=False, highlight=False, soft_wrap=True)

@@ -10,7 +10,7 @@ The CLI is split into focused modules:
 - ``memory_cmds``   -- memory add/search/list/forget/config-summary
 - ``plugins_cmds``  -- plugin install/uninstall/update
 - ``self_cmds``     -- install/update of the hub itself
-- ``misc_cmds``     -- status, notify, welcome, doctor, pack
+- ``misc_cmds``     -- status, notify, welcome, doctor, pack, review-context
 
 This package ``__init__`` registers all commands and re-exports the public
 names that tests and external callers rely on (``kimi_mcp_hub.cli:main``).

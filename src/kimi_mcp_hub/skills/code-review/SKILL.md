@@ -82,7 +82,15 @@ When reviewing code, dispatch parallel sub-agents:
 ```
 
 ## Commands
-- `/review` — start full multi-agent review
-- `/review quick` — fast check (main agent only)
-- `/review deep` — full with all sub-agents
-- `/review focus <file>` — review specific file
+
+- `/kimi-mcp-hub:pre-pr-review` — full multi-agent review of the current branch
+- `/kimi-mcp-hub:pre-pr-review quick` — fast check (main agent only)
+- `/kimi-mcp-hub:pre-pr-review deep` — full with all sub-agents
+- `/kimi-mcp-hub:pre-pr-review focus <path>` — review a specific file or directory
+
+## Getting the diff
+
+This skill judges a diff; it does not produce one. Run `kimi-mcp-hub review-context`
+to get the base branch, the changed files, and the diff itself, then review that.
+Read its Warnings section first — a wrong base branch or a truncated body means the
+review is looking at the wrong thing.
