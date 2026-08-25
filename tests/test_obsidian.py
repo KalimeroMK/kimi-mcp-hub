@@ -62,6 +62,47 @@ class TestObsidianConfigRoundtrip:
         assert config.get_obsidian_vaults() == ["/old/vault", "/old/other"]
 
 
+class TestDefaultVaultPath:
+    """The default location must be right on macOS and on Linux.
+
+    `~/Documents` is a macOS/Windows convention: on Linux the folder is
+    whatever xdg-user-dirs says (often localized), and on a headless box or in
+    a container there is none at all.
+    """
+
+    def test_uses_documents_when_it_exists(self, tmp_path, monkeypatch):
+        documents = tmp_path / "Documents"
+        documents.mkdir()
+        monkeypatch.setattr(
+            "kimi_mcp_hub.servers.obsidian.platformdirs.user_documents_dir",
+            lambda: str(documents),
+        )
+
+        assert ObsidianServer.default_vault_path() == documents / "Kimi-Memory"
+
+    def test_falls_back_to_home_without_a_documents_folder(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setattr(
+            "kimi_mcp_hub.servers.obsidian.platformdirs.user_documents_dir",
+            lambda: str(tmp_path / "Documents"),  # never created
+        )
+
+        assert ObsidianServer.default_vault_path() == tmp_path / "Kimi-Memory"
+
+    def test_add_without_a_path_uses_the_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        expected = tmp_path / "somewhere" / "Kimi-Memory"
+        monkeypatch.setattr(
+            ObsidianServer, "default_vault_path", classmethod(lambda cls: expected)
+        )
+
+        result = CliRunner().invoke(main, ["obsidian", "add"])
+
+        assert result.exit_code == 0, result.output
+        assert KimiConfig().get_obsidian_vaults() == [str(expected)]
+        assert (expected / ".obsidian" / "app.json").is_file()
+
+
 class TestObsidianDefaultVault:
     """A machine needs a default memory vault, or session notes go nowhere."""
 
@@ -110,15 +151,25 @@ class TestInstallersDelegateObsidian:
     default memory vault.
     """
 
-    @pytest.mark.parametrize("script", ["install.sh", "install.ps1"])
-    def test_installer_calls_the_cli(self, script):
+    @pytest.mark.parametrize(
+        ("script", "call"),
+        [("install.sh", "obsidian add"), ("install.ps1", '"obsidian", "add"')],
+    )
+    def test_installer_calls_the_cli(self, script, call):
         text = (Path(__file__).parent.parent / "install" / script).read_text(
             encoding="utf-8"
         )
-        assert "obsidian add" in text, f"{script} should delegate to the CLI"
-        # The package spec and the --vault flag are the shape markers; the CLI
-        # is the only place that should know them.
-        for marker in ("obsidian-mcp@", "--vault"):
+        assert call in text, f"{script} should delegate to the CLI"
+        # Package spec, --vault flag, and any hardcoded vault path: the CLI is
+        # the only place that should know any of them.
+        markers = (
+            "obsidian-mcp@",
+            "--vault",
+            "DEFAULT_VAULT=",
+            "Documents/Kimi-Memory",
+            "Documents\\Kimi-Memory",
+        )
+        for marker in markers:
             assert marker not in text, (
                 f"{script} still hand-writes the obsidian config shape ({marker})"
             )

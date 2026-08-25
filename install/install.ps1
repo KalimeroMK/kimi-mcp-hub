@@ -8,7 +8,7 @@
 param(
     [switch]$Yes,
     [switch]$WithObsidian,
-    [string]$ObsidianVault = "$env:USERPROFILE\Documents\Kimi-Memory"
+    [string]$ObsidianVault = ""
 )
 
 $REPO = "KalimeroMK/kimi-mcp-hub"
@@ -157,25 +157,25 @@ function Apply-ClaudeCompat {
 
 function Setup-ObsidianMcp {
     Write-Host "Setting up Obsidian as local memory..." -ForegroundColor Cyan
-    
-    if (-not $Yes -and [console]::IsInputRedirected -eq $false) {
-        $inputVault = Read-Host "Obsidian vault path [$ObsidianVault]"
-        if ($inputVault) { $ObsidianVault = $inputVault }
+
+    if (-not $ObsidianVault -and -not $Yes -and [console]::IsInputRedirected -eq $false) {
+        $ObsidianVault = Read-Host "Obsidian vault path (empty = standard location for this OS)"
     }
-    
-    # Delegate to the CLI. It scaffolds the vault, writes the mcp.json entry in
-    # whatever shape obsidian-mcp currently needs, and registers the vault as
-    # the default memory vault when none is set yet -- without that last step
-    # session notes are written nowhere. Hand-rolling any of it here is what
-    # let this installer drift to the obsolete v1 config shape.
-    & "$VENV_DIR\Scripts\kimi-mcp-hub.exe" obsidian add "$ObsidianVault"
+
+    # The CLI owns the default location, the vault layout, the mcp.json shape,
+    # and registering the vault as the default memory vault. Passing no path
+    # lets it pick the right place for this OS -- including OneDrive-redirected
+    # Documents folders, which a hardcoded $env:USERPROFILE path misses.
+    $addArgs = @("obsidian", "add")
+    if ($ObsidianVault) { $addArgs += $ObsidianVault }
+
+    & "$VENV_DIR\Scripts\kimi-mcp-hub.exe" @addArgs
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "  Could not configure the Obsidian vault at $ObsidianVault" -ForegroundColor Red
+        Write-Host "  Could not configure the Obsidian vault" -ForegroundColor Red
         return
     }
 
-    Write-Host "  Obsidian vault ready: $ObsidianVault" -ForegroundColor Green
-    Write-Host "  Install Obsidian from https://obsidian.md and open this vault." -ForegroundColor Gray
+    Write-Host "  Install Obsidian from https://obsidian.md and open that vault." -ForegroundColor Gray
 }
 
 # Main

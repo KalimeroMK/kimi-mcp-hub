@@ -6,6 +6,11 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+import platformdirs
+
+#: Directory name used for the vault the installer creates.
+DEFAULT_VAULT_NAME = "Kimi-Memory"
+
 
 class ObsidianServer:
     """Obsidian vault MCP server -- local memory as markdown files.
@@ -23,6 +28,24 @@ class ObsidianServer:
     display_name = "Obsidian"
     description = "Read and write your Obsidian vault as local memory. No Obsidian plugin required; just point it at a vault folder."
     icon = "🧠"
+
+    @classmethod
+    def default_vault_path(cls) -> Path:
+        """Where a new vault goes when the user does not name a path.
+
+        ``~/Documents`` is a macOS and Windows convention. On Linux the real
+        folder is whatever xdg-user-dirs says, which is localized -- a Serbian
+        desktop has ``~/Документи`` and hardcoding the English name would
+        create a second, wrong folder beside it. platformdirs resolves that
+        (and OneDrive redirection on Windows).
+
+        On a headless box, WSL, or a container there is no Documents folder at
+        all, so the existence check falls back to the home directory rather
+        than inventing one.
+        """
+        documents = Path(platformdirs.user_documents_dir())
+        base = documents if documents.is_dir() else Path.home()
+        return base / DEFAULT_VAULT_NAME
 
     @classmethod
     def get_stdio_config(cls, vault_path: str | list[str]) -> dict[str, Any]:

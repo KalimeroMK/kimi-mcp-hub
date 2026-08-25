@@ -283,6 +283,7 @@ kimi-mcp-hub test github
 
 # Manage Obsidian vaults for local memory
 kimi-mcp-hub obsidian status
+kimi-mcp-hub obsidian add                    # standard location for this OS
 kimi-mcp-hub obsidian add ~/Documents/MyVault
 kimi-mcp-hub obsidian auto
 kimi-mcp-hub obsidian list
@@ -438,7 +439,10 @@ Obsidian vaults can be used as local memory and knowledge bases. The `obsidian` 
 # Show configured vaults and their status
 kimi-mcp-hub obsidian status
 
-# Add a vault path (scaffolds the vault if needed)
+# Add a vault at the standard location for this OS (scaffolds it if needed)
+kimi-mcp-hub obsidian add
+
+# ...or at a path you choose
 kimi-mcp-hub obsidian add ~/Documents/MyVault
 
 # Auto-create a project vault for the current git repo
@@ -457,7 +461,14 @@ kimi-mcp-hub obsidian set-default myvault
 kimi-mcp-hub obsidian sync-templates --templates-dir ./templates myvault
 ```
 
-The first vault added is set as the default memory vault. After adding a vault, restart Kimi CLI so the Obsidian MCP server picks it up.
+The first vault added is set as the default memory vault -- without one, session notes are
+written nowhere. After adding a vault, restart Kimi CLI so the Obsidian MCP server picks it up.
+
+The standard location is `<Documents>/Kimi-Memory`, where `<Documents>` is resolved per OS:
+`~/Documents` on macOS and Windows (including a OneDrive-redirected folder), and whatever
+`xdg-user-dirs` reports on Linux -- which is localized, so a non-English desktop gets its real
+Documents folder rather than a second English one. On a machine with no Documents folder at all
+(headless Linux, WSL, containers) the vault goes to `~/Kimi-Memory` instead.
 
 ### Project-specific memory
 
@@ -1020,7 +1031,8 @@ This appends a block to `~/.kimi-code/AGENTS.md` that tells Kimi to check for tw
 | `kimi-mcp-hub test <server>` | Check if server binary/HTTP endpoint is configured |
 | `kimi-mcp-hub doctor` | System health check + duplicate server detection |
 | `kimi-mcp-hub obsidian status` | Show configured Obsidian vaults |
-| `kimi-mcp-hub obsidian add <path>` | Add an Obsidian vault path |
+| `kimi-mcp-hub obsidian add` | Add a vault at the standard location for this OS |
+| `kimi-mcp-hub obsidian add <path>` | Add an Obsidian vault at a specific path |
 | `kimi-mcp-hub obsidian auto` | Create/switch to project vault in current git repo |
 | `kimi-mcp-hub obsidian list` | List configured Obsidian vaults |
 | `kimi-mcp-hub obsidian remove <slug>` | Remove an Obsidian vault from config |

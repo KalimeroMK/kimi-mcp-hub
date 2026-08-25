@@ -496,8 +496,11 @@ class TestObsidianCLI:
         runner = CliRunner()
         result = runner.invoke(main, ["obsidian", "add", str(existing_file)])
         # Click's built-in path validation exits with code 2 for usage errors.
+        # PATH is optional (omitting it picks the default location), so click
+        # renders the name as '[PATH]'.
         assert result.exit_code == 2
-        assert "Invalid value for 'PATH'" in result.output
+        assert "Invalid value for '[PATH]'" in result.output
+        assert "is a file" in result.output
         assert "is a file" in result.output
 
     def test_add_duplicate_slug_rejected(self, home):

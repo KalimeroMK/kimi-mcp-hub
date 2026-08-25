@@ -224,12 +224,18 @@ def obsidian_list():
 @obsidian.command(name="add")
 @click.argument(
     "path",
+    required=False,
     type=click.Path(path_type=Path, exists=False, file_okay=False, dir_okay=True),
 )
-def obsidian_add(path: Path):
-    """Add an Obsidian vault path."""
+def obsidian_add(path: Path | None):
+    """Add an Obsidian vault path.
+
+    Without PATH the vault goes to the standard location for this OS --
+    <Documents>/Kimi-Memory, or ~/Kimi-Memory where there is no Documents
+    folder (headless Linux, WSL, containers).
+    """
     config = KimiConfig()
-    vault_path = path.expanduser().resolve()
+    vault_path = (path or ObsidianServer.default_vault_path()).expanduser().resolve()
 
     vaults = config.get_obsidian_vaults()
     existing_resolved = {Path(p).expanduser().resolve() for p in vaults}

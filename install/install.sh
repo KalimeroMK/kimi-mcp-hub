@@ -9,7 +9,6 @@ REPO="KalimeroMK/kimi-mcp-hub"
 INSTALL_DIR="${KIMI_MCP_HUB_DIR:-$HOME/.kimi-mcp-hub}"
 VENV_DIR="$INSTALL_DIR/.venv"
 BIN_DIR="${KIMI_MCP_HUB_BIN:-$HOME/.local/bin}"
-DEFAULT_VAULT="$HOME/Documents/Kimi-Memory"
 
 # Colors
 RED='\033[0;31m'
@@ -199,28 +198,34 @@ post_install() {
 
 setup_obsidian_mcp() {
     print_info "Setting up Obsidian as local memory..."
-    
-    local vault_path="${OBSIDIAN_VAULT:-$DEFAULT_VAULT}"
-    
-    if [ "$AUTO_YES" = false ] && [ -t 0 ]; then
-        read -rp "Obsidian vault path [$vault_path]: " input
-        [ -n "$input" ] && vault_path="$input"
-    fi
-    
-    vault_path="$(eval echo "$vault_path")"
 
-    # Delegate to the CLI. It scaffolds the vault, writes the mcp.json entry in
-    # whatever shape obsidian-mcp currently needs, and registers the vault as
-    # the default memory vault when none is set yet -- without that last step
-    # session notes are written nowhere. Hand-rolling any of it here is what
-    # let this installer drift to the obsolete v1 config shape.
-    if ! "$VENV_DIR/bin/kimi-mcp-hub" obsidian add "$vault_path"; then
-        print_error "Could not configure the Obsidian vault at $vault_path"
-        return 1
+    local vault_path="${OBSIDIAN_VAULT:-}"
+
+    if [ -z "$vault_path" ] && [ "$AUTO_YES" = false ] && [ -t 0 ]; then
+        read -rp "Obsidian vault path (empty = standard location for this OS): " input
+        vault_path="$input"
     fi
 
-    print_success "Obsidian vault ready: $vault_path"
-    print_info "Install Obsidian from https://obsidian.md and open this vault."
+    # The CLI owns the default location, the vault layout, the mcp.json shape,
+    # and registering the vault as the default memory vault. Passing no path
+    # lets it pick the right place for this OS: <Documents>/Kimi-Memory, or
+    # ~/Kimi-Memory on a machine with no Documents folder. Hardcoding a path
+    # here would land in an English "Documents" beside the real, localized one
+    # on a non-English Linux desktop.
+    if [ -n "$vault_path" ]; then
+        vault_path="$(eval echo "$vault_path")"
+        "$VENV_DIR/bin/kimi-mcp-hub" obsidian add "$vault_path" || {
+            print_error "Could not configure the Obsidian vault at $vault_path"
+            return 1
+        }
+    else
+        "$VENV_DIR/bin/kimi-mcp-hub" obsidian add || {
+            print_error "Could not configure the Obsidian vault"
+            return 1
+        }
+    fi
+
+    print_info "Install Obsidian from https://obsidian.md and open that vault."
 }
 
 show_welcome() {
@@ -260,7 +265,7 @@ main() {
     # Parse arguments
     AUTO_YES=false
     WITH_OBSIDIAN=false
-    OBSIDIAN_VAULT="$DEFAULT_VAULT"
+    OBSIDIAN_VAULT=""
     METHOD="auto"
     
     while [[ $# -gt 0 ]]; do
