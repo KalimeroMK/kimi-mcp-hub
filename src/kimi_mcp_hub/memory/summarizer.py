@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
 _logger = logging.getLogger(__name__)
+
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 
 _CONTENT_PREVIEW_LEN = 200
 
@@ -35,6 +38,56 @@ Observations:
 
 SYSTEM_PROMPT = "You are a helpful coding session summarizer."
 
+_CHILL_PROMPT_TEMPLATE = """You are summarizing a coding session for a busy human. Given the
+following observations, write a short, informal recap.
+
+Title: one line, at most 90 characters, saying what actually got done.
+
+Then a markdown body with only these sections:
+
+- Key outcomes: what shipped or changed
+- Decisions: choices that matter later
+
+Skip everything else. Keep the body under 100 words. Use bullet points.
+
+Observations:
+{observations}
+"""
+
+_CHILL_SYSTEM_PROMPT = "You are a concise, informal coding session summarizer."
+
+_INVESTIGATION_PROMPT_TEMPLATE = """You are summarizing an investigation or debugging session. Given the
+following observations, write a structured summary.
+
+Title: one specific sentence, at most 90 characters, naming what was
+investigated and what was found.
+
+Then a markdown body with these sections:
+
+- Hypotheses tried: each theory that was tested
+- Evidence: observations that supported or refuted each hypothesis
+- Dead ends: paths ruled out, so they are not re-explored
+- Open questions: what remains unresolved
+
+Keep the body under 300 words. Use bullet points. Do not include raw output dumps.
+
+Observations:
+{observations}
+"""
+
+_INVESTIGATION_SYSTEM_PROMPT = "You are a structured investigation session summarizer."
+
+MODES = {
+    "code": {"system": SYSTEM_PROMPT, "template": PROMPT_TEMPLATE},
+    "chill": {"system": _CHILL_SYSTEM_PROMPT, "template": _CHILL_PROMPT_TEMPLATE},
+    "investigation": {
+        "system": _INVESTIGATION_SYSTEM_PROMPT,
+        "template": _INVESTIGATION_PROMPT_TEMPLATE,
+    },
+}
+
+DEFAULT_MODE = "code"
+
 
 class Summarizer:
     def __init__(
@@ -43,10 +96,15 @@ class Summarizer:
         model: str = "gpt-4o-mini",
         base_url: str = "https://api.openai.com/v1",
         temperature: float | None = None,
+        mode: str = "code",
     ):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.mode = mode if mode in MODES else DEFAULT_MODE
+        # A local server (Ollama, LM Studio, llama.cpp) needs no key, so a
+        # summary can be produced on this machine with nothing external.
+        self.is_local = urlparse(self.base_url).hostname in _LOCAL_HOSTS
         # Omitted from the request unless configured. Reasoning models reject
         # anything but their own default -- Kimi's coding endpoint answers
         # "only 1 is allowed for this model" -- so sending one unasked turns
@@ -67,6 +125,7 @@ class Summarizer:
             model=cfg.get_memory_summary_model(),
             base_url=cfg.get_memory_summary_base_url(),
             temperature=cfg.get_memory_summary_temperature(),
+            mode=cfg.get_memory_summary_mode(),
         )
 
     def _request(self, prompt: str, max_tokens: int | None = None):
@@ -76,7 +135,7 @@ class Summarizer:
         body: dict[str, Any] = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": MODES[self.mode]["system"]},
                 {"role": "user", "content": prompt},
             ],
         }
@@ -85,12 +144,12 @@ class Summarizer:
         if max_tokens is not None:
             body["max_tokens"] = max_tokens
 
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         return requests.post(
             f"{self.base_url}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json=body,
             timeout=30,
         )
@@ -103,7 +162,7 @@ class Summarizer:
         while every session silently loses its summary. This makes the failure
         answerable on demand.
         """
-        if not self.api_key:
+        if not self.api_key and not self.is_local:
             return False, "no API key configured"
         try:
             response = self._request("Reply with the word: ok", max_tokens=16)
@@ -136,12 +195,12 @@ class Summarizer:
                 lines.append(
                     f"- [{obs.get('type', 'unknown')}] {summary or content or 'No details'}"
                 )
-        return PROMPT_TEMPLATE.format(
+        return MODES[self.mode]["template"].format(
             observations="\n".join(lines) if lines else "- No observations."
         )
 
     def summarize_session(self, observations: list[dict[str, Any]]) -> str | None:
-        if not self.api_key:
+        if not self.api_key and not self.is_local:
             _logger.debug("No API key configured; skipping session summary")
             return None
 

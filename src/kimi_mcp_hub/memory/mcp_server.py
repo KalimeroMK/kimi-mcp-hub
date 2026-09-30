@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .db import MemoryDB
+from .embeddings import EmbeddingClient
 
 SERVER_NAME = "kimi-memory"
 DEFAULT_PROTOCOL_VERSION = "2024-11-05"
@@ -80,6 +81,17 @@ TOOLS: list[dict[str, Any]] = [
                     "type": "string",
                     "description": "Filter by observation type, e.g. 'session' or 'tool'.",
                 },
+                "mode": {
+                    "type": "string",
+                    "enum": ["keyword", "semantic", "hybrid"],
+                    "description": (
+                        "Search mode. 'keyword' (default) is full-text matching; "
+                        "'semantic' matches by meaning via embeddings; 'hybrid' "
+                        "merges both. Semantic modes fall back to keyword when "
+                        "embeddings are unavailable."
+                    ),
+                    "default": "keyword",
+                },
                 **_PROJECT_PARAMS,
             },
             "required": ["query"],
@@ -129,6 +141,38 @@ TOOLS: list[dict[str, Any]] = [
                 },
             },
             "required": ["ids"],
+        },
+    },
+    {
+        "name": "memory_summarize",
+        "description": (
+            "Record a summary of the current conversation so future sessions can "
+            "resume from it. Call this when a [Memory] hook asks for it, passing "
+            "the session_id it gives you. Include what was asked, what was done "
+            "(file paths, and the key content of anything that exists only in "
+            "chat), decisions with reasons, and what is still open."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Session id supplied by the [Memory] hook.",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "One specific line, at most 90 characters.",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "Markdown summary, under 200 words.",
+                },
+                "project": {
+                    "type": "string",
+                    "description": "Project path (defaults to the session's project).",
+                },
+            },
+            "required": ["session_id", "summary"],
         },
     },
     {
@@ -218,11 +262,23 @@ def _format_full(rows: list[dict[str, Any]]) -> str:
     return "\n\n---\n\n".join(blocks)
 
 
+def _reciprocal_rank_fusion(*rankings: list[int], k: int = 60) -> list[int]:
+    """Merge ranked id lists by Reciprocal Rank Fusion, best first."""
+    scores: dict[int, float] = {}
+    for ranking in rankings:
+        for rank, row_id in enumerate(ranking):
+            scores[row_id] = scores.get(row_id, 0.0) + 1.0 / (k + rank + 1)
+    return sorted(scores, key=lambda row_id: scores[row_id], reverse=True)
+
+
 class MemoryMCPServer:
     """Dispatches MCP requests against the local memory database."""
 
-    def __init__(self, db: MemoryDB | None = None):
+    def __init__(
+        self, db: MemoryDB | None = None, embedding_client: EmbeddingClient | None = None
+    ):
         self._db = db
+        self._embedding_client = embedding_client
         self._initialized = False
 
     @property
@@ -232,6 +288,13 @@ class MemoryMCPServer:
             self._db = MemoryDB()
         return self._db
 
+    @property
+    def embedding_client(self) -> EmbeddingClient:
+        # Lazy: only semantic/hybrid searches ever need it.
+        if self._embedding_client is None:
+            self._embedding_client = EmbeddingClient.from_config()
+        return self._embedding_client
+
     # ---- tools -------------------------------------------------------
 
     def tool_memory_search(self, args: dict[str, Any]) -> str:
@@ -240,20 +303,57 @@ class MemoryMCPServer:
             raise ValueError("query must not be empty")
         limit = min(max(int(args.get("limit", 20)), 1), MAX_SEARCH_LIMIT)
         project = _project_scope(args)
-        rows = self.db.search_index(
-            query,
-            limit=limit,
-            project_path=project,
-            obs_type=args.get("type") or None,
-        )
+        obs_type = args.get("type") or None
+        mode = str(args.get("mode") or "keyword").lower()
+        if mode not in ("keyword", "semantic", "hybrid"):
+            raise ValueError("mode must be 'keyword', 'semantic' or 'hybrid'")
+
+        def keyword_rows() -> list[dict[str, Any]]:
+            return self.db.search_index(
+                query, limit=limit, project_path=project, obs_type=obs_type
+            )
+
+        note = ""
+        if mode == "keyword":
+            rows = keyword_rows()
+        else:
+            vec_rows: list[dict[str, Any]] = []
+            semantic_ran = False
+            client = self.embedding_client
+            if self.db.vec_available and client.available:
+                embeddings = client.embed([query])
+                if embeddings:
+                    vec_rows = self.db.vector_search(
+                        embeddings[0],
+                        limit=limit,
+                        project_path=project,
+                        obs_type=obs_type,
+                    )
+                    semantic_ran = True
+            if mode == "semantic" and semantic_ran:
+                rows = vec_rows
+            elif mode == "hybrid" and semantic_ran:
+                fts_rows = keyword_rows()
+                merged = _reciprocal_rank_fusion(
+                    [r["id"] for r in vec_rows], [r["id"] for r in fts_rows]
+                )[:limit]
+                by_id = {r["id"]: r for r in self.db.get_observations_by_ids(merged)}
+                rows = [by_id[row_id] for row_id in merged if row_id in by_id]
+            else:
+                rows = keyword_rows()
+                note = "[semantic search unavailable; showing keyword results]"
+
         if not rows:
             scope = "this project" if project else "any project"
             return (
                 f"No memory matches for {query!r} in {scope}.\n"
                 "Try fewer or broader terms, or set all_projects=true."
             )
+        header = f"{len(rows)} match(es)"
+        if note:
+            header += f" {note}"
         return (
-            f"{len(rows)} match(es):\n"
+            f"{header}:\n"
             f"{_format_index(rows)}\n\n"
             "Next: memory_timeline(anchor_id) for context, memory_get([ids]) for full text."
         )
@@ -307,6 +407,38 @@ class MemoryMCPServer:
         )
         return f"Saved memory #{memory_id} for {project}."
 
+    def tool_memory_summarize(self, args: dict[str, Any]) -> str:
+        from .hooks import strip_private
+
+        session_id = str(args.get("session_id") or "").strip()
+        summary = strip_private(str(args.get("summary") or "")).strip()
+        if not session_id or not summary:
+            raise ValueError("session_id and summary must not be empty")
+        title = " ".join(strip_private(str(args.get("title") or "")).split())
+        if not title:
+            title = " ".join(summary.lstrip("#- *").split("\n", 1)[0].split())
+        title = title[:160]
+
+        explicit = args.get("project")
+        if isinstance(explicit, str) and explicit.strip():
+            project = _project_scope({"project": explicit})
+        else:
+            known = self.db.get_recent(session_id=session_id, limit=1)
+            project = (known[0]["project_path"] if known else None) or _project_scope(
+                {}
+            )
+
+        self.db.delete_observations(session_id, "session")
+        row_id = self.db.add_observation(
+            session_id=session_id,
+            obs_type="session",
+            content=f"Title: {title}\n\n{summary}",
+            summary=title,
+            tags=["session", "model"],
+            project_path=project,
+        )
+        return f"Saved session summary #{row_id} for {project}."
+
     # ---- protocol ----------------------------------------------------
 
     def _tool_handlers(self) -> dict[str, Callable[[dict[str, Any]], str]]:
@@ -314,6 +446,7 @@ class MemoryMCPServer:
             "memory_search": self.tool_memory_search,
             "memory_timeline": self.tool_memory_timeline,
             "memory_get": self.tool_memory_get,
+            "memory_summarize": self.tool_memory_summarize,
             "memory_save": self.tool_memory_save,
         }
 

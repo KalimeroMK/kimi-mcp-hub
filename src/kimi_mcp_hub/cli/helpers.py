@@ -546,7 +546,7 @@ def enable_memory(config: KimiConfig):
     console.print(f"[green]Memory database initialized: {config.memory_db}[/green]")
     console.print("[dim]   Memory will persist across sessions.[/dim]")
     console.print(
-        "[dim]   MCP server 'kimi-memory' registered (search/timeline/get/save).[/dim]"
+        "[dim]   MCP server 'kimi-memory' registered (search/timeline/get/summarize/save).[/dim]"
     )
     console.print("[dim]   Browse it with: kimi-mcp-hub memory viewer[/dim]")
     console.print(

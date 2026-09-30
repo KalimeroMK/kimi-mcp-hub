@@ -83,7 +83,9 @@ def config_summary(
 
     if not api_key:
         api_key = os.environ.get("KIMI_MEMORY_SUMMARY_API_KEY")
-    if not api_key:
+    if not api_key and Summarizer("", model, base_url).is_local:
+        api_key = ""
+    elif not api_key:
         if sys.stdin.isatty():
             api_key = Prompt.ask("API key", password=True)
         else:
@@ -96,7 +98,10 @@ def config_summary(
         base_url=base_url,
         enabled=enabled,
     )
-    masked = f"{api_key[:3]}...{api_key[-4:]}" if len(api_key) > 7 else "..."
+    if api_key:
+        masked = f"{api_key[:3]}...{api_key[-4:]}" if len(api_key) > 7 else "..."
+    else:
+        masked = "none (local server)"
     console.print("[green]Memory summary configuration saved.[/green]")
     console.print(f"[dim]API key:[/dim] {masked}")
     console.print(f"[dim]Model:[/dim] {model}")

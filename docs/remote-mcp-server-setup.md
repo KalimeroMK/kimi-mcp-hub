@@ -31,7 +31,7 @@ Everything happens inside the Kimi session:
 ```
 
 All eight OAuth servers above are declared by the plugin, plus five zero-config
-stdio servers and 57 skills.
+stdio servers and 58 skills.
 
 ### 2. Authorize each server you want
 

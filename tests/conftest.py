@@ -21,7 +21,22 @@ _XDG_VARS = (
 
 
 @pytest.fixture(autouse=True)
-def isolate_xdg_dirs(monkeypatch):
-    """Ensure XDG overrides cannot pull tests out of their temporary HOME."""
+def isolate_home(monkeypatch, tmp_path_factory):
+    """Give every test an empty HOME unless it sets its own.
+
+    Hooks read ``~/.kimi-code/config.toml`` and write notes to the configured
+    Obsidian vault, so a test that never set HOME was writing ``*-s1.md`` files
+    into the developer's real vault. XDG overrides are cleared so the new HOME
+    is the one ``platformdirs`` actually uses, and the first-run banner is
+    marked as seen so it cannot land in front of ``--json`` output.
+    """
     for name in _XDG_VARS:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("home")))
+
+    import json
+
+    from kimi_mcp_hub import __version__
+    from kimi_mcp_hub._post_install import _get_state_file
+
+    _get_state_file().write_text(json.dumps({"version": __version__}), encoding="utf-8")

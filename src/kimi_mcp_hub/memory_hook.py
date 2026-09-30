@@ -36,6 +36,11 @@ def main() -> int:
         return 1
 
     result = method(payload)
+    if result and event == "stop":
+        # Exit code 2 blocks the Stop: stderr is handed to the model as the
+        # reason and it continues, which is how it gets asked for a summary.
+        print(result, file=sys.stderr)
+        return 2
     if result:
         print(result)
     return 0

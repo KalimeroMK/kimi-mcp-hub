@@ -2,6 +2,7 @@
 
 import io
 import json
+from pathlib import Path
 
 import pytest
 
@@ -102,6 +103,7 @@ class TestProtocol:
             "memory_search",
             "memory_timeline",
             "memory_get",
+            "memory_summarize",
             "memory_save",
         ]
 
@@ -212,6 +214,50 @@ class TestSave:
 
     def test_empty_content_is_rejected(self, server):
         _, is_error = call(server, "memory_save", {"content": "  "})
+        assert is_error
+
+
+class TestSummarize:
+    def test_model_summary_becomes_the_session_row(self, server, db):
+        db.add_observation("s1", "user", "Write the press release", None, [], PROJECT)
+        db.add_observation(
+            "s1", "session", "Title: auto", "auto", ["session", "auto"], PROJECT
+        )
+        text, is_error = call(
+            server,
+            "memory_summarize",
+            {
+                "session_id": "s1",
+                "title": "Drafted the instacom press release",
+                "summary": "- Headline: Instacom launches\n- Saved to docs/press.md",
+            },
+        )
+        assert not is_error
+
+        rows = db.get_recent(session_id="s1", obs_type="session")
+        assert len(rows) == 1
+        assert rows[0]["summary"] == "Drafted the instacom press release"
+        assert "Headline: Instacom launches" in rows[0]["content"]
+        assert "auto" not in rows[0]["tags"]
+        assert rows[0]["project_path"] == str(Path(PROJECT).resolve())
+        assert db.search("Instacom launches", obs_type="session", project_path=PROJECT)
+
+    def test_title_defaults_to_the_first_summary_line(self, server, db):
+        call(
+            server, "memory_summarize", {"session_id": "s1", "summary": "- Did X\n- Y"}
+        )
+        assert db.get_recent(obs_type="session")[0]["summary"] == "Did X"
+
+    def test_private_spans_are_not_stored(self, server, db):
+        call(
+            server,
+            "memory_summarize",
+            {"session_id": "s1", "summary": "Deployed. <private>pw=hunter2</private>"},
+        )
+        assert "hunter2" not in db.get_recent(obs_type="session")[0]["content"]
+
+    def test_requires_session_id_and_summary(self, server):
+        _, is_error = call(server, "memory_summarize", {"session_id": "s1"})
         assert is_error
 
 

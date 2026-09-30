@@ -1,6 +1,6 @@
 {
   "name": "kimi-mcp-hub",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "MCP servers, skills, and persistent memory for Kimi Code CLI",
   "keywords": [
     "mcp",
@@ -95,8 +95,8 @@
   },
   "interface": {
     "displayName": "Kimi MCP Hub",
-    "shortDescription": "13 zero-config MCP servers + 57 skills, installable without leaving Kimi",
-    "longDescription": "One-click MCP servers, AI skills, and persistent memory for Kimi Code CLI. This plugin ships the 13 zero-config/OAuth servers (of the 25 the full CLI offers) plus all 57 skills. OAuth servers authorize with /mcp-config login; the remaining 12 API-key servers install via the kimi-mcp-hub CLI.",
+    "shortDescription": "13 zero-config MCP servers + 58 skills, installable without leaving Kimi",
+    "longDescription": "One-click MCP servers, AI skills, and persistent memory for Kimi Code CLI. This plugin ships the 13 zero-config/OAuth servers (of the 25 the full CLI offers) plus all 58 skills. OAuth servers authorize with /mcp-config login; the remaining 12 API-key servers install via the kimi-mcp-hub CLI.",
     "developerName": "KalimeroMK",
     "websiteURL": "https://github.com/KalimeroMK/kimi-mcp-hub"
   }

@@ -598,7 +598,7 @@ class TestMemoryHooksObsidian:
         recent = db.get_recent()
         assert len(recent) == 1
         assert recent[0]["type"] == "tool"
-        assert recent[0]["summary"] == "Used bash"
+        assert recent[0]["summary"] == "bash: ls -la"
         assert recent[0]["content"] == "file.txt\n"
 
     def test_post_tool_use_reads_tool_response(self, tmp_path):
@@ -616,7 +616,7 @@ class TestMemoryHooksObsidian:
         recent = db.get_recent()
         assert len(recent) == 1
         assert recent[0]["type"] == "tool"
-        assert recent[0]["summary"] == "Used Bash"
+        assert recent[0]["summary"] == "Bash: echo hi"
         assert "hi" in recent[0]["content"]
 
     def test_post_tool_use_extracts_text_from_dict_response(self, tmp_path):
@@ -633,7 +633,7 @@ class TestMemoryHooksObsidian:
 
         recent = db.get_recent()
         assert len(recent) == 1
-        assert recent[0]["summary"] == "Used Bash"
+        assert recent[0]["summary"] == "Bash: cat foo.txt"
         assert "line 1" in recent[0]["content"]
 
     def test_session_end_writes_no_notes(self, tmp_path, monkeypatch):

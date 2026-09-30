@@ -45,7 +45,7 @@ One-click MCP server and skills manager for **Kimi CLI** -- like `claude-mem` bu
 ## Install as a Kimi plugin (recommended)
 
 Since Kimi Code CLI 0.23, `kimi-mcp-hub` ships as a native Kimi plugin
-(`kimi.plugin.json`). This installs MCP servers and all 57 skills **without
+(`kimi.plugin.json`). This installs MCP servers and all 58 skills **without
 leaving Kimi CLI** — no external terminal step, no manual config editing.
 
 Inside a Kimi session:
@@ -528,9 +528,10 @@ SQLite file, and needs no API key or network access.
 
 | Tool | Purpose |
 |------|---------|
-| `memory_search` | Full-text search, returns a compact index (id, time, type, title) |
+| `memory_search` | Full-text search (`mode`: `keyword`, `semantic` or `hybrid`), returns a compact index (id, time, type, title) |
 | `memory_timeline` | Show what happened immediately before and after one hit |
 | `memory_get` | Fetch the full text of specific ids |
+| `memory_summarize` | Record a summary of the current conversation (called by the model when a hook asks) |
 | `memory_save` | Store a durable project note from inside the session |
 
 The three read tools are a deliberate funnel: search returns titles only, so the
@@ -682,7 +683,51 @@ At the end of a session the LLM summary is stored as a searchable observation,
 which is what later sessions retrieve — both at session start and, per prompt,
 through the `UserPromptSubmit` hook.
 
-### LLM-powered session summaries
+### Free, offline session summaries
+
+Memory works with no API key, no account and no external service. Three layers
+build the session summary, in this order:
+
+1. **The active Kimi model writes it.** The hooks never see the assistant's
+   answers, but the model running the session does. When enough has happened
+   (`summary_every`, default 6 new observations) the `Stop` hook asks it, once,
+   to call `memory_summarize` with what was asked, what was done, the key content
+   of anything that exists only in chat, decisions and open items. It costs one
+   short turn from the quota you already have; with no quota left the request
+   just fails and nothing is spent. Turn it off with
+   `summary_by_model = false` under `[memory]` in `~/.kimi-code/config.toml`.
+2. **An automatic summary is always kept as a floor.** It is built from the
+   session's own prompts, files written and commands run, so a session is
+   recallable even when the model never answers the request.
+3. **An LLM provider, optional** -- see below. A provider summary, when it
+   works, replaces the model-written one and no request is made.
+
+Each tool call is stored as a readable label (`Edit: src/app.py`,
+`Bash: pytest -q`) rather than `Used Bash`; secrets in commands are redacted and
+`<private>` spans dropped. A session keeps a single row that is refreshed, and a
+model- or provider-written summary is never overwritten by the automatic one.
+
+### Semantic search (optional)
+
+`memory_search` accepts `mode: "semantic"` or `"hybrid"` (keyword and vector
+results merged). It needs the `sqlite-vec` extra and an OpenAI-compatible
+embeddings endpoint; without either, it silently falls back to keyword search.
+
+```bash
+pip install "kimi-mcp-hub[vec]"
+```
+
+```toml
+[memory]
+embedding_model = "text-embedding-3-small"   # or KIMI_MEMORY_EMBEDDING_MODEL
+summary_base_url = "https://api.openai.com/v1"  # shared with summaries
+summary_api_key = "..."
+```
+
+The viewer also streams new observations live over Server-Sent Events at
+`/api/stream` (same token or cookie as the rest of the viewer).
+
+### LLM-powered session summaries (optional)
 
 By default, every session is saved as a raw observation note in your default Obsidian vault. You can also enable LLM-generated summaries that extract the goal, key decisions, files/tools touched, and open TODOs.
 
@@ -701,7 +746,14 @@ kimi-mcp-hub memory config-summary
 kimi-mcp-hub memory config-summary --api-key sk-... --disabled
 ```
 
-Supported providers include OpenAI, OpenRouter, and local [Ollama](https://ollama.com) endpoints. If no key is configured or the LLM call fails, `kimi-mcp-hub` falls back to the raw observation note.
+Supported providers include OpenAI, OpenRouter, and local servers such as
+[Ollama](https://ollama.com) or LM Studio. A local `localhost` endpoint needs no
+key, so summaries can run entirely on your machine:
+
+```bash
+kimi-mcp-hub memory config-summary --model llama3.1 --base-url http://localhost:11434/v1
+```
+ If no key is configured or the LLM call fails, `kimi-mcp-hub` falls back to the raw observation note.
 
 After a session you will find two notes in `<vault>/Sessions/`:
 
@@ -1229,7 +1281,7 @@ kimi-mcp-hub install-plugin nutlope/hallmark
 
 ## Testing
 
-The test suite lives in `tests/` (310+ tests, runs in CI on Python 3.10-3.13):
+The test suite lives in `tests/` (590+ tests, runs in CI on Python 3.10-3.13):
 
 ```bash
 pytest -q
@@ -1268,7 +1320,7 @@ pytest -q
 |  |  Global: ~/.kimi-code/mcp.json  |    |
 |  |  Project: ./.kimi/mcp.json      |    |
 |  |  Project secrets: ./.kimi/mcp.env|   |
-|  |  ~/.kimi-code/skills/ (57 skills)|    |
+|  |  ~/.kimi-code/skills/ (58 skills)|    |
 |  |  <config-dir>/kimi-mcp-hub/     |    |
 |  |    tokens.json + memory.db      |    |
 |  +---------------------------------+    |

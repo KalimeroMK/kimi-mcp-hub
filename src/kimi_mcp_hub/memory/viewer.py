@@ -20,9 +20,11 @@ import os
 import secrets
 import signal
 import socket
+import sqlite3
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
@@ -38,6 +40,8 @@ MAX_PAGE_SIZE = 200
 DEFAULT_PORT = 8765
 COOKIE_NAME = "kimi_viewer"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+STREAM_POLL_INTERVAL = 1.0
+STREAM_PING_INTERVAL = 15.0
 
 
 def state_dir() -> Path:
@@ -273,12 +277,76 @@ class MemoryViewerHandler(http.server.BaseHTTPRequestHandler):
             self._json({"rows": rows, "total": len(rows), "paginated": False})
             return
 
+        if route == "/api/stream":
+            self._stream(params)
+            return
+
         self._error(404, "unknown endpoint")
+
+    def _stream(self, params: dict[str, list[str]]) -> None:
+        """Push new observations as Server-Sent Events until the client leaves.
+
+        The ThreadingHTTPServer gives this connection its own thread, so the
+        poll loop can just run here; a client disconnect surfaces as a broken
+        pipe on the next write and ends it.
+        """
+        raw_since = _first(params, "since")
+        since = (
+            _int(params, "since", 0, 10**15)
+            if raw_since
+            else max_observation_id(self.db)
+        )
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(b"retry: 3000\n\n")
+            self.wfile.flush()
+
+            ping_at = time.monotonic() + STREAM_PING_INTERVAL
+            while True:
+                rows = observations_since(self.db, since)
+                for row in rows:
+                    since = row["id"]
+                    payload = json.dumps(row, ensure_ascii=False, default=str)
+                    self.wfile.write(
+                        f"event: observation\ndata: {payload}\n\n".encode("utf-8")
+                    )
+                now = time.monotonic()
+                if now >= ping_at:
+                    self.wfile.write(b": ping\n\n")
+                    ping_at = now + STREAM_PING_INTERVAL
+                self.wfile.flush()
+                time.sleep(STREAM_POLL_INTERVAL)
+        except OSError:
+            # Broken pipe or reset connection: the client went away.
+            return
 
 
 def _first(params: dict[str, list[str]], key: str) -> str:
     values = params.get(key)
     return values[0] if values else ""
+
+
+def max_observation_id(db: MemoryDB) -> int:
+    """Return the highest observation id, or 0 when the table is empty."""
+    with db._connect() as conn:
+        row = conn.execute("SELECT MAX(id) FROM observations").fetchone()
+    return row[0] or 0
+
+
+def observations_since(db: MemoryDB, since_id: int, limit: int = 200) -> list[dict]:
+    """Return compact rows for observations newer than ``since_id``, by id."""
+    with db._connect() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT id, timestamp, type, summary, project_path
+               FROM observations WHERE id > ? ORDER BY id LIMIT ?""",
+            (since_id, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
 
 def _int(params: dict[str, list[str]], key: str, default: int, maximum: int) -> int:
@@ -610,6 +678,8 @@ INDEX_HTML = """<!doctype html>
   }
   .row:hover { background: var(--panel); }
   .row.sel { background: var(--panel); box-shadow: inset 3px 0 0 var(--accent); }
+  .row { transition: background 1.2s ease; }
+  .row.new { background: var(--chip); box-shadow: inset 3px 0 0 var(--accent); }
   .meta { color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   .chip {
     background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 11px;
@@ -641,6 +711,7 @@ INDEX_HTML = """<!doctype html>
   <select id="project"><option value="">All projects</option></select>
   <select id="type"><option value="">All types</option></select>
   <button id="reload">Reload</button>
+  <span class="meta" id="newcount" hidden></span>
   <span class="meta" id="stats"></span>
 </header>
 <main>
@@ -654,6 +725,7 @@ let tab = 'observations';
 let offset = 0;
 let rows = [];
 let selected = null;
+let pendingNew = 0;
 
 const api = async (path, params = {}) => {
   // The token rides in the query only on the first visit; afterwards the
@@ -676,23 +748,25 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 const shortTime = (t) => (t || '').replace('T', ' ').slice(0, 16);
 const shortPath = (p) => (p ? p.split('/').slice(-2).join('/') : '');
 
+function rowHtml(r) {
+  const title = r.summary || (r.content || '').slice(0, 120) || '(no summary)';
+  const chips = [r.type || r.category, shortPath(r.project_path)]
+    .filter(Boolean)
+    .map((c) => `<span class="chip">${esc(c)}</span>`)
+    .join('');
+  return `<div class="row" data-id="${r.id}">
+    <div class="meta">#${r.id} <span>${esc(shortTime(r.timestamp))}</span> ${chips}</div>
+    <div class="title">${esc(title)}</div>
+  </div>`;
+}
+
 function renderList(data) {
   rows = data.rows || [];
   if (!rows.length) {
     el('list').innerHTML = '<div class="empty">Nothing here yet.</div>';
     return;
   }
-  const items = rows.map((r) => {
-    const title = r.summary || (r.content || '').slice(0, 120) || '(no summary)';
-    const chips = [r.type || r.category, shortPath(r.project_path)]
-      .filter(Boolean)
-      .map((c) => `<span class="chip">${esc(c)}</span>`)
-      .join('');
-    return `<div class="row" data-id="${r.id}">
-      <div class="meta">#${r.id} <span>${esc(shortTime(r.timestamp))}</span> ${chips}</div>
-      <div class="title">${esc(title)}</div>
-    </div>`;
-  }).join('');
+  const items = rows.map(rowHtml).join('');
 
   const pager = data.paginated ? `<div class="pager">
       <button id="prev" ${offset === 0 ? 'disabled' : ''}>← Newer</button>
@@ -739,8 +813,41 @@ function showError(err) {
   el('list').innerHTML = `<div class="empty">Error: ${esc(err.message)}</div>`;
 }
 
+// Live stream: prepend new observations in place when the list is a fresh,
+// unfiltered view of the newest rows; otherwise just count them.
+function prependRow(row) {
+  rows.unshift(row);
+  const tpl = document.createElement('template');
+  tpl.innerHTML = rowHtml(row).trim();
+  const node = tpl.content.firstChild;
+  node.classList.add('new');
+  node.onclick = () => select(Number(node.dataset.id));
+  const list = el('list');
+  const placeholder = list.querySelector('.empty, .status');
+  if (placeholder) placeholder.remove();
+  list.insertBefore(node, list.firstChild);
+  setTimeout(() => node.classList.remove('new'), 2500);
+}
+
+function startStream() {
+  const url = '/api/stream' + (token ? `?token=${encodeURIComponent(token)}` : '');
+  const source = new EventSource(url);
+  source.addEventListener('observation', (ev) => {
+    const row = JSON.parse(ev.data);
+    const fresh = tab === 'observations' && offset === 0 &&
+      !el('q').value.trim() && !el('project').value && !el('type').value;
+    if (fresh) { prependRow(row); return; }
+    pendingNew += 1;
+    const badge = el('newcount');
+    badge.textContent = `${pendingNew} new`;
+    badge.hidden = false;
+  });
+}
+
 async function load() {
   el('list').innerHTML = '<div class="status">Loading…</div>';
+  pendingNew = 0;
+  el('newcount').hidden = true;
   const params = {
     q: el('q').value.trim(),
     project: el('project').value,
@@ -769,6 +876,7 @@ async function boot() {
     history.replaceState(null, '', location.pathname);
   }
   load();
+  startStream();
 }
 
 function showTokenHelp() {

@@ -1,6 +1,7 @@
 """Configuration management for Kimi MCP Hub."""
 
 import json
+import os
 import stat
 import sys
 from pathlib import Path
@@ -200,6 +201,17 @@ class KimiConfig:
         except (TypeError, ValueError):
             return None
 
+    def get_memory_summary_mode(self) -> str:
+        """Return the summary mode: 'code', 'chill', or 'investigation'.
+
+        KIMI_MEMORY_SUMMARY_MODE overrides config.toml. Unknown values are
+        left as-is here; the summarizer resolves them to 'code'.
+        """
+        env = os.environ.get("KIMI_MEMORY_SUMMARY_MODE")
+        if env:
+            return env
+        return self.load_toml_config().get("memory", {}).get("summary_mode", "code")
+
     def is_memory_summary_enabled(self) -> bool:
         """Return whether memory summarization is enabled.
 
@@ -256,6 +268,20 @@ class KimiConfig:
     def get_context_notes(self) -> int:
         """How many project notes to inject at session start."""
         return self._positive_int("context_notes", 5)
+
+    def is_summary_by_model_enabled(self) -> bool:
+        """Whether the active Kimi model writes the session summary itself.
+
+        When no summary provider works, the Stop hook asks the model running
+        the session to call ``memory_summarize``. No external service is used.
+        """
+        return bool(
+            self.load_toml_config().get("memory", {}).get("summary_by_model", True)
+        )
+
+    def get_summary_every(self) -> int:
+        """New observations needed before the model is asked for a summary."""
+        return max(self._positive_int("summary_every", 6), 1)
 
     def _positive_int(self, key: str, default: int) -> int:
         raw = self.load_toml_config().get("memory", {}).get(key, default)

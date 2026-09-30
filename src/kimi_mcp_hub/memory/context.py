@@ -89,7 +89,11 @@ def build_context(
 
     fallback: list[dict] = []
     if not sessions and not notes:
-        fallback = db.get_recent(limit=DEFAULT_MAX_FALLBACK, project_path=scope)
+        fallback = [
+            row
+            for row in db.get_recent(limit=DEFAULT_MAX_FALLBACK * 3, project_path=scope)
+            if row["type"] != "meta"
+        ][:DEFAULT_MAX_FALLBACK]
         if not fallback:
             return ""
 
@@ -112,14 +116,14 @@ def build_context(
                 lines.append(f"\n### {day}")
                 current_day = day
             lines.append(
-                f"#{row['id']}  {_clock(row['timestamp'])}  {_truncate(row['summary'], 110)}"
+                f"[#{row['id']}] {_clock(row['timestamp'])}  {_truncate(row['summary'], 110)}"
             )
 
     if fallback:
         lines.append("\n## Recent activity")
         for row in fallback:
             title = row.get("summary") or _truncate(row.get("content", ""), 80)
-            lines.append(f"#{row['id']}  {_clock(row['timestamp'])}  {title}")
+            lines.append(f"[#{row['id']}] {_clock(row['timestamp'])}  {title}")
 
     lines.append(_footer(db, scope, shown=len(sessions) + len(fallback)))
     return "\n".join(lines)

@@ -2,9 +2,11 @@
 
 from unittest import mock
 
+import pytest
 import requests
 
-from kimi_mcp_hub.memory.summarizer import Summarizer
+from kimi_mcp_hub.config import KimiConfig
+from kimi_mcp_hub.memory.summarizer import MODES, Summarizer
 
 
 class TestSummarizer:
@@ -170,3 +172,134 @@ class TestRequestShape:
         ok, detail = Summarizer("", "m", "https://x/v1").check()
         assert ok is False
         assert "no API key" in detail
+
+
+class TestSummaryModes:
+    _MARKERS = {
+        "code": "Key decisions",
+        "chill": "Key outcomes",
+        "investigation": "Hypotheses tried",
+    }
+
+    def _capture(self, summarizer, monkeypatch):
+        sent = {}
+
+        class Response:
+            status_code = 200
+            ok = True
+            text = ""
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"choices": [{"message": {"content": "Title: did a thing"}}]}
+
+        def fake_post(url, headers=None, json=None, timeout=None):
+            sent["body"] = json
+            return Response()
+
+        monkeypatch.setattr("kimi_mcp_hub.memory.summarizer.requests.post", fake_post)
+        return sent
+
+    def test_default_mode_is_code(self):
+        assert Summarizer("k", "m", "https://x/v1").mode == "code"
+
+    def test_each_mode_selects_its_prompt(self, monkeypatch):
+        for mode, marker in self._MARKERS.items():
+            s = Summarizer("k", "m", "https://x/v1", mode=mode)
+            sent = self._capture(s, monkeypatch)
+            s.summarize_session([{"type": "tool", "summary": "Used Bash"}])
+            messages = sent["body"]["messages"]
+            assert messages[0]["content"] == MODES[mode]["system"]
+            assert marker in messages[1]["content"]
+
+    def test_unknown_mode_falls_back_to_code(self, monkeypatch):
+        s = Summarizer("k", "m", "https://x/v1", mode="banana")
+        assert s.mode == "code"
+        sent = self._capture(s, monkeypatch)
+        s.summarize_session([{"type": "tool", "summary": "Used Bash"}])
+        messages = sent["body"]["messages"]
+        assert messages[0]["content"] == MODES["code"]["system"]
+        assert "Key decisions" in messages[1]["content"]
+
+    def test_from_config_passes_mode_through(self):
+        config = mock.Mock()
+        config.is_memory_summary_enabled.return_value = True
+        config.get_memory_summary_mode.return_value = "investigation"
+        config.get_memory_summary_base_url.return_value = "https://api.example.com/v1"
+
+        summarizer = Summarizer.from_config(config)
+
+        assert summarizer.mode == "investigation"
+
+
+class TestSummaryModeConfig:
+    def _temp_config(self, tmp_path):
+        config = KimiConfig()
+        config.config_toml = tmp_path / "config.toml"
+        return config
+
+    def test_default_mode_is_code(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("KIMI_MEMORY_SUMMARY_MODE", raising=False)
+        assert self._temp_config(tmp_path).get_memory_summary_mode() == "code"
+
+    def test_config_toml_sets_mode(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("KIMI_MEMORY_SUMMARY_MODE", raising=False)
+        config = self._temp_config(tmp_path)
+        config.save_toml_config({"memory": {"summary_mode": "chill"}})
+        assert config.get_memory_summary_mode() == "chill"
+
+    def test_env_var_overrides_config(self, tmp_path, monkeypatch):
+        config = self._temp_config(tmp_path)
+        config.save_toml_config({"memory": {"summary_mode": "chill"}})
+        monkeypatch.setenv("KIMI_MEMORY_SUMMARY_MODE", "investigation")
+        assert config.get_memory_summary_mode() == "investigation"
+
+
+class TestLocalModel:
+    """A local server needs no key, so summaries work with nothing external."""
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://localhost:11434/v1",
+            "http://127.0.0.1:1234/v1",
+            "http://[::1]:8080/v1",
+        ],
+    )
+    def test_local_urls_are_recognised(self, url):
+        assert Summarizer("", "llama3", url).is_local
+
+    def test_remote_url_is_not_local(self):
+        assert not Summarizer("", "gpt-4o-mini", "https://api.openai.com/v1").is_local
+
+    def test_keyless_local_summary_is_generated_without_auth_header(self, monkeypatch):
+        seen = {}
+
+        class Response:
+            ok = True
+            status_code = 200
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"choices": [{"message": {"content": "Title: Local"}}]}
+
+        def fake_post(url, headers, json, timeout):
+            seen["headers"] = headers
+            return Response()
+
+        monkeypatch.setattr("kimi_mcp_hub.memory.summarizer.requests.post", fake_post)
+        summarizer = Summarizer("", "llama3", "http://localhost:11434/v1")
+        assert summarizer.summarize_session([{"type": "user", "content": "hi"}]) == (
+            "Title: Local"
+        )
+        assert "Authorization" not in seen["headers"]
+
+    def test_keyless_remote_is_still_refused(self):
+        assert (
+            Summarizer("", "m", "https://api.openai.com/v1").summarize_session([])
+            is None
+        )

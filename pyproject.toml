@@ -1,6 +1,6 @@
 [project]
 name = "kimi-mcp-hub"
-version = "0.7.0"
+version = "0.8.0"
 description = "One-click MCP server and skills manager for Kimi CLI -- 25 MCP servers, 57 AI skills, persistent memory"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,6 +45,7 @@ Issues = "https://github.com/KalimeroMK/kimi-mcp-hub/issues"
 
 [project.optional-dependencies]
 dev = ["pytest", "black", "ruff", "build", "twine"]
+vec = ["sqlite-vec>=0.1.6"]
 
 [build-system]
 requires = ["hatchling"]

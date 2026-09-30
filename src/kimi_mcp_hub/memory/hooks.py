@@ -107,6 +107,67 @@ def _first_line(text: str | None, limit: int = 160) -> str:
     return fallback[:limit]
 
 
+_PRIVATE_SPAN_RE = re.compile(
+    r"<private\b[^>]*>.*?(?:</private\s*>|\Z)", re.IGNORECASE | re.DOTALL
+)
+
+
+def strip_private(text: str) -> str:
+    """Remove every ``<private>...</private>`` span so it is never persisted.
+
+    The tag name is matched case-insensitively and a span may cross lines.
+    An unclosed opening tag drops everything to the end of the text: when in
+    doubt, err on the side of not storing.
+    """
+    if not text or "<private" not in text.lower():
+        return text
+    return _PRIVATE_SPAN_RE.sub("", text)
+
+
+_WORK_TYPES = frozenset({"user", "tool"})
+
+_TARGET_KEYS = (
+    "command",
+    "path",
+    "file_path",
+    "pattern",
+    "query",
+    "url",
+    "description",
+    "skill",
+    "name",
+)
+
+_SECRET_RE = re.compile(
+    r"(?i)(sk-[a-z0-9_-]{8,}|(?:bearer|basic)\s+\S+|"
+    r"(?:api[_-]?key|token|secret|password|authorization)\s*[=:]\s*"
+    r"(?:(?:bearer|basic)\s+)?\S+)"
+)
+
+
+def describe_tool(tool_name: str, tool_input: Any) -> str:
+    """One-line, searchable label for a tool call, e.g. ``Edit: src/app.py``.
+
+    "Used Bash" says nothing; the command or file is what a later session needs
+    to recognise the work. Free and deterministic -- no LLM involved. Obvious
+    secrets in commands are redacted and ``<private>`` spans dropped, since the
+    label is indexed and shown at session start.
+    """
+    label = tool_name or "tool"
+    detail = ""
+    if isinstance(tool_input, str):
+        detail = tool_input
+    elif isinstance(tool_input, dict):
+        detail = next(
+            (str(tool_input[key]) for key in _TARGET_KEYS if tool_input.get(key)), ""
+        )
+    detail = _SECRET_RE.sub("[redacted]", strip_private(detail))
+    detail = " ".join(detail.split())
+    if len(detail) > 120:
+        detail = detail[:120] + "..."
+    return f"{label}: {detail}" if detail else f"Used {label}"
+
+
 def _noisy_tools() -> frozenset[str]:
     """Return the set of tools whose output body is not stored."""
     if os.environ.get("KIMI_MEMORY_CAPTURE_ALL"):
@@ -277,7 +338,12 @@ class MemoryHooks:
     """Lifecycle hooks that capture session context."""
 
     def __init__(self, db: MemoryDB | None = None):
-        self.db = db or MemoryDB()
+        if db is None:
+            from .embeddings import EmbeddingClient
+
+            client = EmbeddingClient.from_config()
+            db = MemoryDB(embedding_client=client, embed_on_insert=client.available)
+        self.db = db
 
     def _maybe_start_viewer(self) -> None:
         """Bring the background viewer up if the user opted into autostart.
@@ -325,10 +391,15 @@ class MemoryHooks:
             or payload.get("message")
             or ""
         )
-        if not isinstance(prompt, str) or len(prompt.strip()) < 8:
+        if not isinstance(prompt, str):
+            return ""
+        # <private> spans must not even reach the search/index layer.
+        prompt = strip_private(prompt)
+        if len(prompt.strip()) < 8:
             return ""
 
         project_path = _resolve_project_path(payload)
+        self._record_user_prompt(payload, prompt, project_path)
         # match_any: the prompt is a sentence, so requiring every word to be
         # present would retrieve nothing.
         memories = self.db.search_memories(
@@ -357,6 +428,44 @@ class MemoryHooks:
             parts.append("[Memory] Fetch details with memory_get([ids]).")
         return "\n".join(parts)
 
+    def _record_user_prompt(
+        self, payload: dict, prompt: str, project_path: str
+    ) -> None:
+        """Persist the user's message so future sessions can recall what was asked.
+
+        Tool observations say *what ran*; only the prompt says *what was wanted*.
+        Without this a request that never went through a tool -- "write the press
+        release for instacom" answered entirely in chat -- is invisible to
+        cross-session memory. That is the exact gap between this system and
+        claude-mem, which stores the conversation rather than just tool calls.
+        """
+        session_id = payload.get("session_id", "unknown")
+        digest = content_hash("user", prompt)
+        if self.db.has_observation(session_id, digest):
+            return
+
+        content = prompt if len(prompt) <= 2000 else prompt[:2000] + "... [truncated]"
+        title = " ".join(content.split())
+        if len(title) > 200:
+            title = title[:200] + "..."
+        _debug_log_payload(
+            {
+                "session_id": session_id,
+                "payload_keys": sorted(payload.keys()),
+                "prompt": prompt[:200],
+            },
+            "user_prompt_submit",
+        )
+        self.db.add_observation(
+            session_id=session_id,
+            obs_type="user",
+            content=content,
+            summary=title,
+            tags=["user"],
+            project_path=project_path,
+            content_hash_value=digest,
+        )
+
     def post_tool_use(self, payload: dict) -> None:
         """Called on PostToolUse. Saves tool output."""
         session_id = payload.get("session_id", "unknown")
@@ -384,13 +493,17 @@ class MemoryHooks:
             # page of grep hits is bulk that crowds out the useful signal.
             content = f"[{tool_name} output omitted]"
         else:
-            content = _extract_text_output(raw_output)
+            content = strip_private(_extract_text_output(raw_output))
+            if not content.strip():
+                # Stripping <private> spans left nothing worth storing.
+                return
             if len(content) > 1000:
                 content = content[:1000] + "... [truncated]"
 
-        digest = content_hash(tool_name, content)
+        title = describe_tool(tool_name, payload.get("tool_input"))
+        digest = content_hash(tool_name, title, content)
         if self.db.has_observation(session_id, digest):
-            # Same tool, same result, same session -- nothing new to remember.
+            # Same call, same result, same session -- nothing new to remember.
             return
 
         _debug_log_payload(
@@ -411,7 +524,7 @@ class MemoryHooks:
             session_id=session_id,
             obs_type="tool",
             content=content,
-            summary=f"Used {tool_name}" if tool_name else "Used tool",
+            summary=title,
             tags=[tool_name] if tool_name else ["tool"],
             project_path=project_path,
             content_hash_value=digest,
@@ -452,26 +565,110 @@ class MemoryHooks:
         rel_path = image_path.relative_to(vault_path).as_posix()
         return f"![{tool_name}]({rel_path})"
 
-    def stop(self, payload: dict) -> None:
-        """Called on Stop. Summarizes the session and stores it as memory."""
+    def stop(self, payload: dict) -> str | None:
+        """Called on Stop. Summarizes the session and stores it as memory.
+
+        Returns a message when the active model should write the summary
+        itself; the CLI entry point turns that into a Stop-hook block so the
+        model takes one more turn to call ``memory_summarize``.
+        """
         session_id = payload.get("session_id", "unknown")
         project_path = _resolve_project_path(payload)
-        observations = self.db.get_recent(session_id=session_id, limit=50)
+        observations = [
+            row
+            for row in self.db.get_recent(session_id=session_id, limit=50)
+            if row["type"] != "meta"
+        ]
 
         summary_text = self._summarize(observations)
+        tags = ["session"]
+        if not summary_text:
+            # The LLM summary is unavailable (no key, exhausted quota, network
+            # failure). Build one from the session's own prompts and tool calls
+            # so memory works with no API at all -- free and offline.
+            summary_text = self._fallback_session_summary(session_id)
+            tags = ["session", "auto"]
 
-        # Store the summary itself so past sessions are searchable. The old
-        # placeholder ("Session ended") carried no retrievable signal.
-        self.db.add_observation(
-            session_id=session_id,
-            obs_type="session",
-            content=summary_text or "Session ended",
-            summary=_first_line(summary_text) or "Session completed",
-            tags=["session"],
-            project_path=project_path,
+        # Stop fires after every turn, so a session keeps a single row that is
+        # refreshed instead of one new row per turn. A generated (LLM) summary
+        # is never downgraded to an automatic one.
+        previous = self.db.get_recent(
+            session_id=session_id, obs_type="session", limit=50
         )
+        has_generated = any("auto" not in (row.get("tags") or "") for row in previous)
+        if "auto" in tags and has_generated:
+            summary_text = None
+        else:
+            self.db.delete_observations(session_id, "session")
+            self.db.add_observation(
+                session_id=session_id,
+                obs_type="session",
+                content=summary_text or "Session ended",
+                summary=_first_line(summary_text) or "Session completed",
+                tags=tags,
+                project_path=project_path,
+            )
         self._write_session_notes(
             payload, observations=observations, summary=summary_text
+        )
+        if "auto" in tags:
+            return self._model_summary_request(payload, session_id, project_path)
+        return None
+
+    def _model_summary_request(
+        self, payload: dict, session_id: str, project_path: str
+    ) -> str | None:
+        """Ask the running model to summarize, once enough has happened.
+
+        No external provider produced a summary, but the model in this session
+        has seen the whole conversation -- including its own answers, which no
+        hook receives. Asking it costs one short turn from the quota the user
+        already has; with no quota left the request simply fails and nothing is
+        spent. A marker row caps the requests to one per ``summary_every`` new
+        observations even when the model ignores one, and ``stop_hook_active``
+        stops a block from re-triggering itself.
+        """
+        if payload.get("stop_hook_active"):
+            return None
+        config = KimiConfig()
+        if not config.is_summary_by_model_enabled():
+            return None
+
+        rows = self.db.get_recent(session_id=session_id, limit=500)
+        last_marker = max(
+            (
+                row["id"]
+                for row in rows
+                if row["type"] == "meta"
+                or (row["type"] == "session" and "auto" not in (row.get("tags") or ""))
+            ),
+            default=0,
+        )
+        pending = sum(
+            1 for row in rows if row["id"] > last_marker and row["type"] in _WORK_TYPES
+        )
+        if pending < config.get_summary_every():
+            return None
+
+        self.db.add_observation(
+            session_id=session_id,
+            obs_type="meta",
+            content="summary requested",
+            summary="summary requested",
+            tags=["meta"],
+            project_path=project_path,
+        )
+        return (
+            "[Memory] Before you finish, save a summary of this conversation so "
+            "future sessions can pick up where you left off. Call the kimi-memory "
+            "tool memory_summarize with:\n"
+            f'  session_id: "{session_id}"\n'
+            "  title: one specific line, at most 90 characters\n"
+            "  summary: markdown, under 200 words -- what was asked, what was done "
+            "(file paths, plus the key content of anything that exists only in "
+            "this chat, such as a draft or an answer), decisions and why, and "
+            "what is still open.\n"
+            "Then reply with one short line. If the tool is unavailable, skip this."
         )
 
     def _summarize(self, observations: list[dict]) -> str | None:
@@ -481,6 +678,50 @@ class MemoryHooks:
         except Exception:
             _logger.debug("Failed to generate session summary", exc_info=True)
             return None
+
+    def _fallback_session_summary(self, session_id: str) -> str | None:
+        """Build a session summary from its own records, with no LLM.
+
+        The first substantive user prompt titles the session; the body lists the
+        requests, the files written and the commands run -- the same
+        request/completed shape claude-mem asks an LLM for. Short
+        acknowledgements ("ok", "continue") are skipped. Returns None when the
+        session holds nothing worth recalling.
+        """
+        rows = self.db.get_recent(session_id=session_id, limit=500)
+        rows.reverse()  # oldest first
+
+        requests_ = []
+        for row in rows:
+            if row["type"] == "user":
+                text = " ".join((row.get("content") or "").split())
+                if len(text) >= 20:
+                    requests_.append(text)
+
+        def unique(prefixes: tuple[str, ...], limit: int) -> list[str]:
+            seen: list[str] = []
+            for row in rows:
+                label = row.get("summary") or ""
+                if row["type"] == "tool" and label.startswith(prefixes):
+                    item = label.split(": ", 1)[1]
+                    if item not in seen:
+                        seen.append(item)
+            return seen[-limit:]
+
+        files = unique(("Edit: ", "Write: "), 8)
+        commands = unique(("Bash: ",), 5)
+        if not requests_ and not files:
+            return None
+
+        title = (requests_[0] if requests_ else f"Changed {files[-1]}")[:90]
+        lines = [f"Title: {title}", ""]
+        if requests_:
+            lines.append("- Requests: " + " | ".join(r[:110] for r in requests_[:5]))
+        if files:
+            lines.append("- Files changed: " + ", ".join(files))
+        if commands:
+            lines.append("- Commands: " + "; ".join(c[:60] for c in commands))
+        return "\n".join(lines)
 
     def session_end(self, payload: dict) -> None:
         """Called on SessionEnd. No-op; finalization is handled in stop()."""

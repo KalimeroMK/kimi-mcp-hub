@@ -159,6 +159,7 @@ OPTIONAL_SKILL_GROUPS = [
         "Productivity & Meta",
         [
             "memory-palace",
+            "memory-search",
             "hindsight",
             "task-master",
             "ralph",
@@ -206,6 +207,7 @@ SKILLS = {
     "research-mode": "Research-driven development",
     "perf-optimization": "Performance profiling and optimization",
     "memory-palace": "Advanced memory and context retrieval",
+    "memory-search": "Token-efficient search of persistent session memory",
     "code-reviewer": "Quick single-agent code review",
     "code-review": "Multi-agent code review (explore/coder/plan)",
     "api-designer": "REST/GraphQL API design",

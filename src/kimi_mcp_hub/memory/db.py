@@ -94,22 +94,66 @@ def build_fts_query(raw: str, match_any: bool = False) -> str:
 class MemoryDB:
     """Local SQLite database for cross-session memory."""
 
+    # Longest text sent to the embedding model for one observation.
+    EMBED_CONTENT_LIMIT = 2000
+
     @staticmethod
     def _default_memory_db() -> Path:
         """Return the default memory database path."""
         return _default_memory_db()
 
-    def __init__(self, db_path: Path | None = None):
+    def __init__(
+        self,
+        db_path: Path | None = None,
+        embedding_client=None,
+        embed_on_insert: bool = False,
+    ):
         if db_path is None:
             db_path = MemoryDB._default_memory_db()
         self.db_path = db_path
+        self.embedding_client = embedding_client
+        self.embed_on_insert = embed_on_insert
+        self._vec_available = self._detect_sqlite_vec()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
+
+    @staticmethod
+    def _detect_sqlite_vec() -> bool:
+        """Return True when the sqlite-vec extension can be loaded.
+
+        Vector features silently disable when the optional dependency is
+        missing or fails to load, leaving keyword search untouched.
+        """
+        try:
+            import sqlite_vec
+
+            conn = sqlite3.connect(":memory:")
+            try:
+                conn.enable_load_extension(True)
+                sqlite_vec.load(conn)
+                conn.execute("SELECT vec_version()").fetchone()
+            finally:
+                conn.close()
+        except Exception:
+            return False
+        return True
+
+    @property
+    def vec_available(self) -> bool:
+        """Return True when vector search is usable on this database."""
+        return self._vec_available
 
     def _connect(self) -> sqlite3.Connection:
         """Open a connection with a busy timeout for concurrent hook writers."""
         conn = sqlite3.connect(str(self.db_path), timeout=10)
         conn.execute("PRAGMA busy_timeout=5000")
+        if self._vec_available:
+            # The extension must be loaded on every connection that touches
+            # the vec0 virtual table.
+            import sqlite_vec
+
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
         return conn
 
     def _init_db(self) -> None:
@@ -243,7 +287,102 @@ class MemoryDB:
                 ),
             )
             conn.commit()
-        return cursor.lastrowid
+        rowid = cursor.lastrowid
+        if self.embed_on_insert:
+            # Embedded after the insert commits so a slow network call never
+            # holds the write lock against concurrent hook writers.
+            self.embed_observation(rowid, summary or content)
+        return rowid
+
+    def embed_observation(self, observation_id: int, text: str) -> bool:
+        """Embed one observation into the vector index.
+
+        The vec0 table is created lazily here, on the first successful embed,
+        because only then is the model's embedding dimension known. Returns
+        False -- never raises -- when vector search or the embedding client is
+        unavailable.
+        """
+        client = self.embedding_client
+        if not self._vec_available or client is None or not text:
+            return False
+        vectors = client.embed([text[: self.EMBED_CONTENT_LIMIT]])
+        if not vectors:
+            return False
+        vector = vectors[0]
+        try:
+            import sqlite_vec
+
+            with self._connect() as conn:
+                conn.execute(
+                    "CREATE VIRTUAL TABLE IF NOT EXISTS observation_vec "
+                    f"USING vec0(embedding float[{len(vector)}])"
+                )
+                conn.execute(
+                    "INSERT OR REPLACE INTO observation_vec (rowid, embedding) "
+                    "VALUES (?, ?)",
+                    (observation_id, sqlite_vec.serialize_float32(vector)),
+                )
+                conn.commit()
+        except sqlite3.Error:
+            _logger.warning(
+                "Failed to store embedding for observation %s",
+                observation_id,
+                exc_info=True,
+            )
+            return False
+        return True
+
+    def vector_search(
+        self,
+        query_embedding: list[float],
+        limit: int = 10,
+        project_path: str | None = None,
+        obs_type: str | None = None,
+    ) -> list[dict]:
+        """K-nearest observations by embedding distance, closest first.
+
+        Returns an empty list when vector search is unavailable or no
+        observation has been embedded yet.
+        """
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+        if not self._vec_available or limit == 0 or not query_embedding:
+            return []
+        if project_path:
+            project_path = str(Path(project_path).resolve())
+
+        import sqlite_vec
+
+        sql = """SELECT o.*, v.distance FROM observation_vec v
+                 JOIN observations o ON o.id = v.rowid
+                 WHERE v.embedding MATCH ? AND k = ?"""
+        params: list = [sqlite_vec.serialize_float32(query_embedding), limit]
+        if project_path:
+            sql += " AND o.project_path = ?"
+            params.append(project_path)
+        if obs_type:
+            sql += " AND o.type = ?"
+            params.append(obs_type)
+        sql += " ORDER BY v.distance"
+
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            try:
+                rows = conn.execute(sql, params).fetchall()
+            except sqlite3.Error:
+                _logger.warning("Vector search failed", exc_info=True)
+                return []
+            return [dict(row) for row in rows]
+
+    def delete_observations(self, session_id: str, obs_type: str) -> int:
+        """Delete a session's observations of one type; returns the row count."""
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM observations WHERE session_id = ? AND type = ?",
+                (session_id, obs_type),
+            )
+            conn.commit()
+            return cursor.rowcount
 
     def has_observation(self, session_id: str, hash_value: str) -> bool:
         """Return True if this session already stored an identical observation."""

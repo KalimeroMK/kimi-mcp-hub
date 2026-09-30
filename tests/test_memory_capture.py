@@ -180,6 +180,131 @@ class TestSessionSummaryIsSearchable:
         hooks.stop({"session_id": "s1", "cwd": PROJECT})
         assert db.get_recent(obs_type="session")[0]["content"] == "Session ended"
 
+    def test_stop_falls_back_to_the_user_prompt_when_summary_is_missing(
+        self, hooks, db, monkeypatch
+    ):
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+        hooks.user_prompt_submit(
+            {
+                "session_id": "s1",
+                "cwd": PROJECT,
+                "prompt": "Migrate the billing tables to UUID keys",
+            }
+        )
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+
+        session = db.get_recent(session_id="s1", obs_type="session", limit=1)[0]
+        assert session["summary"] == "Migrate the billing tables to UUID keys"
+        assert session["content"].startswith("Title: Migrate the billing tables")
+
+
+class TestToolDescriptions:
+    def _call(self, hooks, name, tool_input, output="ok"):
+        hooks.post_tool_use(
+            {
+                "session_id": "s1",
+                "tool_name": name,
+                "tool_input": tool_input,
+                "tool_output": output,
+                "cwd": PROJECT,
+            }
+        )
+
+    def test_label_names_the_command_or_file(self, hooks, db):
+        self._call(hooks, "Bash", {"command": "pytest -q tests/"})
+        self._call(hooks, "Edit", {"path": "src/app.py"})
+        labels = {row["summary"] for row in db.get_recent()}
+        assert labels == {"Bash: pytest -q tests/", "Edit: src/app.py"}
+
+    def test_label_falls_back_when_there_is_no_input(self, hooks, db):
+        self._call(hooks, "Bash", None)
+        assert db.get_recent()[0]["summary"] == "Used Bash"
+
+    def test_secrets_in_commands_are_redacted(self, hooks, db):
+        self._call(
+            hooks, "Bash", {"command": "curl -H 'Authorization: Bearer abc123' x.io"}
+        )
+        self._call(hooks, "Bash", {"command": "deploy --api-key=sk-live-1234567890"})
+        for row in db.get_recent():
+            assert "abc123" not in row["summary"]
+            assert "1234567890" not in row["summary"]
+
+    def test_private_spans_in_commands_are_dropped(self, hooks, db):
+        self._call(hooks, "Bash", {"command": "echo <private>hunter2</private> done"})
+        assert "hunter2" not in db.get_recent()[0]["summary"]
+
+    def test_each_file_read_is_kept_not_just_the_first(self, hooks, db):
+        for name in ("a.py", "b.py", "c.py"):
+            self._call(hooks, "Read", {"path": name})
+        assert db.get_stats()["total_observations"] == 3
+
+
+class TestOfflineSessionSummary:
+    """With no LLM at all, a session must still be recallable."""
+
+    def _session(self, hooks):
+        hooks.user_prompt_submit(
+            {
+                "session_id": "s1",
+                "cwd": PROJECT,
+                "prompt": "Write the press release for instacom",
+            }
+        )
+        for name, tool_input in (
+            ("Write", {"path": "docs/press.md"}),
+            ("Edit", {"path": "docs/press.md"}),
+            ("Bash", {"command": "git add docs"}),
+        ):
+            hooks.post_tool_use(
+                {
+                    "session_id": "s1",
+                    "tool_name": name,
+                    "tool_input": tool_input,
+                    "tool_output": "done",
+                    "cwd": PROJECT,
+                }
+            )
+
+    def test_summary_lists_requests_files_and_commands(self, hooks, db, monkeypatch):
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+        self._session(hooks)
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+
+        row = db.get_recent(session_id="s1", obs_type="session")[0]
+        assert row["summary"] == "Write the press release for instacom"
+        assert "Files changed: docs/press.md" in row["content"]
+        assert "Commands: git add docs" in row["content"]
+
+    def test_session_keeps_one_row_across_turns_and_stays_searchable(
+        self, hooks, db, monkeypatch
+    ):
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+        self._session(hooks)
+        for _ in range(3):
+            hooks.stop({"session_id": "s1", "cwd": PROJECT})
+
+        assert len(db.get_recent(session_id="s1", obs_type="session")) == 1
+        assert db.search("press release", obs_type="session", project_path=PROJECT)
+        with db._connect() as conn:
+            conn.execute(
+                "INSERT INTO observations_fts(observations_fts) VALUES('integrity-check')"
+            )
+
+    def test_generated_summary_is_not_downgraded(self, hooks, db, monkeypatch):
+        self._session(hooks)
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: "Title: LLM")
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+
+        row = db.get_recent(session_id="s1", obs_type="session")[0]
+        assert row["content"] == "Title: LLM"
+
+    def test_empty_session_gets_no_fake_summary(self, hooks, db, monkeypatch):
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+        assert db.get_recent(obs_type="session")[0]["summary"] == "Session completed"
+
 
 class TestUserPromptSubmit:
     def test_injects_matching_project_notes(self, hooks, db):
@@ -220,6 +345,44 @@ class TestUserPromptSubmit:
             hooks.user_prompt_submit({"cwd": PROJECT, "prompt": "unrelated question"})
             == ""
         )
+
+
+class TestUserPromptCapture:
+    def test_prompt_is_stored_and_searchable(self, hooks, db):
+        hooks.user_prompt_submit(
+            {
+                "session_id": "s1",
+                "cwd": PROJECT,
+                "prompt": "Write the press release for instacom",
+            }
+        )
+        stored = db.get_recent(session_id="s1", obs_type="user")[0]
+        assert stored["type"] == "user"
+        assert stored["content"] == "Write the press release for instacom"
+        assert stored["project_path"] == PROJECT
+
+        hits = db.search("press release", project_path=PROJECT, obs_type="user")
+        assert len(hits) == 1
+
+    def test_identical_prompt_is_stored_once(self, hooks, db):
+        payload = {
+            "session_id": "s1",
+            "cwd": PROJECT,
+            "prompt": "deploy to production now",
+        }
+        hooks.user_prompt_submit(payload)
+        hooks.user_prompt_submit(payload)
+        assert db.get_stats()["total_observations"] == 1
+
+    def test_short_prompts_are_not_stored(self, hooks, db):
+        hooks.user_prompt_submit({"session_id": "s1", "cwd": PROJECT, "prompt": "hi"})
+        assert db.get_recent(obs_type="user") == []
+
+    def test_prompts_are_project_scoped(self, hooks, db):
+        hooks.user_prompt_submit(
+            {"session_id": "s1", "cwd": OTHER, "prompt": "secret launch plan"}
+        )
+        assert db.search("secret", project_path=PROJECT, obs_type="user") == []
 
 
 class TestBrowseAndTimeline:
@@ -317,3 +480,92 @@ class TestSessionTitles:
         hooks.stop({"session_id": "s1", "cwd": PROJECT})
         row = db.get_recent(session_id="s1", obs_type="session", limit=1)[0]
         assert row["summary"] == "Recovered project paths from vault notes"
+
+
+class TestModelWrittenSummary:
+    """With no summary provider, the active model is asked to write it."""
+
+    def _work(self, hooks, count=6, session="s1", offset=0):
+        hooks.user_prompt_submit(
+            {"session_id": session, "cwd": PROJECT, "prompt": "Write the press release"}
+        )
+        for index in range(count - 1):
+            hooks.post_tool_use(
+                {
+                    "session_id": session,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": f"step {offset + index}"},
+                    "tool_output": f"out {offset + index}",
+                    "cwd": PROJECT,
+                }
+            )
+
+    @pytest.fixture(autouse=True)
+    def no_provider(self, monkeypatch):
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+
+    def test_asks_the_model_once_enough_has_happened(self, hooks):
+        self._work(hooks)
+        request = hooks.stop({"session_id": "s1", "cwd": PROJECT})
+        assert "memory_summarize" in request
+        assert 'session_id: "s1"' in request
+
+    def test_does_not_ask_for_a_small_session(self, hooks):
+        self._work(hooks, count=3)
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT}) is None
+
+    def test_does_not_loop_on_its_own_block(self, hooks):
+        self._work(hooks)
+        payload = {"session_id": "s1", "cwd": PROJECT, "stop_hook_active": True}
+        assert hooks.stop(payload) is None
+
+    def test_asks_only_once_per_batch_of_work(self, hooks):
+        self._work(hooks)
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT})
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT}) is None
+        self._work(hooks, count=7, offset=100)
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT})
+
+    def test_a_model_summary_resets_the_counter(self, hooks, db):
+        self._work(hooks)
+        db.add_observation(
+            "s1", "session", "Title: X", "X", ["session", "model"], PROJECT
+        )
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT}) is None
+
+    def test_provider_summary_means_no_request(self, hooks, monkeypatch):
+        monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: "Title: LLM")
+        self._work(hooks)
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT}) is None
+
+    def test_can_be_turned_off(self, hooks):
+        from kimi_mcp_hub.config import KimiConfig
+
+        config = KimiConfig()
+        data = config.load_toml_config()
+        data.setdefault("memory", {})["summary_by_model"] = False
+        config.save_toml_config(data)
+
+        self._work(hooks)
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT}) is None
+
+    def test_marker_rows_stay_out_of_the_session_context(self, hooks, db):
+        self._work(hooks)
+        hooks.stop({"session_id": "s1", "cwd": PROJECT})
+        assert "summary requested" not in hooks.session_start({"cwd": PROJECT})
+
+    def test_cli_blocks_the_stop_with_exit_code_2(self, db):
+        import json
+        import subprocess
+        import sys
+
+        hooks = MemoryHooks(db=MemoryDB())
+        self._work(hooks)
+        result = subprocess.run(
+            [sys.executable, "-m", "kimi_mcp_hub.memory_hook", "stop"],
+            input=json.dumps({"session_id": "s1", "cwd": PROJECT}),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 2
+        assert "memory_summarize" in result.stderr

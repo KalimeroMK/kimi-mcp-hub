@@ -52,5 +52,9 @@ class KimiMemoryServer:
                 "desc": "Show observations around a search hit",
             },
             {"name": "memory_get", "desc": "Fetch full text for specific ids"},
+            {
+                "name": "memory_summarize",
+                "desc": "Record a summary of the current conversation",
+            },
             {"name": "memory_save", "desc": "Store a durable note for this project"},
         ]

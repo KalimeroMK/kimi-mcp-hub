@@ -11,6 +11,7 @@ import pytest
 
 from kimi_mcp_hub.memory.context import build_context
 from kimi_mcp_hub.memory.db import MemoryDB
+from kimi_mcp_hub.memory.mcp_server import MemoryMCPServer
 
 PROJECT = str(Path("/tmp/kimi-context-project").resolve())
 OTHER = str(Path("/tmp/kimi-context-other").resolve())
@@ -38,8 +39,13 @@ class TestWhatIsIncluded:
     def test_sessions_are_listed_with_ids(self, db):
         row_id = add_session(db, "s1", "Migrated billing tables to UUID keys")
         block = build_context(db, PROJECT)
-        assert f"#{row_id}" in block
+        assert f"[#{row_id}]" in block
         assert "Migrated billing tables to UUID keys" in block
+
+    def test_fallback_activity_carries_citable_ids(self, db):
+        row_id = db.add_observation("s1", "tool", "output", "Used Bash", [], PROJECT)
+        block = build_context(db, PROJECT)
+        assert f"[#{row_id}]" in block
 
     def test_project_notes_are_listed(self, db):
         db.add_memory("Billing uses UUID primary keys", "project", [], PROJECT)
@@ -115,6 +121,22 @@ class TestWhatIsLeftOut:
     def test_long_titles_are_truncated(self, db):
         add_session(db, "s1", "x" * 400)
         assert "…" in build_context(db, PROJECT)
+
+
+class TestCitations:
+    def test_memory_get_returns_exactly_the_requested_ids(self, db):
+        first = add_session(db, "s1", "First session")
+        second = add_session(db, "s2", "Second session")
+        skipped = add_session(db, "s3", "Third session")
+        text = MemoryMCPServer(db=db).tool_memory_get({"ids": [first, second]})
+        assert f"#{first}" in text
+        assert f"#{second}" in text
+        assert f"#{skipped}" not in text
+        assert "Third session" not in text
+
+    def test_memory_get_reports_unknown_ids(self, db):
+        text = MemoryMCPServer(db=db).tool_memory_get({"ids": [999]})
+        assert "No observations found" in text
 
 
 class TestDateGrouping:
