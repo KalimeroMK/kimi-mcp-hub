@@ -81,6 +81,16 @@ def config_summary(
         )
         sys.exit(1)
 
+    if not enabled:
+        data = config.load_toml_config()
+        data.setdefault("memory", {})["summary_enabled"] = False
+        config.save_toml_config(data)
+        console.print("[green]Provider summaries disabled.[/green]")
+        console.print(
+            "[dim]The active model still writes summaries via memory_summarize.[/dim]"
+        )
+        return
+
     if not api_key:
         api_key = os.environ.get("KIMI_MEMORY_SUMMARY_API_KEY")
     if not api_key and Summarizer("", model, base_url).is_local:
