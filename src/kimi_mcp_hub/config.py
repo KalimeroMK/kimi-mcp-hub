@@ -272,11 +272,14 @@ class KimiConfig:
     def is_summary_by_model_enabled(self) -> bool:
         """Whether the active Kimi model writes the session summary itself.
 
-        When no summary provider works, the Stop hook asks the model running
-        the session to call ``memory_summarize``. No external service is used.
+        Off by default: blocking the Stop hook with exit code 2 forces the
+        model to take a follow-up turn calling ``memory_summarize``, which in
+        the Kimi CLI TUI replaces/hides the model's actual reply to the user.
+        Users who want model-written summaries can opt in via
+        ``[memory] summary_by_model = true`` in config.toml.
         """
         return bool(
-            self.load_toml_config().get("memory", {}).get("summary_by_model", True)
+            self.load_toml_config().get("memory", {}).get("summary_by_model", False)
         )
 
     def get_summary_every(self) -> int:

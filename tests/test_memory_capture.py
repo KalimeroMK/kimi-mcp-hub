@@ -502,7 +502,24 @@ class TestModelWrittenSummary:
 
     @pytest.fixture(autouse=True)
     def no_provider(self, monkeypatch):
+        from kimi_mcp_hub.config import KimiConfig
+
         monkeypatch.setattr(MemoryHooks, "_summarize", lambda self, obs: None)
+        config = KimiConfig()
+        data = config.load_toml_config()
+        data.setdefault("memory", {})["summary_by_model"] = True
+        config.save_toml_config(data)
+
+    def test_is_off_by_default_so_stop_hook_does_not_replace_user_reply(self, hooks):
+        from kimi_mcp_hub.config import KimiConfig
+
+        config = KimiConfig()
+        data = config.load_toml_config()
+        data.get("memory", {}).pop("summary_by_model", None)
+        config.save_toml_config(data)
+
+        self._work(hooks)
+        assert hooks.stop({"session_id": "s1", "cwd": PROJECT}) is None
 
     def test_asks_the_model_once_enough_has_happened(self, hooks):
         self._work(hooks)

@@ -668,7 +668,10 @@ class MemoryHooks:
             "(file paths, plus the key content of anything that exists only in "
             "this chat, such as a draft or an answer), decisions and why, and "
             "what is still open.\n"
-            "Then reply with one short line. If the tool is unavailable, skip this."
+            "IMPORTANT: The hook turn replaces your previous response in the user's "
+            "terminal. After calling memory_summarize, you MUST output your complete "
+            "answer to the user's request again in full so the user can see it (never "
+            "reply with just 'Saved session summary'). If the tool is unavailable, skip this."
         )
 
     def _summarize(self, observations: list[dict]) -> str | None:
